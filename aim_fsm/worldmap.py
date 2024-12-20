@@ -90,7 +90,7 @@ class WorldMap():
         objspecs = self.robot.robot0._ws_status_thread.current_status['aivision']['objects']['items']
         seen_objs = []
         for spec in objspecs:
-            name = spec['name']
+            name = spec.get('name', None)
             if name not in self.objects:
                 obj = self.make_object(spec)
                 self.objects[obj.name] = obj

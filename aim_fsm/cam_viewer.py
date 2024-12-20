@@ -83,7 +83,7 @@ class CamViewer():
             cv2.line(image, (0, int(self.height/2)), (self.width, int(self.height/2)), (0,255,255), 1)
 
         for obj in self.robot.robot0.status['aivision']['objects']['items']:
-            name = obj['name']
+            name = obj.get('name', None)
             if name == 'Ball':
                 color = (0, 255, 255)
             elif name == 'OrangeBarrel':

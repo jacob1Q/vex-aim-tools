@@ -35,6 +35,7 @@ class Robot():
         self.camera_image = None
         robot0._ws_img_thread.callback = self.image_callback
         robot0.get_camera_image()  # start the image stream
+        robot0.aiv.tag_detection(True)
 
     def status_callback(self):
         #print(f"status_callback in {threading.current_thread().native_id}")
