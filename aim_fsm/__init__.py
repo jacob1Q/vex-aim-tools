@@ -1,4 +1,7 @@
 from . import base
+from . import program
+base.program = program
+
 from .geometry import *
 from .nodes import *
 from .transitions import *
@@ -8,3 +11,6 @@ from .robot import Robot
 from .worldmap import *
 from .worldmap_viewer import WorldMapViewer
 from .program import StateMachineProgram, runfsm
+
+del base
+

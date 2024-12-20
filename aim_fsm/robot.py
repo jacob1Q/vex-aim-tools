@@ -14,9 +14,9 @@ from .worldmap import *
 from . import program
 
 class Robot():
-    def __init__(self, robot0=None, loop=None, ip="192.168.4.1"):
+    def __init__(self, robot0=None, loop=None, host="192.168.4.1"):
         if robot0 is None:
-            robot0 = aim.Robot(ip=ip)
+            robot0 = aim.Robot(host=host)
         robot0.inertial.calibrate()
         robot0.set_pose(0,0,0)
         self.robot0 = robot0
@@ -47,7 +47,7 @@ class Robot():
         gyro = sum([abs(float(self.status['gyro_rate'][axis])) for axis in 'xyz'])
         accel = abs(float(self.status['pitch'])) + abs(float(self.status['roll']))
         if accel > 10:
-            self.robot0.stop_drive()
+            self.robot0.stop_all_motion()
             self.robot0.play_sound(vex.SoundType.ALARM, 100)
         """
         self.x = float(self.status['robot_y'])
@@ -94,21 +94,32 @@ class Robot():
             turntype = vex.TurnType.LEFT
         else:
             turntype = vex.TurnType.RIGHT
-        print(f"turn for {angle_rads} radians = {angle_rads*180/pi} deg")
-        print(f"turning in thead {threading.current_thread().native_id}")
         self.robot0.turn_for(turntype, abs(angle_rads)*180/pi, turn_speed=turn_speed, wait=False)
 
     def forward(self, distance_mm, drive_speed=None):
         angle_zero = 0
-        self.robot0.drive_for(distance_mm, angle_zero, drive_speed=drive_speed, wait=False)
+        self.robot0.move_for(distance_mm, angle_zero, drive_speed=drive_speed, wait=False)
 
     def is_picked_up(self):
+        """
+        This function could be smarter about deciding when the robot has been
+        put down.  The attitude_threshold should be raised to 7 degrees, but
+        the robot should be required to hold its attitude to within 1 degree for
+        at least 1 second.  This will handle cases where the robot is put down
+        partially on top of something like a pen, so it's a little tilted.
+        """
         gyro = self.status['gyro_rate']
         x = float(gyro['x'])
         y = float(gyro['y'])
-        threshold = 15
-        if (abs(x) > threshold) or (abs(y) > threshold):
-            #print(f"*** Gyro  x:{x}  y:{y}")
+        gyro_threshold = 15
+        pitch = self.robot0.get_pitch()
+        roll = self.robot0.get_roll()
+        attitude_threshold = 2
+        if abs(x) > gyro_threshold or abs(y) > gyro_threshold or \
+           abs(pitch) > attitude_threshold or abs(roll) > attitude_threshold:
+            print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
             return True
         else:
+            if self.was_picked_up:
+                print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
             return False

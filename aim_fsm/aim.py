@@ -1,5 +1,4 @@
 import websocket
-from time import sleep
 import json
 import time
 import threading
@@ -15,15 +14,22 @@ import pathlib
 VERSION_MAJOR = 1
 VERSION_MINOR = 0
 VERSION_BUILD = 0
-VERSION_BETA  = 4
-SYS_FLAGS_SOUND_PLAYING  = (1<<0)
-SYS_FLAGS_IS_SOUND_DNL   = (1<<16)
-SYS_FLAGS_IS_DRIVING     = (1<<1)
-SYS_FLAGS_IMU_CAL        = (1<<3)
-SYS_FLAGS_IS_TURNING     = (1<<4)
-SYS_FLAGS_IS_MOVING      = (1<<5)
-SYS_FLAGS_IS_SHAKE       = (1<<8)
+VERSION_BETA  = 5
+SYS_FLAGS_SOUND_PLAYING     = (1<<0)
+SYS_FLAGS_IS_SOUND_DNL      = (1<<16)
+SYS_FLAGS_IS_MOVE_ACTIVE    = (1<<1) #if a move_at or move_for (or any "move" command) is active
+SYS_FLAGS_IMU_CAL           = (1<<3)
+SYS_FLAGS_IS_TURN_ACTIVE    = (1<<4)
+SYS_FLAGS_IS_MOVING         = (1<<5) # if there is any wheel movement whatsoever
+SYS_FLAGS_HAS_CRASHED       = (1<<6)
+SYS_FLAGS_IS_SHAKE          = (1<<8)
 SOUND_SIZE_MAX_BYTES     = 255 * 1024
+BARREL_MIN_Y             = 180
+BARREL_MIN_CX            = 120
+BARREL_MAX_CX            = 200
+
+AIVISION_MAX_OBJECTS               = 24
+AIVISION_DEFAULT_SNAPSHOT_OBJECTS  =  8
 class aim_exception(Exception):
     """VEX AIM Exception Class"""
     pass
@@ -41,24 +47,26 @@ class receive_error_exception(aim_exception):
 
 class invalid_sound_file_exception(aim_exception):
     """Sound file extension or format is not supported"""
-def connect_websocket(uri, timeout=1):
-    ws = websocket.WebSocket()
-    try:
-        ws.connect(uri, timeout=timeout)
-    except Exception as error:
-        print("Could not connect to ", uri, "reason:", error)
-        sys.exit(1)
-    return ws
+
 class ws_thread(threading.Thread):
-    def __init__ (self, ip, ws_name):
+    def __init__ (self, host, ws_name):
         threading.Thread.__init__(self)
-        self.ip = ip
+        self.host = host
         self.ws_name = ws_name
-        self.uri = "ws://%s/%s" %(self.ip, self.ws_name)
-        self.ws = connect_websocket (self.uri, timeout=4)
+        self.uri = "ws://%s/%s" %(self.host, self.ws_name)
+        self.ws = self.connect_websocket(timeout=4)
         self.callback = None
         self.running = True
         self._ws_needs_reset = False #set equal to true of connection needs to be reset (disconnect, reconnect)
+
+    def connect_websocket(self, timeout):
+        ws = websocket.WebSocket()
+        try:
+            ws.connect(self.uri, timeout=timeout)
+        except Exception as error:
+            print("Could not connect to %s (reason: %s).  Verify that \"%s\" is the correct IP/hostname of the AIM robot and that it is connected to the same network (AP mode is 192.168.4.1)" %(self.uri, error, self.host))
+            sys.exit(1)
+        return ws
 
     def ws_send(self, payload: Union[bytes, str], opcode: int = websocket.ABNF.OPCODE_TEXT):
         try:
@@ -82,8 +90,8 @@ class ws_thread(threading.Thread):
             print("couldn't close Websocket connection, already closed? error: %s" %error)
 
 class ws_status_thread(ws_thread):
-    def __init__(self, ip):
-        super().__init__(ip, "ws_status")
+    def __init__(self, host):
+        super().__init__ (host, "ws_status")
         self._empty_status = {
             "controller": {"flags": "0x0000", "stick_x": 0, "stick_y": 0, "battery": 0},
             "robot": {
@@ -93,7 +101,7 @@ class ws_status_thread(ws_thread):
                 "touch_x": 0,
                 "touch_y": 0,
                 "robot_x": 0,
-                "robot_y": 0,                
+                "robot_y": 0,
                 "roll": "0",
                 "pitch": "0",
                 "yaw": "0",
@@ -129,74 +137,85 @@ class ws_status_thread(ws_thread):
             },
         }
         self.current_status = self._empty_status
-        self.driving_flag_needs_setting = False
-        self.turning_flag_needs_setting = False
-        self.moving_flag_needs_setting  = False
-        self.imu_cal_flag_needs_setting = False
-        self.sound_playing_flag_needs_setting = False
+        self.is_move_active_flag_needs_setting    = False
+        self.is_turn_active_flag_needs_setting    = False
+        self.is_moving_flag_needs_setting         = False
+        self.is_moving_flag_needs_clearing        = False
+        self.imu_cal_flag_needs_setting           = False
+        self.sound_playing_flag_needs_setting     = False
         self.sound_downloading_flag_needs_setting = False
 
         self._packets_lost_counter = 0
         self.heartbeat = 0
 
-    def set_status_flags(self):
-        if self.driving_flag_needs_setting:
-            self.set_driving_flag()
-            self.driving_flag_needs_setting = False
+    def update_status_flags(self):
+        if self.is_move_active_flag_needs_setting:
+            self.set_is_move_active_flag()
+            self.is_move_active_flag_needs_setting = False
 
-        if self.turning_flag_needs_setting:
-            self.set_turning_flag()
-            self.turning_flag_needs_setting = False
+        if self.is_turn_active_flag_needs_setting:
+            self.set_is_turn_active_flag()
+            self.is_turn_active_flag_needs_setting = False
 
-        if self.moving_flag_needs_setting:
-            self.set_moving_flag()
-            self.moving_flag_needs_setting = False
-        
+        if self.is_moving_flag_needs_setting:
+            self.set_is_moving_flag()
+            self.is_moving_flag_needs_setting = False
+
+        if self.is_moving_flag_needs_clearing:
+            self.clear_is_moving_flag()
+            self.is_moving_flag_needs_clearing = False
+
         if self.imu_cal_flag_needs_setting:
             self.set_imu_cal_flag()
             self.imu_cal_flag_needs_setting = False
-        
+
         if self.sound_playing_flag_needs_setting:
             self.set_sound_playing_flag()
             self.sound_playing_flag_needs_setting = False
 
         if self.sound_downloading_flag_needs_setting:
             self.set_sound_downloading_flag()
-            self.sound_downloading_flag_needs_setting = False        
+            self.sound_downloading_flag_needs_setting = False
 
-    def set_driving_flag(self):
+    def set_is_move_active_flag(self):
         robot_flags = self.current_status["robot"]["flags"]
-        #update is_driving flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
-        new_robot_flags = hex(int(robot_flags, 16) | SYS_FLAGS_IS_DRIVING)
+        #update is_move_active flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
+        new_robot_flags = hex(int(robot_flags, 16) | SYS_FLAGS_IS_MOVE_ACTIVE)
         self.current_status["robot"]["flags"] = new_robot_flags
 
-    def set_turning_flag(self):
+    def set_is_turn_active_flag(self):
         robot_flags = self.current_status["robot"]["flags"]
-        #update is_driving flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
-        new_robot_flags = hex(int(robot_flags, 16) | SYS_FLAGS_IS_TURNING)
+        #update is_turn_active flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
+        new_robot_flags = hex(int(robot_flags, 16) | SYS_FLAGS_IS_TURN_ACTIVE)
         self.current_status["robot"]["flags"] = new_robot_flags
 
-    def set_moving_flag(self):
+    def set_is_moving_flag(self):
         robot_flags = self.current_status["robot"]["flags"]
-        #update is_driving flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
+        #update is_moving flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
         new_robot_flags = hex(int(robot_flags, 16) | SYS_FLAGS_IS_MOVING)
+        self.current_status["robot"]["flags"] = new_robot_flags
+    
+    def clear_is_moving_flag(self):
+        robot_flags = self.current_status["robot"]["flags"]
+        #update is_moving flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
+        new_robot_flags = hex(int(robot_flags, 16) & ~SYS_FLAGS_IS_MOVING)
         self.current_status["robot"]["flags"] = new_robot_flags
 
     def set_imu_cal_flag(self):
         robot_flags = self.current_status["robot"]["flags"]
-        #update is_driving flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
+        #update imu_cal flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
         new_robot_flags = hex(int(robot_flags, 16) | SYS_FLAGS_IMU_CAL)
         self.current_status["robot"]["flags"] = new_robot_flags
 
     def set_sound_playing_flag(self):
         robot_flags = self.current_status["robot"]["flags"]
-        #update is_driving flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
+        #update sound_playing flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
         new_robot_flags = hex(int(robot_flags, 16) | SYS_FLAGS_SOUND_PLAYING)
         self.current_status["robot"]["flags"] = new_robot_flags
 
     def set_sound_downloading_flag(self):
         robot_flags = self.current_status["robot"]["flags"]
-        #update is_driving flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
+        #update is_sound_downloading flag (convert robot_flags to int, set bit 1 to 1, then convert back to hex string)
         new_robot_flags = hex(int(robot_flags, 16) | SYS_FLAGS_IS_SOUND_DNL)
         self.current_status["robot"]["flags"] = new_robot_flags
 
@@ -204,6 +223,11 @@ class ws_status_thread(ws_thread):
         robot_flags = self.current_status["robot"]["flags"]
         if int(robot_flags, 16) & SYS_FLAGS_IS_SHAKE != 0:
             _thread.interrupt_main()
+
+    def check_crash_flag(self):
+        robot_flags = self.current_status["robot"]["flags"]
+        if int(robot_flags, 16) & SYS_FLAGS_HAS_CRASHED != 0:
+            print('has crashed')
 
     def is_current_status_empty(self):
         if self.current_status == self._empty_status:
@@ -226,13 +250,13 @@ class ws_status_thread(ws_thread):
                     new_status_JSON = self.ws_receive()
                 except:
                     status_packet_error = True
-                
+
                 if not status_packet_error:
                     try:
                         new_status = json.loads(new_status_JSON)
                     except:
                         status_packet_error = True
-                
+
                 # If we have an error receiving packet, initially we want to keep current_status unchanged.  After enough dropped packets, set current_status to empty values.
                 if status_packet_error:
                     self._packets_lost_counter += 1
@@ -246,23 +270,14 @@ class ws_status_thread(ws_thread):
                         self.callback()
 
                     # if a certain commands are sent, the very next status flag won't have the appropriate flags set yet, so over-ride locally.
-                    self.set_status_flags()
+                    self.update_status_flags()
                     self.check_shake_flag()
+                    self.check_crash_flag()
                     self.heartbeat = not self.heartbeat
 
                 if self._packets_lost_counter > 5:
                     self.current_status = self._empty_status
 
-                # for debugging the state of is_driving()
-                # robot_flags = self.current_status["robot"]["flags"]
-                # is_driving = (int(robot_flags, 16) >> 1) & 1
-                # print("is_driving(): %d" %is_driving)
-
-                # for debugging the state of is_turning()
-                # robot_flags = self.current_status["robot"]["flags"]
-                # is_turning = bool(int(robot_flags, 16) & SYS_FLAGS_IS_TURNING)
-                # print("is_turning(): %d" %is_turning)
-                
                 # print("current_status: ", self.current_status)
                 time.sleep(0.05)
             else:
@@ -273,8 +288,8 @@ class ws_status_thread(ws_thread):
                 except:
                     pass # we'll keep trying to reconnect
 class ws_img_thread(ws_thread):
-    def __init__(self, ip):
-        super().__init__(ip, "ws_img")
+    def __init__(self, host):
+        super().__init__ (host, "ws_img")
         self.current_image_index = 0
         self.image_list: list[bytes] = [bytes(1), bytes(1)]
     
@@ -320,8 +335,8 @@ class ws_img_thread(ws_thread):
         self.ws_send((1).to_bytes(1, 'little'), websocket.ABNF.OPCODE_BINARY)
 
 class ws_cmd_thread(ws_thread):
-    def __init__(self, ip):
-        super().__init__(ip, "ws_cmd")
+    def __init__(self, host):
+        super().__init__ (host, "ws_cmd")
 
     def run(self):
         while self.running:
@@ -339,8 +354,8 @@ class ws_cmd_thread(ws_thread):
             time.sleep(0.2)
 
 class ws_audio_thread(ws_thread):
-    def __init__(self, ip):
-        super().__init__(ip, "ws_audio")
+    def __init__(self, host):
+        super().__init__ (host, "ws_audio")
 
     def run(self):
         while self.running:
@@ -358,35 +373,34 @@ class ws_audio_thread(ws_thread):
             time.sleep(0.2)
 
 class Robot():
-    """AIM Robot class.  When initializing, provide an IP or leave at empty for default if AIM is in WiFi AP mode."""
+    """AIM Robot class.  When initializing, provide a host (IP address, hostname, or even domain name) or leave at empty for default if AIM is in WiFi AP mode."""
 
-    def __init__(self, ip="192.168.4.1"):
+    def __init__(self, host="192.168.4.1"):
         """
         Initialize the Robot with default settings and WebSocket connections.
         """
-        print("Welcome to the AIM Websocket Python Client. Running version %d.%d.%d.%d" %(VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD, VERSION_BETA))
-        self.moving_cmd_list = ["drive", "drive_for", "turn", "turn_for", "turn_to", "spin_wheels"]
-        self.driving_cmd_list = ["drive", "drive_for"]
-        self.turning_cmd_list = [ "turn", "turn_for", "turn_to"]
-             
-        self.ip = ip
+        print("Welcome to the AIM Websocket Python Client. Running version %d.%d.%d.%d and connecting to %s" %(VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD, VERSION_BETA, host))
+        self.move_active_cmd_list = ["drive", "drive_for"]
+        self.turn_active_cmd_list = [ "turn", "turn_for", "turn_to"]
+        self.stopped_active_cmd_list = self.move_active_cmd_list + self.turn_active_cmd_list
+        self.host = host
 
         self.inertial = Gyro(self)
         self.aiv      = AiVision(self)
         self.screen   = Screen(self)
-        self._ws_status_thread        = ws_status_thread(self.ip)
+        self._ws_status_thread        = ws_status_thread(self.host)
         self._ws_status_thread.daemon = True
         self._ws_status_thread.start()
 
-        self._ws_img_thread           = ws_img_thread(self.ip)
+        self._ws_img_thread           = ws_img_thread(self.host)
         self._ws_img_thread.daemon    = True
         self._ws_img_thread.start()
 
-        self._ws_cmd_thread           = ws_cmd_thread(self.ip)
+        self._ws_cmd_thread           = ws_cmd_thread(self.host)
         self._ws_cmd_thread.daemon    = True
         self._ws_cmd_thread.start()
 
-        self._ws_audio_thread         = ws_audio_thread(self.ip)
+        self._ws_audio_thread         = ws_audio_thread(self.host)
         self._ws_audio_thread.daemon  = True
         self._ws_audio_thread.start()
 
@@ -397,7 +411,7 @@ class Robot():
         self._program_init()
 
         self.drive_speed = 75
-        self.turn_speed  = 90
+        self.turn_speed  = 50
 
         # We don't want to execute certain things (like reset_heading) until we start getting status packets
         while self._ws_status_thread.is_current_status_empty() == True:
@@ -410,9 +424,9 @@ class Robot():
         if hasattr(self, '_ws_cmd_thread'): #if connection were never established, this property wouldn't exist
             print("program terminating, stopping robot")
             try:
-                self.stop_drive()
+                self.stop_all_movement()
             except Exception as error:
-                print("exceptions arose during stop_drive(), error:", error)
+                print("exceptions arose during stop_all_movement(), error:", error)
         else:
             print("program terminating (never connected to robot)")
 
@@ -497,32 +511,33 @@ class Robot():
                 error_info_string = "no reason given"
             print("robot: error processing command, reason: ", error_info_string)
             return
-        
+
         # trigger a local update to the robot status flags in ws_status_thread
         if response["status"] in ["complete", "in_progress"]:
-            if response["cmd_id"] in self.moving_cmd_list:
-                self._ws_status_thread.moving_flag_needs_setting  = True
-            if response["cmd_id"] in self.driving_cmd_list:
-                self._ws_status_thread.driving_flag_needs_setting = True
-            if response["cmd_id"] in self.turning_cmd_list:
-                self._ws_status_thread.turning_flag_needs_setting = True
+            if response["cmd_id"] in self.move_active_cmd_list:
+                self._ws_status_thread.is_move_active_flag_needs_setting = True
+            if response["cmd_id"] in self.turn_active_cmd_list:
+                self._ws_status_thread.is_turn_active_flag_needs_setting = True
+            if response["cmd_id"] in self.stopped_active_cmd_list:
+                self._ws_status_thread.is_moving_flag_needs_setting  = True
+                self._ws_status_thread.is_moving_flag_needs_clearing = False
             if response["cmd_id"] == "imu_calibrate":
                 self._ws_status_thread.imu_cal_flag_needs_setting = True
-             
+
         return
 
     def robot_send_audio(self, audio):
         self._ws_audio_thread.ws_send(audio, websocket.ABNF.OPCODE_BINARY)
-    
+
     def _program_init(self):
         """Sends a command indicating to robot that new program is starting.  To be called during __init__"""
         json = { "cmd_id" : "program_init" }
         self.robot_send(json)
 
-    def get_battery_level(self):
-        """Get current battery relative state of charge in percent."""
-        battery_level = self.status["robot"]["battery"]
-        return battery_level
+    def get_battery_capacity(self):
+        """Get the remaining capacity of the battery (relative state of charge) in percent."""
+        battery_capacity = self.status["robot"]["battery"]
+        return battery_capacity
 
     def get_roll(self):
         value = self.status["robot"]["roll"]
@@ -574,38 +589,39 @@ class Robot():
 
         return y
 
-    def is_driving(self):
-        """returns true if a drive() or drive_for() command is active with nonzero speed"""
-        if self._ws_status_thread.driving_flag_needs_setting:
+    def is_move_active(self):
+        """returns true if a move_at() or move_for() command is active with nonzero speed"""
+        if self._ws_status_thread.is_move_active_flag_needs_setting:
             return True
         robot_flags = self.status["robot"]["flags"]
-        driving = bool(int(robot_flags, 16) & SYS_FLAGS_IS_DRIVING)
-        return driving
+        is_move_active = bool(int(robot_flags, 16) & SYS_FLAGS_IS_MOVE_ACTIVE)
+        return is_move_active
 
-    def is_turning(self):
+    def is_turn_active(self):
         """returns true if a turn(), turn_to(), or turn_for() command is active with nonzero speed"""
-        if self._ws_status_thread.turning_flag_needs_setting:
-            return True             
+        if self._ws_status_thread.is_turn_active_flag_needs_setting:
+            return True
         robot_flags = self.status["robot"]["flags"]
-        turning = bool(int(robot_flags, 16) & SYS_FLAGS_IS_TURNING)
-        return turning
-
-    def is_moving(self):
-        """returns true if the robot is supposed to be moving, i.e. if any drive, turn, or spin_wheels command is active, where any speeds are nonzero"""
-        if self._ws_status_thread.moving_flag_needs_setting:
-            return True        
+        is_turn_active = bool(int(robot_flags, 16) & SYS_FLAGS_IS_TURN_ACTIVE)
+        return is_turn_active
+    
+    def is_stopped(self):
+        """returns true if no move, turn, or spin_wheels command is active (i.e. no wheels should be moving)"""
+        if self._ws_status_thread.is_moving_flag_needs_clearing:
+            return True
+        if self._ws_status_thread.is_moving_flag_needs_setting:
+            return False
         robot_flags = self.status["robot"]["flags"]
-        moving = bool(int(robot_flags, 16) & SYS_FLAGS_IS_MOVING)
-        return moving
-
+        is_stopped = not bool(int(robot_flags, 16) & SYS_FLAGS_IS_MOVING)
+        return is_stopped
     # Drive methods
-    def drive(self, angle, drive_speed=None):
+    def move_at(self, angle, drive_speed=None):
         if drive_speed == None:
             drive_speed = self.drive_speed
         json = {"cmd_id": "drive", "angle": angle, "speed": drive_speed}
         self.robot_send(json)
 
-    def drive_for(self, distance, angle, drive_speed=None, turn_speed=None, wait=True):
+    def move_for(self, distance, angle, drive_speed=None, turn_speed=None, wait=True):
         if drive_speed == None:
             drive_speed = self.drive_speed
         if turn_speed == None:
@@ -624,22 +640,26 @@ class Robot():
         }
         self.robot_send(json)
         if wait:
-            self.block_on_state(self.is_driving)
+            self._block_on_state(self.is_move_active)
 
     def turn(self, turn_direction: vex.TurnType, turn_speed=None):
         """turn indefinitely at turn_rate"""
         if turn_speed == None:
             turn_speed = self.turn_speed
         if turn_direction == vex.TurnType.LEFT:
-            turn_speed = -turn_speed        
+            turn_speed = -turn_speed
         json = {"cmd_id": "turn", "turn_rate": turn_speed}
         self.robot_send(json)
     
-    def stop_drive(self):
-        self.drive(0,0)
+    def stop_all_movement(self):
+        self.move_at(0,0)
         self.turn(vex.TurnType.RIGHT, 0)
+        self._ws_status_thread.clear_is_moving_flag() # clear the is_moving_flag now (used by robot.is_stopped())
+        # trigger this flag to be cleared again next time a status msg is received, in case the robot hasn't update the state yet:
+        self._ws_status_thread.is_moving_flag_needs_clearing = True 
+        self._ws_status_thread.is_moving_flag_needs_setting  = False
 
-    def block_on_state(self, state_method):
+    def _block_on_state(self, state_method):
         time_start = time.time()
         blocking = True
         while True:
@@ -650,10 +670,10 @@ class Robot():
             # print("blocking")
             time_elapsed = time.time() - time_start
             time.sleep(0.1)
-            #if turning took too long, we want to stop driving and stop blocking.
+            #if turning/moving took too long, we want to stop moving and stop blocking.
             if time_elapsed > 10:
                 print("%s wait timed out, stopping" %state_method.__name__)
-                self.stop_drive()
+                self.stop_all_movement()
                 return
 
     def turn_to(self, heading, turn_speed=None, wait=True):
@@ -668,7 +688,7 @@ class Robot():
         json = {"cmd_id": "turn_to", "heading": heading, "turn_rate": turn_speed}
         self.robot_send(json)
         if wait:
-            self.block_on_state(self.is_turning)
+            self._block_on_state(self.is_turn_active)
 
     def turn_for(self, turn_direction: vex.TurnType, angle, turn_speed=None, wait=True):
         """turn for a 'angle' number of degrees at turn_rate (deg/sec)"""
@@ -676,15 +696,15 @@ class Robot():
             turn_speed = self.turn_speed        
         if turn_direction == vex.TurnType.LEFT:
             angle = -angle
-        json = {"cmd_id": "turn_for", "angle": angle, "turn_rate": turn_speed}            
+        json = {"cmd_id": "turn_for", "angle": angle, "turn_rate": turn_speed}
         self.robot_send(json)
         if wait:
-            self.block_on_state(self.is_turning)
+            self._block_on_state(self.is_turn_active)
 
-    def set_drive_speed(self, velocity):
+    def set_move_velocity(self, velocity):
         self.drive_speed = velocity
 
-    def set_turn_speed(self, velocity):
+    def set_turn_velocity(self, velocity):
         self.turn_speed = velocity
 
     def spin_wheels(self, velocity1: int, velocity2: int, velocity3: int):
@@ -729,6 +749,9 @@ class Robot():
         json = {"cmd_id": "light_set", light_index: {"r": r, "g": g, "b": b}}
         self.robot_send(json)
 
+    def set_heading(self, heading):
+        """robot heading will be set to `heading`"""
+        self.inertial.set_heading(heading)
     # def kick(self, strength):
     #     json = {"cmd_id": "kick", "strength": strength}
     #     return self.robot_send(json)
@@ -745,10 +768,10 @@ class Robot():
 
     def play_sound(self, sound_type: vex.SoundType, volume):
         """Play a sound from a list of preset sounds"""
-        json = {"cmd_id": "play_sound", "name": sound_type, "vol": volume}
+        json = {"cmd_id": "play_sound", "name": sound_type, "volume": volume}
         self.robot_send(json)
    
-    def play_sound_file(self, filepath: str):
+    def play_sound_file(self, filepath: str, volume = 100):
         """play a WAV or MP3 file stored on the client side; file will be transmitted to robot\n
            Maximum filesize is 255 KB"""
         file = pathlib.Path(filepath)
@@ -779,11 +802,14 @@ class Robot():
                 if channels == 2:
                     print("%s is stereo; mono is recommended")
                 # first 64 bytes of audio is header
-                audio[0:4] = (0).to_bytes(4, 'little')
+                audio[0:1] = (0).to_bytes(1, 'little')
 
             # assuming the mp3 is valid:
             elif extension == ".mp3":
-                audio[0:4] = (1).to_bytes(4, 'little') 
+                audio[0:1] = (1).to_bytes(1, 'little') 
+
+            # set volume
+            audio[1:2] = (volume).to_bytes(1, 'little') 
 
             audio[4:8] = (len(data)).to_bytes(4, 'little') # length of data
             audio[8:12] = (0).to_bytes(4, 'little') # file chunk number
@@ -795,7 +821,6 @@ class Robot():
             self._ws_status_thread.sound_downloading_flag_needs_setting = True # have it be set again after next status message
             self._ws_status_thread.sound_playing_flag_needs_setting = True # have it be set again after next status message
 
-    
     def is_sound_active(self):
         """returns true if sound is currently playing or if it is being transmitted for playing"""
         robot_flags = self.status["robot"]["flags"]
@@ -818,13 +843,30 @@ class Robot():
             raise no_image_exception("no image was received")
         return image
 
-    def take_snapshot(self):
-        return self.aiv.take_snapshot()
+    def take_snapshot(self, type, count=8):
+        return self.aiv.take_snapshot(type, count)
     
+    def largest_object(self):
+        '''### Request the largest object from the last take_snapshot(...) call
+
+        #### Arguments:
+            None
+
+        #### Returns:
+            An AiVisionObject object or None if it does not exist
+        '''        
+        return self.aiv.largest_object()
+     
     def object_count(self):
         return self.aiv.object_count()
+    
+    def has_barrel(self):
+        return self.aiv.has_barrel()
+    
+    def has_ball(self):
+        return self.aiv.has_ball()
 
-    def show_emoji(self, emoji: vex.Emoji.EmojiType, look: vex.EmojiLook.EmojiLookType):
+    def show_emoji(self, emoji: vex.Emoji.EmojiType, look: vex.EmojiLook.EmojiLookType = vex.EmojiLook.CENTER):
         return self.screen.show_emoji(emoji, look)
 
     def hide_emoji(self):
@@ -881,14 +923,163 @@ class Gyro():
         """robot heading will be set to 0"""
         self.set_heading(0)
 
-class AiVision():
-    def __init__(self, robot_instance: Robot):
-        self.robot_instance = robot_instance
+class Colordesc:
+    '''### Colordesc class - a class for holding an AI vision sensor color definition
 
-    def take_snapshot(self):
-        """returns every kind of object, for now"""
+    #### Arguments:
+        index : The color description index (1 to 7)
+        red : the red color value
+        green : the green color value
+        blue : the blue color value
+        hangle : the range of allowable hue
+        hdsat : the range of allowable saturation
+
+    #### Returns:
+        An instance of the Colordesc class
+
+    #### Examples:
+        COL1 = Colordesc(1,  13, 114, 227, 10.00, 0.20)\\
+        COL2 = Colordesc(2, 237,  61,  74, 10.00, 0.20)\\
+    '''
+    def __init__(self, index, red, green, blue, hangle, hdsat):
+        self.id = index
+        pass
+
+class Codedesc:
+    '''### Codedesc class - a class for holding AI vision sensor codes
+
+    A code description is a collection of up to five AI vision color descriptions.
+    #### Arguments:
+        index : The code description index (1 to 5)
+        c1 : An AI vision Colordesc
+        c1 : An AI vision Colordesc
+        c3 (optional) : An AI vision Colordesc
+        c4 (optional) : An AI vision Colordesc
+        c5 (optional) : An AI vision Colordesc
+
+    #### Returns:
+        An instance of the Codedesc class
+
+    #### Examples:
+        COL1 = Colordesc(1,  13, 114, 227, 10.00, 0.20)\\
+        COL2 = Colordesc(2, 237,  61,  74, 10.00, 0.20)\\
+        C1 = Codedesc( 1, COL1, COL2 )
+    '''
+    def __init__(self, index, c1:Colordesc, c2:Colordesc, *args):
+        self.id = index
+        pass
+
+class Tagdesc:
+    '''### Tagdesc class - a class for holding AI vision sensor tag id
+
+    A tag description holds an apriltag id
+    #### Arguments:
+        id : The apriltag id (positive integer, not 0)
+
+    #### Returns:
+        An instance of the Tagdesc class
+
+    #### Examples:
+        T1 = Tagdesc( 23 )
+    '''
+    def __init__(self, index):
+        self.id = index
+        pass
+
+class AiObjdesc:
+    '''### AiObjdesc class - a class for holding AI vision sensor AI object id
+
+    A tag description holds an apriltag id
+    #### Arguments:
+        id : The AI Object (model) id (positive integer, not 0)
+
+    #### Returns:
+        An instance of the AiObjdesc class
+
+    #### Examples:
+        A1 = AiObjdesc( 2 )
+    '''
+    def __init__(self, index):
+        self.id = index
+        pass
+
+class ObjDesc:
+     def __init__(self, index):
+        self.id = index
+        pass   
+class _ObjectTypeMask:
+    unkownObject = 0
+    colorObject  = (1 << 0)
+    codeObject   = (1 << 1)
+    modelObject  = (1 << 2)
+    tagObject    = (1 << 3)
+    allObject    = (0x3F)
+
+MATCH_ALL_ID = 0xFFFF
+class AiVision():
+    ALL_TAGS = Tagdesc(MATCH_ALL_ID)
+    '''A tag description for take_snapshot indicating all tag objects to be returned'''
+    ALL_COLORS = Colordesc(MATCH_ALL_ID, 0, 0, 0, 0, 0)
+    '''A tag description for take_snapshot indicating all color objects to be returned'''
+    ALL_CODES = Codedesc(MATCH_ALL_ID, ALL_COLORS, ALL_COLORS)
+    '''A tag description for take_snapshot indicating all code objects to be returned'''
+    ALL_AIOBJS = AiObjdesc(MATCH_ALL_ID)
+    '''A tag description for take_snapshot indicating all AI model objects to be returned'''
+    ALL_OBJECTS = ObjDesc(MATCH_ALL_ID)
+    '''A tag description for take_snapshot indicating all objects to be returned'''
+
+
+    def __init__(self, robot_instance: Robot):
+        self.robot_instance     = robot_instance
+        self._object_count_val  = 0
+        self._largest_object    = None
+
+    def take_snapshot(self, type, count=8):
+        '''### Request the AI vision sensor to filter latest objects to match color,\\
+               code, apriltag or AI object.
+
+        #### Arguments:
+            type : A color, code or other object type
+            count (optional) : the maximum number of objects to obtain.  default is 8.
+
+        #### Returns:
+            tuple of AiVisionObject, this will be an empty tuple if nothing is available.
+
+        #### Examples:
+            # look for and return 1 object matching COL1\\
+            objects = aivision1.take_snapshot(COL1)
+
+            # look for and return a maximum of 4 objects matching SIG_1\\
+            objects = aivision1.take_snapshot(COL1, 4)
+
+            # return apriltag objects\\
+            objects = aivision1.take_snapshot(ALL_TAGS, AIVISION_MAX_OBJECTS)
+        '''
+        if isinstance(type, Colordesc):
+            type_mask = _ObjectTypeMask.colorObject
+            id = type.id
+        elif isinstance(type, Codedesc):
+            type_mask = _ObjectTypeMask.codeObject
+            id = type.id
+        elif isinstance(type, AiObjdesc):
+            type_mask = _ObjectTypeMask.modelObject
+            id = type.id
+        elif isinstance(type, Tagdesc):
+            type_mask = _ObjectTypeMask.tagObject
+            id = type.id
+        elif isinstance(type, ObjDesc):
+            type_mask = _ObjectTypeMask.allObject
+            id = type.id
+        else:
+            type_mask = _ObjectTypeMask.colorObject # default value
+            id = type # assume the first argument is really the Colordesc id.
+
+        if count > AIVISION_MAX_OBJECTS:
+            count = AIVISION_MAX_OBJECTS
+    
         item_count = self.robot_instance.status["aivision"]["objects"]["count"]
         ai_object_list = [AiVisionObject() for item in range(item_count)]
+        # first just extract everything we got from ws_status
         for item in range(item_count):
             ai_object_list[item].type       = self.robot_instance.status["aivision"]["objects"]["items"][item]["type"]
             ai_object_list[item].id         = self.robot_instance.status["aivision"]["objects"]["items"][item]["id"]
@@ -896,11 +1087,125 @@ class AiVision():
             ai_object_list[item].originY    = self.robot_instance.status["aivision"]["objects"]["items"][item]["originy"]
             ai_object_list[item].width      = self.robot_instance.status["aivision"]["objects"]["items"][item]["width"]
             ai_object_list[item].height     = self.robot_instance.status["aivision"]["objects"]["items"][item]["height"]
-            ai_object_list[item].classname  = self.robot_instance.status["aivision"]["classnames"]["items"][ai_object_list[item].id]["name"]
-        return tuple(ai_object_list)
+
+            if ai_object_list[item].type ==  _ObjectTypeMask.modelObject: #AI model objects can have a classname
+                ai_object_list[item].classname  = self.robot_instance.status["aivision"]["classnames"]["items"][ai_object_list[item].id]["name"]
+        # print("diagnostic: ai_object_list: ", ai_object_list)
+        num_matches = 0
+        sublist = []
+        for item in range(item_count):
+            if ai_object_list[item].type & type_mask:
+                if ai_object_list[item].id == id or MATCH_ALL_ID == id:
+                    num_matches += 1
+                    #sort objects by object area in descending order
+                    current_object_area = ai_object_list[item].height * ai_object_list[item].width
+                    current_object_smallest = True
+                    for i in range(len(sublist)):
+                            if current_object_area >= (sublist[i].width * sublist[i].height):
+                                sublist.insert(i, ai_object_list[item]) # insert item at position i of sublist.
+                                current_object_smallest = False
+                                break
+                    if current_object_smallest:
+                        sublist.append(ai_object_list[item]) #add to the end
+            
+        if num_matches > count:
+            num_matches = count
+
+        self._object_count_val = num_matches
+        if sublist:
+            self._largest_object = sublist[0]
+        else:
+            self._largest_object = None
+        return sublist[:num_matches]
     
+    def largest_object(self):
+        '''### Request the largest object from the last take_snapshot(...) call
+
+        #### Arguments:
+            None
+
+        #### Returns:
+            An AiVisionObject object or None if it does not exist
+        '''        
+        return self._largest_object
+
     def object_count(self):
-        return self.robot_instance.status["aivision"]["objects"]["count"]
+        '''### Request the number of objects found in the last take_snapshot call
+
+        #### Arguments:
+            None
+
+        #### Returns:
+            The number of objects found in the last take_snapshot call
+        '''
+        return self._object_count_val
+
+    
+    def tag_detection(self, enable: bool):
+        '''### Enable or disable apriltag processing
+
+        #### Arguments:
+            enable : True or False
+
+        #### Returns:
+            None
+        '''
+        json_msg = {"cmd_id": "tag_detection", "b_enable": enable}
+        self.robot_instance.robot_send(json_msg)
+        pass
+
+    def color_detection(self, enable: bool, merge: bool = False):
+        '''### Enable or disable color and code object processing
+
+        #### Arguments:
+            enable : True or False
+            merge (optional) : True to enable merging of adjacent color detections
+
+        #### Returns:
+            None
+        '''
+        json_msg = {"cmd_id": "color_detection", "b_enable": enable, "b_merge": merge}
+        self.robot_instance.robot_send(json_msg)
+        pass
+
+    def model_detection(self, enable: bool):
+        '''### Enable or disable AI model object processing
+
+        #### Arguments:
+            enable : True or False
+
+        #### Returns:
+            None
+        '''
+        json_msg = {"cmd_id": "model_detection", "b_enable": enable}
+        self.robot_instance.robot_send(json_msg)
+        pass
+
+    def has_barrel(self):
+        """returns true if a barrel is held by the kicker"""
+        ai_objects = list(self.take_snapshot(AiVision.ALL_AIOBJS))
+        has_barrel = False
+        for object in range(len(ai_objects)):
+            cx = ai_objects[object].originX + ai_objects[object].width/2
+            if ai_objects[object].classname in ["BlueBarrel", "OrangeBarrel"] and \
+               BARREL_MIN_CX < cx < BARREL_MAX_CX and \
+               ai_objects[object].originY > BARREL_MIN_Y :
+               has_barrel = True
+        return has_barrel
+
+# leave magic numbers same as barrel for now
+    def has_ball(self):
+        """returns true if a ball is held by the kicker"""
+        ai_objects = list(self.take_snapshot(AiVision.ALL_AIOBJS))
+        has_ball = False
+        for object in range(len(ai_objects)):
+            cx = ai_objects[object].originX + ai_objects[object].width/2
+            if ai_objects[object].classname in ["Ball"] and \
+               BARREL_MIN_CX < cx < BARREL_MAX_CX and \
+               ai_objects[object].originY > BARREL_MIN_Y :
+               has_ball = True
+        return has_ball
+
 class AiVisionObject():
     def __init__(self):
         self.type      = 0
@@ -941,7 +1246,7 @@ class Screen():
         }
         self.robot_instance.robot_send(json_cmd)
 
-    def show_emoji(self, emoji: vex.Emoji.EmojiType, look: vex.EmojiLook.EmojiLookType):
+    def show_emoji(self, emoji: vex.Emoji.EmojiType, look: vex.EmojiLook.EmojiLookType = vex.EmojiLook.CENTER):
         """Show an emoji from a list of preset emojis"""
         json = {
             "cmd_id": "show_emoji",

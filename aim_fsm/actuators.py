@@ -42,13 +42,13 @@ class DriveActuator(Actuator):
         super().__init__(robot, 'drive')
 
     def stop(self):
-        self.robot.robot0.stop_drive()
+        self.robot.robot0.stop_all_movement()
 
     def status_update(self):
         # Bad timing can cause a just-started node to complete prematurely;
         # must wait until robot is seen to be moving before considering
         # looking for a stopped-moving status.
-        if self.holder and not self.robot.robot0.is_moving():
+        if self.holder and not self.robot.robot0.is_move_active():
             self.holder.complete(self)
             self.holder = None
 
@@ -87,7 +87,7 @@ class SoundActuator(Actuator):
         tts.save(filepath)
         self.robot.robot0.play_sound_file(filepath)
 
-    def play_sound(self, node, sound, volume=1):
+    def play_sound(self, node, sound, volume=100):
         self.lock(node)
         self.robot.robot0.play_sound(sound, volume)
 

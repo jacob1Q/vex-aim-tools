@@ -188,8 +188,8 @@ class StateMachineProgram(StateNode):
         # Handle robot being picked up or put down
         if self.robot.is_picked_up():
             if not self.robot.was_picked_up:
-                self.robot.robot0.stop_drive()
-                self.robot.robot0.play_sound(vex.SoundType.DOOR_CLOSE, 1)
+                self.robot.robot0.stop_all_movement()
+                self.robot.robot0.play_sound(vex.SoundType.HUAH, 100)
                 self.robot.world_map.clear()
                 self.robot.was_picked_up = True
                 self.stop_children()
@@ -197,7 +197,7 @@ class StateMachineProgram(StateNode):
             self.robot.was_picked_up = False
             self.robot.set_pose(0,0,0)
             self.robot.world_map.update()
-            self.robot.robot0.play_sound(vex.SoundType.TOLLBOOTH, 1)
+            self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 100)
             if self.start_node:
                 self.start_node.start()
 
