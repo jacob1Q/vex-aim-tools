@@ -48,6 +48,13 @@ class RobotObj(WorldObject):
         self.spec = spec
         self.name = spec['name']
 
+class AprilTagObj(WorldObject):
+    def __init__(self, spec):
+        super().__init__()
+        self.spec = spec
+        self.name = spec['name']
+        self.id = spec['id']
+
 
 class ArucoMarkerObj(WorldObject):
     def __init__(self, aruco_parent, marker_number, id=None, x=0, y=0, z=0, theta=0):
@@ -90,7 +97,14 @@ class WorldMap():
         objspecs = self.robot.robot0._ws_status_thread.current_status['aivision']['objects']['items']
         seen_objs = []
         for spec in objspecs:
-            name = spec.get('name', None)
+            if spec['type_str'] == 'aiobj':
+                name = spec['name']
+            elif spec['type_str'] == 'tag':
+                name = 'AprilTag' + repr(spec['id'])
+                spec['name'] = name
+            else:
+                print(f'spec={spec}')
+                continue
             if name not in self.objects:
                 obj = self.make_object(spec)
                 self.objects[obj.name] = obj

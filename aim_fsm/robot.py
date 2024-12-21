@@ -122,5 +122,5 @@ class Robot():
             return True
         else:
             if self.was_picked_up:
-                print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
+                pass # print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
             return False
