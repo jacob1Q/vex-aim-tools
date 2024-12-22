@@ -53,8 +53,12 @@ class AprilTagObj(WorldObject):
         super().__init__()
         self.spec = spec
         self.name = spec['name']
-        self.id = spec['id']
+        self.tag_id = spec['id']
+        self.theta = spec['angle'] / 180 * pi
 
+    def __repr__(self):
+        vis = "visible" if self.is_visible else "unseen"
+        return f'<{self.__class__.__name__} id={self.tag_id} {vis} at ({self.x:.1f}, {self.y:.1f}) @ {self.theta*180/pi:.1f} deg.>'
 
 class ArucoMarkerObj(WorldObject):
     def __init__(self, aruco_parent, marker_number, id=None, x=0, y=0, z=0, theta=0):
@@ -100,8 +104,12 @@ class WorldMap():
             if spec['type_str'] == 'aiobj':
                 name = spec['name']
             elif spec['type_str'] == 'tag':
-                name = 'AprilTag' + repr(spec['id'])
-                spec['name'] = name
+                if 0 <= spec['id'] <= 4:
+                    name = 'AprilTag-' + repr(spec['id'])
+                    spec['name'] = name
+                else:
+                    #print('*** BAD TAG:', spec)
+                    continue
             else:
                 print(f'spec={spec}')
                 continue
@@ -127,6 +135,8 @@ class WorldMap():
             obj = BallObj(spec)
         elif spec['name'] == 'Robot':
             obj = RobotObj(spec)
+        elif spec['name'].startswith('AprilTag'):
+            obj = AprilTagObj(spec)
         else:
             print(f"ERROR **** spec = {spec}")
             obj = None
@@ -143,4 +153,8 @@ class WorldMap():
         objpos = aboutZ(self.robot.theta).dot(hit) + robotpos
         obj.x = objpos[0][0]
         obj.y = objpos[1][0]
+        tag_angle_correction_factor = 4  # guesstimate
+        if spec.get('angle') != None:
+            angle = spec['angle'] - (0 if spec['angle'] < 180 else 360)
+            obj.theta = self.robot.theta - angle / 180 * pi * tag_angle_correction_factor
 

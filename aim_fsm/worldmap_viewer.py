@@ -2,6 +2,9 @@
 OpenGL world viewer for aim_fsm world map.
 """
 
+rv = [0., 0., 0.]
+
+
 from math import sin, cos, atan2, pi, radians
 import time
 import array
@@ -815,6 +818,43 @@ class WorldMapViewer():
         glEndList()
         gl_lists.append(c)
 
+    def make_apriltag(self, obj):
+        global gl_lists
+        c = glGenLists(1)
+        glNewList(c, GL_COMPILE)
+        glPushMatrix()
+        tag_size = (2, 38, 48)
+        glTranslatef(obj.x, obj.y, obj.z+tag_size[2]/2+3)
+        color = (0.5, 0.3, 0.9)
+        glColor4f(*color,1.0)
+        t = geometry.aboutZ(obj.theta)
+        t = t.transpose()   # Transpose the matrix for sending to OpenGL
+        rotmat = array.array('f',t.flatten()).tobytes()
+        glMultMatrixf(rotmat)
+        self.make_cube(tag_size, highlight=obj.is_visible, color=color)
+        tag_id_offset = (-18, -7, 1.5)
+
+        glPushMatrix()
+        glRotatef(90, 1, 0, 0)
+        glRotatef(-90, 0, 1, 0)
+        glTranslatef(*tag_id_offset)
+        glScalef(0.25, 0.2, 0.25)
+        glutStrokeCharacter(GLUT_STROKE_MONO_ROMAN, ord(ascii(obj.tag_id)[0]))
+        glPopMatrix()
+
+        glPushMatrix()
+        glRotatef(90, 1, 0, 0)
+        glRotatef(90, 0, 1, 0)
+        glTranslatef(*tag_id_offset)
+        glScalef(0.25, 0.2, 0.25)
+        glutStrokeCharacter(GLUT_STROKE_MONO_ROMAN, ord(ascii(obj.tag_id)[0]))
+        glPopMatrix()
+
+        glPopMatrix()
+        glEndList()
+        gl_lists.append(c)
+
+
     def make_objects(self):
         if self.robot.use_shared_map:
             items = tuple(self.robot.world.world_map.shared_objects.items())
@@ -825,6 +865,8 @@ class WorldMapViewer():
                 self.make_barrel(obj)
             elif isinstance(obj, worldmap.BallObj):
                 self.make_ball(obj)
+            elif isinstance(obj, worldmap.AprilTagObj):
+                self.make_apriltag(obj)
             continue
             if isinstance(obj, worldmap.LightCubeObj):
                 self.make_light_cube(obj)
