@@ -55,6 +55,7 @@ class AprilTagObj(WorldObject):
         self.name = spec['name']
         self.tag_id = spec['id']
         self.theta = spec['angle'] / 180 * pi
+        self.diameter = 22 # mm
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
@@ -146,9 +147,14 @@ class WorldMap():
         resolution_scale = 2
         cx = (spec['originx'] + spec['width']/2) * resolution_scale
         cy = (spec['originy'] + spec['height']) * resolution_scale
-        hit = self.robot.kine.project_to_ground(cx, cy)
-        # need to offset hit by half the object thickness
         obj = self.objects[spec['name']]
+        if isinstance(obj, AprilTagObj):
+            cy += spec['height'] * 2 * resolution_scale
+        hit = self.robot.kine.project_to_ground(cx, cy)
+        # offset hit by half the object thickness
+        if obj.__dict__.get('diameter'):
+            hit += point(obj.diameter / 2, 0, 0)
+        # convert to world coordinates
         robotpos = point(self.robot.x, self.robot.y)
         objpos = aboutZ(self.robot.theta).dot(hit) + robotpos
         obj.x = objpos[0][0]

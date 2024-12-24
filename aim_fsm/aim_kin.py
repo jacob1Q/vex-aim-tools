@@ -9,8 +9,8 @@ from .geometry import tprint, point, translation_part, rotation_part
 
 body_diameter = 57 # mm
 kicker_extension = 15 # mm
-camera_angle = 18 # degrees
-camera_angle = 25 # degrees
+camera_angle = 18 # degrees (design spec)
+camera_angle = 25 # degrees (measured)
 camera_height = 43.47 # mm
 camera_from_origin = 27 # mm (approx)
 
@@ -63,7 +63,7 @@ class AIMKinematics(Kinematics):
     def get_world(self):
         return point(0,0,0) # *** FIX THIS SHOULD BE NEGATIVE OF ROBOT POSITION ***
 
-    def project_to_ground(self,cx,cy):
+    def project_to_ground(self, cx, cy):
         "Converts camera coordinates to a ground point in the base frame."
         # Formula taken from Tekkotsu's projectToGround method
         camera_res = self.robot.camera.resolution
