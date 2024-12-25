@@ -8,7 +8,12 @@ if openai.api_key:
 else:
     client = None
 
-preamble = "You are an intelligent mobile robot. You answer questions as briefly as possible."
+preamble = """
+  You are an intelligent mobile robot.
+  You answer questions as briefly as possible.
+  To move forward by N millimeters, output the string "#forward N".
+  To turn counter-clockwise by N degrees, output the string "#turn N", and use a negative value for clockwise turns.
+"""
 
 def gpt_query(query):
     response = client.chat.completions.create(
