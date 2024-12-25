@@ -118,7 +118,7 @@ class Robot():
         attitude_threshold = 2
         if abs(x) > gyro_threshold or abs(y) > gyro_threshold or \
            abs(pitch) > attitude_threshold or abs(roll) > attitude_threshold:
-            print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
+            #print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
             return True
         else:
             if self.was_picked_up:

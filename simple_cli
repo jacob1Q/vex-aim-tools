@@ -70,8 +70,10 @@ if '.' not in sys.path:
 ans = None
 RUNNING = True
 
-def cli_loop(robot):
-    global ans, RUNNING
+def cli_loop(_robot):
+    global ans, RUNNING, robot
+
+    robot = _robot
 
     cli_globals = globals()
     cli_globals['ans'] = None
@@ -194,6 +196,8 @@ def show_stuff(args):
             print("State machine '%s' is not running." % running_fsm.name)
         else:
             show_active(running_fsm,0)
+    elif spec == "battery":
+        print(f'Battery capacity {robot.robot0.get_battery_capacity()}%\n')
     elif spec == "kine":
         show_kine(args[1:])
     elif spec == 'cam_viewer' or spec=='viewer':
@@ -228,11 +232,11 @@ def show_stuff(args):
         robot.worldmap_viewer = WorldMapViewer(robot)
         robot.worldmap_viewer.start()
     elif spec == "pose":
-        robot.world_map.show_pose()
+        show_pose()
 #    elif spec == "landmarks":
 #        robot.world.particle_filter.show_landmarks()
     elif spec == "objects":
-        robot.world_map.show_objects()
+        show_objects()
 #    elif spec == "particle":
 #        robot.world.particle_filter.show_particle(args[1:])
 #    elif spec == "camera":
@@ -323,6 +327,7 @@ def show_kine_joint(name):
     tprint(robot.kine.link_to_base(name))
     print()
 
+"""
 def show_landmarks():
     landmarks = robot.world.particle_filter.sensor_model.landmarks
     print('The particle filter has %d landmark%s:' %
@@ -358,7 +363,25 @@ def show_landmarks_helper(landmarks):
         print(' at (%6.1f, %6.1f) @ %4.1f deg    +/- (%4.1f,%4.1f)  +/- %3.1f deg' %
               (x, y, theta, sigma_x, sigma_y, sigma_theta))
     print()
+"""
 
+def show_objects():
+    objs = sorted(robot.world_map.objects.items(), key=lambda x: x[0])
+    if len(objs) == 0:
+        print('No objects in the world map.\n')
+        return
+    width = max([len(x[0]) for x in objs])
+    for obj in objs:
+        print(f'{obj[0].rjust(width)}: {obj[1]}')
+    print()
+        
+def neaten(x):
+    return round(x*10)/10
+
+def show_pose():
+    print(f'Robot at {neaten(robot.x)}, {neaten(robot.y)} heading {neaten(robot.theta*180/pi)} deg.')
+    print(f'   Roll: {neaten(robot.robot0.get_roll())} deg.   Pitch:  {neaten(robot.robot0.get_pitch())} deg.  Yaw:  {neaten(robot.robot0.get_yaw())} deg.')
+    print()
 
 ################ Set up threads and robot
 
