@@ -243,14 +243,15 @@ def show_stuff(args):
 #        show_camera(args[1:])
     else:
         print("""Invalid option. Try one of:
-  show viewer | cam_viewer
-  show crosshairs
-  show worldmap_viewer
   show all | all_viewers
   show active
+  show battery
+  show crosshairs
   show kine [joint]
-  show pose
   show objects
+  show pose
+  show viewer | cam_viewer
+  show worldmap_viewer
    """)
 
 
