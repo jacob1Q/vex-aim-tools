@@ -17,5 +17,4 @@ def gpt_query(query):
             {"role": "system", "content": preamble},
             {"role": "user", "content": query}
       ])
-    print(response)
     return response.choices[0].message.content
