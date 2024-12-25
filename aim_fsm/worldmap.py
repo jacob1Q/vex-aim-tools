@@ -94,6 +94,9 @@ class WorldMap():
         self.shared_objects = dict()
         self.aruco = None
 
+    def __repr__(self):
+        return f'<WorldMap with {len(self.objects)} objects>'
+
     def clear(self):
         self.objects.clear()
         #self.robot.world.particle_filter.clear_landmarks()
@@ -164,3 +167,12 @@ class WorldMap():
             angle = spec['angle'] - (0 if spec['angle'] < 180 else 360)
             obj.theta = self.robot.theta - angle / 180 * pi * tag_angle_correction_factor
 
+    def show_objects(self):
+        objs = sorted(self.objects.items(), key=lambda x: x[0])
+        for obj in objs:
+            print(f'{obj[0]}:  {obj[1]}')
+        print()
+
+    def show_pose(self):
+        print(f'Robot at {round(self.robot.x*10)/10}, {round(self.robot.y*10)/10} heading {round(self.robot.theta*180/pi*10)/10} deg.')
+        print()

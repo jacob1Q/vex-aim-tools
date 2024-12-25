@@ -9,9 +9,8 @@ except:
 import cv2
 ARUCO_DICT_4x4_100 = cv2.aruco.DICT_4X4_100
 
-global robot_for_loading
-
 from . import vex
+from . import evbase
 
 from .evbase import EventRouter
 from .base import StateNode
@@ -319,10 +318,9 @@ def runfsm(module_name, running_modules=dict()):
         cprint("Module %s does not contain a StateMachineProgram named %s.\n" %
               (module_name, module_name), color="red")
         return
-    the_module.robot = robot_for_loading
-    #the_module.world = robot.world
+    the_module.robot = evbase.robot_for_loading
     # Class's __init__ method will call setup, which can reference the above variables.
     running_fsm = the_class()
-    robot_for_loading.loop.call_soon_threadsafe(running_fsm.start)
+    evbase.robot_for_loading.loop.call_soon_threadsafe(running_fsm.start)
     return running_fsm
 

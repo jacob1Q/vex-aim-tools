@@ -1,0 +1,389 @@
+#!/usr/bin/python3 -i
+
+"""
+VEX AIM Simple CLI
+================
+A simple Command Line Interface for VEX AIM.
+"""
+
+################ Imports
+
+import asyncio
+import atexit
+import code
+import datetime
+import logging
+import os
+import platform
+import re
+import readline
+import rlcompleter
+import subprocess
+import sys
+import threading
+import time
+import traceback
+from importlib import __import__, reload
+
+try:
+    from termcolor import cprint
+except:
+    def cprint(string, color=None):
+        print(string)
+
+try:
+    import matplotlib
+    import matplotlib.pyplot as plt
+except:
+    pass
+
+import aim_fsm
+from aim_fsm import *
+
+################ Configuration
+
+# tab completion
+readline.parse_and_bind('tab: complete')
+
+# history file
+if 'HOME' in os.environ:  # Linux
+    histfile = os.path.join(os.environ['HOME'], '.pythonhistory')
+elif 'USERPROFILE' in os.environ:  # Windows
+    histfile = os.path.join(os.environ['USERPROFILE'], '.pythonhistory')
+else:
+    histfile = '.pythonhistory'
+
+try:
+    readline.read_history_file(histfile)
+except IOError:
+    pass
+atexit.register(readline.write_history_file, histfile)
+
+os_version = platform.system()
+
+# Put current directory on search path.
+if '.' not in sys.path:
+    sys.path.append('.')
+
+################ CLI functions
+
+ans = None
+RUNNING = True
+
+def cli_loop(robot):
+    global ans, RUNNING
+
+    cli_globals = globals()
+    cli_globals['ans'] = None
+
+    running_fsm = aim_fsm.program.running_fsm = StateMachineProgram()
+    cli_globals['running_fsm'] = running_fsm
+    robot.loop.call_soon_threadsafe(running_fsm.start)
+
+    cli_loop._console = code.InteractiveConsole()
+    time.sleep(0.5) # give time for Windows to pop up before prompting
+    while True:
+        if RUNNING == False:
+            return
+        cli_loop._line = ''
+        while cli_loop._line == '':
+            readline.write_history_file(histfile)
+            try:
+                cli_loop._line = cli_loop._console.raw_input('C> ').strip()
+            except KeyboardInterrupt:
+                process_interrupt()
+                continue
+            except EOFError:
+                print("EOF.\nType 'exit' to exit.\n")
+                continue
+            try:
+                robot.kine.get_pose()
+            except: pass
+        if cli_loop._line[0] == '!':
+            do_shell_command(cli_loop._line[1:])
+            continue
+        elif cli_loop._line[0:3] == 'tm ' or cli_loop._line == 'tm':
+            text_message(cli_loop._line[3:])
+            continue
+        elif cli_loop._line[0:5] == 'show ' or cli_loop._line == 'show':
+            show_args = cli_loop._line[5:].split(' ')
+            try:
+                show_stuff(show_args)
+            except Exception:
+                traceback.print_exc()
+                print()
+            continue
+        elif cli_loop._line[0:7] == 'reload ':
+            do_reload(cli_loop._line[7:])
+            continue
+        elif cli_loop._line[0:6] == 'start ' or cli_loop._line == 'start':
+            start_args = cli_loop._line[6:].split(' ')
+            start_stuff(start_args)
+            continue
+        cli_loop._do_await = False
+        if cli_loop._line[0:7] == 'import ' or cli_loop._line[0:5] == 'from '  or \
+               cli_loop._line[0:7] == 'global ' or cli_loop._line[0:4] == 'del '   or \
+               cli_loop._line[0:4] == 'for ' or cli_loop._line[0:6] == 'while ' or \
+               cli_loop._line[0:4] == 'def '    or cli_loop._line[0:6] == 'async ' :
+            # Can't use assignment to capture a return value, so None.
+            ans = None
+        elif cli_loop._line[0:6] == 'await ':
+            cli_loop._do_await = True
+            cli_loop._line = 'ans=' + cli_loop._line[6:]
+        elif cli_loop._line[0:5] == 'exit':
+            # Clean up
+            try:
+                world_viewer.exited = True
+            except: pass
+            if running_fsm:
+                running_fsm.stop()
+            print()
+            RUNNING=False
+            continue
+        else:
+            cli_loop._line = 'ans=' + cli_loop._line
+        try:
+            exec(cli_loop._line, cli_globals)
+            if cli_loop._do_await:
+                print("Can't use await outside of an async def.")
+                ans = None # ans = await ans
+            if not ans is None:
+                print(ans,end='\n\n')
+        except KeyboardInterrupt:
+            print('Keyboard interrupt!')
+        except SystemExit:
+            print('Type exit() again to exit Python.')
+            RUNNING = False
+        except Exception:
+            traceback.print_exc()
+            print()
+
+def process_interrupt():
+    robot.robot0.stop_all_movement()
+    running_fsm = aim_fsm.program.running_fsm
+    if running_fsm and running_fsm.running:
+        print('\nKeyboardInterrupt: stopping', running_fsm.name)
+        running_fsm.stop()
+    else:
+        print("\nKeyboardInterrupt. Type 'exit' to exit.")
+
+VERBOSE = False  # True if we want all the log messages
+
+################ cli commands
+
+def text_message(msg):
+    running_fsm = aim_fsm.program.running_fsm
+    if not running_fsm or not running_fsm.running:
+        print('No state machine running. Use runfsm(module_name) to start a state machine.')
+        return
+    try:
+        running_fsm.robot.erouter.post(TextMsgEvent(msg))
+    except KeyboardInterrupt: raise
+    except Exception as e:
+        traceback.print_exc()
+        print()
+
+def show_stuff(args):
+    global running_fsm
+    running_fsm = aim_fsm.program.running_fsm
+    spec = args[0] if len(args) > 0 else ""
+    if spec == 'active':
+        if not running_fsm:
+            print('No state machine present.')
+        elif not running_fsm.running:
+            print("State machine '%s' is not running." % running_fsm.name)
+        else:
+            show_active(running_fsm,0)
+    elif spec == "kine":
+        show_kine(args[1:])
+    elif spec == 'cam_viewer' or spec=='viewer':
+        if running_fsm:
+            running_fsm.cam_viewer = True
+        if not robot.cam_viewer:
+            robot.cam_viewer = CamViewer(robot)
+            robot.cam_viewer.start()
+    elif spec == "crosshairs":
+        robot.cam_viewer.crosshairs = not robot.cam_viewer.crosshairs
+#    elif spec == "particle_viewer":
+#        if not robot.world.particle_viewer:
+#            robot.world.particle_viewer = ParticleViewer(robot)
+#            robot.world.particle_viewer.start()
+#    elif spec == "path_viewer":
+#        if not robot.path_viewer:
+#            robot.path_viewer = PathViewer(robot,world.rrt)
+#            robot.path_viewer.start()
+    elif spec == "worldmap_viewer":
+        if not robot.worldmap_viewer:
+            robot.worldmap_viewer = WorldMapViewer(robot)
+            robot.worldmap_viewer.start()
+    elif (spec == "all") or (spec == "all_viewers"):
+        if running_fsm:
+            running_fsm.cam_viewer = True
+        robot.cam_viewer = CamViewer(robot)
+        robot.cam_viewer.start()
+#        robot.world.particle_viewer = ParticleViewer(robot)
+#        robot.world.particle_viewer.start()
+#        robot.world.path_viewer = PathViewer(robot,world.rrt)
+#        robot.world.path_viewer.start()
+        robot.worldmap_viewer = WorldMapViewer(robot)
+        robot.worldmap_viewer.start()
+    elif spec == "pose":
+        robot.world_map.show_pose()
+#    elif spec == "landmarks":
+#        robot.world.particle_filter.show_landmarks()
+    elif spec == "objects":
+        robot.world_map.show_objects()
+#    elif spec == "particle":
+#        robot.world.particle_filter.show_particle(args[1:])
+#    elif spec == "camera":
+#        show_camera(args[1:])
+    else:
+        print("""Invalid option. Try one of:
+  show viewer | cam_viewer
+  show crosshairs
+  show worldmap_viewer
+  show all | all_viewers
+  show active
+  show kine [joint]
+  show pose
+  show objects
+   """)
+
+
+def show_active(node,depth):
+    if node.running: print('  '*depth, node)
+    for child in node.children.values():
+        show_active(child, depth+1)
+    for trans in node.transitions:
+        if trans.running: print('  '*(depth+1), trans)
+
+def show_kine(args):
+    if len(args) == 0:
+        show_kine_tree(0, robot.kine.joints['base'])
+        print()
+    elif len(args) == 1:
+        show_kine_joint(args[0])
+    else:
+        print('Usage:  show kine [joint]')
+
+def show_kine_tree(level, joint):
+    qstring = ''
+    if joint.type != 'fixed':
+        if isinstance(joint.q, (float,int)):
+            qval = ('%9.5g' % joint.q).strip()
+            if joint.type == 'revolute':
+                qval = qval + (' (%.1f deg.)' % (joint.q*180/pi))
+        else:
+            qval = '(' + (', '.join([('%9.5g' % v).strip() for v in joint.q])) + ')'
+        qstring = ' q=' + qval
+    print('  '*level, joint.name, ': ', joint.type, qstring, sep='')
+    for child in joint.children:
+        show_kine_tree(level+1, child)
+
+def show_kine_joint(name):
+    if name not in robot.kine.joints:
+        print("'"+repr(name)+"' is not the name of a joint.  Try 'show kine'.")
+        return
+    joint = robot.kine.joints[name]
+    fmt = '%10s'
+
+    def formatq(type,val):
+        if type == 'revolute':
+            if val == inf:
+                return 'inf'
+            elif val == -inf:
+                return '-inf'
+            jrad = ('%9.5g' % val).strip() + ' radians'
+            jdeg = '(' + ('%9.5g' % (val * 180/pi)).strip() + ' degrees)' if val != 0 else ''
+            return jrad + ' ' + jdeg
+        elif type == 'prismatic':
+            return ('%9.5g' % val).strip() + ' mm'
+        elif type == 'fixed':
+            return ''
+        elif type == 'world':
+            if val is None:
+                return ''
+            else:
+                return '(' + (', '.join(['%9.5g' % x for x in val])) + ')'
+        else:
+            raise ValueError(type)
+
+    print(fmt % 'Name:', name)
+    print(fmt % 'Type:', joint.type)
+    print(fmt % 'Parent:', joint.parent.name if joint.parent else '')
+    print(fmt % 'Descr.:', joint.description)
+    print(fmt % 'q:', formatq(joint.type, joint.q))
+    print(fmt % 'qmin:', formatq(joint.type, joint.qmin))
+    print(fmt % 'qmax:', formatq(joint.type, joint.qmax))
+    print(fmt % 'DH d:', formatq('prismatic',joint.d))
+    print(fmt % 'DH theta:', formatq('revolute',joint.theta))
+    print(fmt % 'DH alpha:', formatq('revolute',joint.alpha))
+    print(fmt % 'DH r:', formatq('prismatic',joint.r))
+    print(fmt % 'Link in base frame:')
+    tprint(robot.kine.link_to_base(name))
+    print()
+
+def show_landmarks():
+    landmarks = robot.world.particle_filter.sensor_model.landmarks
+    print('The particle filter has %d landmark%s:' %
+          (len(landmarks), '' if (len(landmarks) == 1) else 's'))
+    show_landmarks_helper(landmarks)
+
+def show_landmarks_helper(landmarks):
+    sorted_keys = sort_wmobject_ids(landmarks)
+    for key in sorted_keys:
+        value = landmarks[key]
+        if isinstance(value, Pose):
+            x = value.position.x
+            y = value.position.y
+            theta = value.rotation.angle_z.degrees
+            sigma_x = 0
+            sigma_y = 0
+            sigma_theta = 0
+        else:
+            x = value[0][0,0]
+            y = value[0][1,0]
+            theta = value[1] * 180/pi
+            sigma_x = sqrt(value[2][0,0])
+            sigma_y = sqrt(value[2][1,1])
+            sigma_theta = sqrt(value[2][2,2])*180/pi
+        if key.startswith('Aruco-'):
+            print('  Aruco marker %s' % key[6:], end='')
+        elif key.startswith('Wall-'):
+            print('  Wall %s' % key[5:], end='')
+        elif key.startswith('Cube-'):
+            print('  Cube %s' % key[5:], end='')
+        else:
+            print('  %r' % key, end='')
+        print(' at (%6.1f, %6.1f) @ %4.1f deg    +/- (%4.1f,%4.1f)  +/- %3.1f deg' %
+              (x, y, theta, sigma_x, sigma_y, sigma_theta))
+    print()
+
+
+################ Set up threads and robot
+
+global loop
+loop = asyncio.get_event_loop()
+# loop.set_debug(True)
+
+def loopthread():
+    global loop
+    print(f"loop thead in {threading.current_thread().native_id}")
+    loop.run_forever()
+
+th = threading.Thread(target=loopthread)
+th.daemon = True
+th.start()
+
+if 'ROBOT' in os.environ:
+    robot_address = os.environ['ROBOT']
+else:
+    robot_address = "192.168.4.1"
+print(f'Connecting to {robot_address} ...')
+
+robot = Robot(loop=loop, host=robot_address)
+evbase.robot_for_loading = robot
+
+################ Launch
+
+cli_loop(robot)

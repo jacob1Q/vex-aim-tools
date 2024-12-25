@@ -33,7 +33,7 @@ class Actuator():
     def status_update(self): pass
 
     def complete(self):
-        print(f"{self.name} completes, holder {self.holder}")
+        #print(f"{self.name} completes, holder {self.holder}")
         if self.holder:
             self.holder.complete(self)
 

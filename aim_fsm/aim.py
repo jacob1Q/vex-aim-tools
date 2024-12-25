@@ -405,7 +405,7 @@ class Robot():
         self._ws_audio_thread.start()
 
         atexit.register(self.exit_handler)
-        signal.signal(signal.SIGINT, self.kill_handler)
+        #signal.signal(signal.SIGINT, self.kill_handler)
         signal.signal(signal.SIGTERM, self.kill_handler)
 
         self._program_init()
