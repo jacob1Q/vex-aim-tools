@@ -9,6 +9,7 @@ from .aim_kin import *
 from .evbase import EventRouter
 from .events import *
 from .actuators import *
+from .openai_client import gpt_query
 from .aruco import *
 from .worldmap import *
 from . import program
@@ -124,3 +125,6 @@ class Robot():
             if self.was_picked_up:
                 pass # print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
             return False
+
+    def ask_gpt(self, query):
+        return gpt_query(query)
