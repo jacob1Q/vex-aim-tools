@@ -271,7 +271,7 @@ def runfsm(module_name, running_modules=dict()):
     if running_fsm:
         running_fsm.stop()
 
-    r_py = re.compile('.*\.py$')
+    r_py = re.compile('.*\\.py$')
     if r_py.match(module_name):
         print("\n'%s' is not a module name. Trying '%s' instead.\n" %
               (module_name, module_name[0:-3]))
