@@ -1,12 +1,8 @@
 import os
+import re
 import openai
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-if openai.api_key:
-    client = openai.OpenAI()
-else:
-    client = None
+from .events import OpenAIEvent
 
 preamble = """
   You are an intelligent mobile robot.
@@ -15,11 +11,35 @@ preamble = """
   To turn counter-clockwise by N degrees, output the string "#turn N", and use a negative value for clockwise turns.
 """
 
-def gpt_query(query):
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages = [
-            {"role": "system", "content": preamble},
-            {"role": "user", "content": query}
-      ])
-    return response.choices[0].message.content
+class OpenAIClient():
+    def __init__(self, robot, model='gpt-4o'):
+        self.robot = robot
+        self.model = model
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        if openai.api_key:
+            self.client = openai.OpenAI()
+        else:
+            print("*** No OPENAI_API_KEY provided.  GPT will not be available.")
+            self.client = None
+        self.messages = [
+            {'role': 'system', 'content': preamble}
+        ]
+
+    def query(self, query_text):
+        self.messages.append({'role': 'user', 'content': query_text})
+        self.robot.loop.call_soon_threadsafe(self.launch_openai_query)
+
+    def launch_openai_query(self):
+        self.robot.loop.create_task(self.openai_query())
+
+    async def openai_query(self):
+        response = self.client.chat.completions.create(
+            model = self.model,
+            messages = self.messages
+        )
+        answer = response.choices[0].message.content
+        self.messages.append({'role': 'assistant', 'content': answer})
+        # remove LaTeX brackets from response
+        cleaned_answer = re.sub(r'\\[\[\]\(\)]', '', answer)
+        event = OpenAIEvent(cleaned_answer)
+        self.robot.erouter.post(event)

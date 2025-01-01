@@ -136,6 +136,7 @@ class TapTrans(Transition):
 
     def handle_event(self,event):
         if not self.running: return
+        super().handle_event(event)
         if self.cube:
             self.fire(event)
         else:
@@ -259,6 +260,16 @@ class HearTrans(PatternMatchTrans):
     """Transition fires if speech event matches pattern."""
     def __init__(self,pattern=None):
         super().__init__(pattern,SpeechEvent)
+
+class OpenAITrans(Transition):
+    def start(self):
+        if self.running: return
+        super().start()
+        self.robot.erouter.add_listener(self, OpenAIEvent, None)
+
+    def handle_event(self,event):
+        super().handle_event(event)
+        self.fire(event)
 
 
 class PilotTrans(Transition):

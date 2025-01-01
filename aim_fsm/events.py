@@ -51,6 +51,12 @@ class SpeechEvent(Event):
         self.words = words
         self.result = result
 
+class OpenAIEvent(Event):
+    """Results of an OpenAI request."""
+    def __init__(self, response):
+        super().__init__()
+        self.response = response
+
 class PilotEvent(Event):
     """Results of a pilot request."""
     def __init__(self,status,**args):

@@ -9,7 +9,7 @@ from .aim_kin import *
 from .evbase import EventRouter
 from .events import *
 from .actuators import *
-from .openai_client import gpt_query
+from .openai_client import OpenAIClient
 from .aruco import *
 from .worldmap import *
 from . import program
@@ -26,14 +26,16 @@ class Robot():
         self.kine = AIMKinematics(self)
         self.world_map = WorldMap(self)
         self.aruco = None
-        self.status = self.robot0._ws_status_thread.current_status['robot']
         acts = [DriveActuator(self), SoundActuator(self), KickActuator(self), LEDsActuator(self)]
         self.actuators = {act.name : act for act in acts}
         self.erouter = EventRouter(self)
         self.cam_viewer = None
         self.touch = '0x00'
-        robot0._ws_status_thread.callback = self.status_callback
+        self.flask_thread = None
+        self.openai_client = OpenAIClient(self)
         self.camera_image = None
+        self.status = self.robot0._ws_status_thread.current_status['robot']
+        robot0._ws_status_thread.callback = self.status_callback
         robot0._ws_img_thread.callback = self.image_callback
         robot0.get_camera_image()  # start the image stream
         robot0.aiv.tag_detection(True)
@@ -103,6 +105,7 @@ class Robot():
         self.robot0.move_for(distance_mm, angle_zero, drive_speed=drive_speed, wait=False)
 
     def is_picked_up(self):
+        return False
         """
         This function could be smarter about deciding when the robot has been
         put down.  The attitude_threshold should be raised to 7 degrees, but
@@ -126,5 +129,5 @@ class Robot():
                 pass # print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
             return False
 
-    def ask_gpt(self, query):
-        return gpt_query(query)
+    def ask_gpt(self, query_text):
+        self.openai_client.query(query_text)

@@ -38,7 +38,6 @@ class SpeechListener():
         self.robot = robot
         self.thesaurus = thesaurus
         self.debug = debug
-        self.flask_thread = None
         speech_listener = self
 
     def run_flask(self):
@@ -59,12 +58,12 @@ class SpeechListener():
         words = self.thesaurus.substitute_phrases(words)
         string = " ".join(words)
         print("Heard: '%s'" % string)
-        evt = SpeechEvent(string,words)
-        self.robot.erouter.post(evt)
+        event = SpeechEvent(string, words)
+        self.robot.erouter.post(event)
         
     def start(self):
-        if self.flask_thread:
+        if self.robot.flask_thread:
             return
-        self.flask_thread = threading.Thread(target=self.run_flask)
-        self.flask_thread.start()
+        self.robot.flask_thread = threading.Thread(target=self.run_flask)
+        self.robot.flask_thread.start()
         self.robot.loop.call_later(1, self.load_listener_page)

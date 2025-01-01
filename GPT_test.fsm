@@ -1,0 +1,12 @@
+from aim_fsm import *
+
+class GPT_test(StateMachineProgram):
+    class SpeakResponse(Say):
+      def start(self,event):
+        self.text = event.response
+        super().start(event)
+        
+    $setup{
+      loop: StateNode() =Hear()=> AskGPT() =OpenAITrans()=> self.SpeakResponse() =C=> loop
+    }
+

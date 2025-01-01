@@ -112,12 +112,28 @@ class SaveImage(StateNode):
             print('Wrote',fname)
 
 
+class AskGPT(StateNode):
+    "Send a query to GPT"
+
+    def __init__(self, query_text=None):
+        super().__init__()
+        self.query_text = query_text
+
+    def start(self, event=None):
+        super().start(event)
+        if isinstance(event, SpeechEvent):
+            self.query_text = event.string
+        self.robot.ask_gpt(self.query_text)
+
+
 #________________ Actions ________________
 
 class ActionNode(StateNode):
     def complete(self,actuator):
+        print(f'{self} completes, actuator {actuator}')
         actuator.unlock(self)
         self.post_completion()
+
 
 class Kick(ActionNode):
     def __init__(self, kicktype=vex.KickType.SOFT):
@@ -127,6 +143,11 @@ class Kick(ActionNode):
     def start(self, event=None):
         super().start(event)
         self.robot.actuators['kick'].kick(self, self.kicktype)
+
+    def stop(self):
+        super().stop()
+        self.robot.actuators['kick'].unlock_if_held(self)
+
 
 class Turn(ActionNode):
     def __init__(self, angle_deg, turn_speed=None):
@@ -138,6 +159,10 @@ class Turn(ActionNode):
         super().start(event)
         self.robot.actuators['drive'].turn(self, self.angle_deg*pi/180, self.turn_speed)
 
+    def stop(self):
+        super().stop()
+        self.robot.actuators['drive'].unlock_if_held(self)
+
 
 class Forward(ActionNode):
     def __init__(self, distance_mm, drive_speed=None):
@@ -148,6 +173,10 @@ class Forward(ActionNode):
     def start(self, event=None):
         super().start(event)
         self.robot.actuators['drive'].forward(self, self.distance_mm, self.drive_speed)
+
+    def stop(self):
+        super().stop()
+        self.robot.actuators['drive'].unlock_if_held(self)
 
 
 class Say(ActionNode):
@@ -172,10 +201,16 @@ class Say(ActionNode):
         if not isinstance(utterance, str):
             utterance = repr(utterance)
         self.utterance = utterance
+        print(f'{self} running = {self.running}')
         super().start(event)
+        print(f'{self} running = {self.running}')
         print("Speaking: '",utterance,"'",sep='')
 
         self.robot.actuators['sound'].say_text(self, self.utterance)
+
+    def stop(self):
+        super().stop()
+        self.robot.actuators['sound'].unlock_if_held(self)
 
 
 class PlaySound(ActionNode):

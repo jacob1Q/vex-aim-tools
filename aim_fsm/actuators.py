@@ -16,6 +16,7 @@ class Actuator():
         return f"<Actuator {self.name}>"
 
     def lock(self, node):
+        print(f'lock actuator {self}, holder={self.holder}')
         if self.holder is None:
             self.holder = node
             return True
@@ -30,10 +31,15 @@ class Actuator():
         else:
             raise self.ActuatorNotHeld()
 
+    def unlock_if_held(self, node):
+        "Needed if an external event shuts down a node that might have locked the actuator."
+        if self.holder is node:
+            self.holder = None
+
     def status_update(self): pass
 
     def complete(self):
-        #print(f"{self.name} completes, holder {self.holder}")
+        print(f"{self.name} completes, holder {self.holder}")
         if self.holder:
             self.holder.complete(self)
 
@@ -75,7 +81,6 @@ class SoundActuator(Actuator):
         self.tts_audio_config = texttospeech.AudioConfig(
             audio_encoding=texttospeech.AudioEncoding.MP3
         )
-
 
     def status_update(self):
         if self.robot.robot0.is_sound_active():
