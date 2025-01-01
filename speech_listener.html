@@ -21,6 +21,11 @@
         let utterance_count = 0;
 
         function initializeRecognition() {
+	    if (! ('webkitSpeechRecognition' in window)) {
+		resultDiv.innerHTML = '<font size=+2 color="red"><b>Speech recognition not supported in this browser!</b></font>';
+		return;
+	    };
+
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true; // Enable continuous recognition
             recognition.interimResults = false;
