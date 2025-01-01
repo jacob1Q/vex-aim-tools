@@ -169,9 +169,7 @@ def process_interrupt():
     else:
         print("\nKeyboardInterrupt. Type 'exit' to exit.")
 
-VERBOSE = False  # True if we want all the log messages
-
-################ cli commands
+################ CLI commands
 
 def text_message(msg):
     running_fsm = aim_fsm.program.running_fsm
@@ -383,6 +381,23 @@ def show_pose():
     print(f'Robot at {neaten(robot.x)}, {neaten(robot.y)} heading {neaten(robot.theta*180/pi)} deg.')
     print(f'   Roll: {neaten(robot.robot0.get_roll())} deg.   Pitch:  {neaten(robot.robot0.get_pitch())} deg.  Yaw:  {neaten(robot.robot0.get_yaw())} deg.')
     print()
+
+def do_reload(module_name):
+    the_module = None
+    try:
+        the_module = reload(sys.modules[module_name])
+    except KeyError:
+        print("Module '%s' isn't loaded." % module_name)
+    except: raise
+    if the_module:
+        print(the_module)
+    print()
+
+def do_shell_command(cmd):
+    try:
+        subprocess.call(cmd, shell=True)
+    except Exception as e:
+        print(e)
 
 ################ Set up threads and robot
 

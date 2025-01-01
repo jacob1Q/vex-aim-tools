@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech Listener for VEX AIM</title>
+</head>
+<body>
+    <h1>Speech Listener for VEX AIM</h1>
+    <button id="startButton" style="background-color: lime">Start Listening</button>
+    <button id="stopButton">Stop Listening</button><p/>
+    <div id="result"></div>
+
+    <script>
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const resultDiv = document.getElementById('result');
+        
+        let recognition;
+        let isRecording = false;
+        let utterance_count = 0;
+
+        function initializeRecognition() {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true; // Enable continuous recognition
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function () {
+                console.log('Speech recognition started');
+            };
+
+            recognition.onresult = function (event) {
+                const speechResult = event.results[event.resultIndex][0].transcript;
+		utterance_count += 1;
+                resultDiv.innerText = `Result ${utterance_count}: ${speechResult}`;
+                console.log('Speech result:', speechResult);
+
+                // Send the transcribed text to the Python backend
+                fetch('http://127.0.0.1:5000/api/speech-to-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: speechResult })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Backend response:', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            };
+
+            recognition.onerror = function (event) {
+                console.error('Speech recognition error:', event.error);
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    console.error('Microphone access denied');
+                }
+            };
+
+            recognition.onend = function () {
+                console.log('Speech recognition ended');
+                if (isRecording) {
+                    console.log('Restarting speech recognition...');
+                    recognition.start(); // Restart recognition if still recording
+                }
+            };
+        }
+
+        startButton.addEventListener('click', () => {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    console.log('Microphone access granted');
+                    if (!isRecording) {
+                        initializeRecognition();
+                        recognition.start();
+                        isRecording = true;
+                    }
+		    startButton.style.backgroundColor = '';
+		    stopButton.style.backgroundColor = 'red';
+                })
+                .catch(error => {
+                    console.error('Microphone access denied', error);
+                });
+        });
+
+        stopButton.addEventListener('click', () => {
+            if (recognition && isRecording) {
+                recognition.stop();
+                isRecording = false;
+            }
+	    startButton.style.backgroundColor = 'lime';
+	    stopButton.style.backgroundColor = '';
+        });
+
+      startButton.click();
+    </script>
+</body>
+</html>

@@ -19,11 +19,11 @@ from .worldmap_viewer import WorldMapViewer
 from .aruco import *
 from .worldmap import WorldMap
 #from .particle import *
-#from .aim_kin import *
 #from .particle_viewer import ParticleViewer
 #from .rrt import RRT
 #from .path_viewer import PathViewer
-#from .speech import SpeechListener, Thesaurus
+from .speech import SpeechListener
+from .thesaurus import Thesaurus
 from . import opengl
 #from . import custom_objs
 #from .perched import *
@@ -33,7 +33,6 @@ running_fsm = None
 
 class StateMachineProgram(StateNode):
     def __init__(self,
-                 #kine_class = CozmoKinematics,
                  cam_viewer = True,
                  worldmap_viewer = True,
                  force_annotation = False,   # set to True for annotation even without cam_viewer
@@ -56,9 +55,9 @@ class StateMachineProgram(StateNode):
                  rrt = None,
                  path_viewer = False,
 
-                 speech = False,
-                 speech_debug = False,
-                 #thesaurus = Thesaurus(),
+                 speech = True,
+                 speech_debug = True,
+                 thesaurus = Thesaurus(),
                  ):
         super().__init__()
         self.name = self.__class__.__name__.lower()
@@ -71,8 +70,6 @@ class StateMachineProgram(StateNode):
             self.robot.erouter.start()
         else:
             self.robot.erouter.clear()
-
-        #self.kine_class = kine_class
 
         self.cam_viewer = cam_viewer
         self.viewer = None
@@ -111,7 +108,7 @@ class StateMachineProgram(StateNode):
 
         self.speech = speech
         self.speech_debug = speech_debug
-        #self.thesaurus = thesaurus
+        self.thesaurus = thesaurus
 
     def start(self):
         global running_fsm
@@ -124,8 +121,7 @@ class StateMachineProgram(StateNode):
         #pf = self.particle_filter
         #self.robot.world.particle_filter = pf
 
-        # Set up kinematics
-        #self.robot.kine = self.kine_class(self.robot)
+        # Set up robot state
         self.robot.was_picked_up = False
         self.robot.carrying = None
         self.robot.fetching = None
@@ -166,7 +162,7 @@ class StateMachineProgram(StateNode):
 
         # Start speech recognition if requested
         if self.speech:
-            self.speech_listener = SpeechListener(self.robot,self.thesaurus,debug=self.speech_debug)
+            self.speech_listener = SpeechListener(self.robot, self.thesaurus, debug=self.speech_debug)
             self.speech_listener.start()
 
         # Call parent's start() to launch the state machine by invoking the start node.

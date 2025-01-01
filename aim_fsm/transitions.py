@@ -225,7 +225,7 @@ class PatternMatchTrans(Transition):
     
     def __init__(self, pattern=None, event_type=None):
         super().__init__()
-        if pattern:
+        if pattern is not None:
             pattern = re.compile(pattern)
         self.pattern = pattern
         self.event_type = event_type
