@@ -1,6 +1,6 @@
 import asyncio
 
-from gtts import gTTS
+from google.cloud import texttospeech
 
 class Actuator():
     class ActuatorLocked(Exception): pass
@@ -65,6 +65,17 @@ class SoundActuator(Actuator):
     def __init__(self, robot):
         super().__init__(robot, 'sound')
         self.playing = False
+        # Google text to speech setup:
+        self.tts_client = texttospeech.TextToSpeechClient()
+        self.tts_voice = texttospeech.VoiceSelectionParams(
+            language_code="en-US",
+            name="en-US-Journey-F",
+            ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
+        )
+        self.tts_audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3
+        )
+
 
     def status_update(self):
         if self.robot.robot0.is_sound_active():
@@ -82,9 +93,15 @@ class SoundActuator(Actuator):
         self.robot.loop.create_task(self.text_to_mp3(text))
 
     async def text_to_mp3(self, text):
+        synthesis_input = texttospeech.SynthesisInput(text=text)
+        response = self.tts_client.synthesize_speech(
+            input = synthesis_input,
+            voice = self.tts_voice,
+            audio_config = self.tts_audio_config
+        )
         filepath = "/tmp/vex_speech.mp3"
-        tts = gTTS(text=text, lang='en')
-        tts.save(filepath)
+        with open(filepath, "wb") as out:
+            out.write(response.audio_content)
         self.robot.robot0.play_sound_file(filepath)
 
     def play_sound(self, node, sound, volume=100):
