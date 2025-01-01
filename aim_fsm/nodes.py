@@ -211,6 +211,7 @@ class Say(ActionNode):
     def stop(self):
         super().stop()
         self.robot.actuators['sound'].unlock_if_held(self)
+        self.robot.speech_listener.enable()
 
 
 class PlaySound(ActionNode):

@@ -33,12 +33,14 @@ def handle_speech_to_text():
 class SpeechListener():
     def __init__(self, _robot, thesaurus=Thesaurus(), debug=False):
         global robot
-        global speech_listener
         robot = _robot
+        global speech_listener
+        speech_listener = self
+
         self.robot = robot
         self.thesaurus = thesaurus
         self.debug = debug
-        speech_listener = self
+        self.enabled = True
 
     def run_flask(self):
         # Suppress the default Flask logging
@@ -51,7 +53,15 @@ class SpeechListener():
         webbrowser.open_new_tab('http://127.0.0.1:5000/')
         print('Speech input is running in your browser.')
 
+    def disable(self):
+        self.enabled = False
+
+    def enable(self):
+        self.enabled = True
+
     def handle_utterance(self, utterance):
+        if not self.enabled:
+            return
         print("Raw utterance: '%s'" % utterance)
         utterance = utterance.strip().lower()
         words = [self.thesaurus.lookup_word(w) for w in utterance.split(" ")]

@@ -105,7 +105,6 @@ class Robot():
         self.robot0.move_for(distance_mm, angle_zero, drive_speed=drive_speed, wait=False)
 
     def is_picked_up(self):
-        return False
         """
         This function could be smarter about deciding when the robot has been
         put down.  The attitude_threshold should be raised to 7 degrees, but

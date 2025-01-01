@@ -164,6 +164,7 @@ class StateMachineProgram(StateNode):
         if self.speech:
             self.speech_listener = SpeechListener(self.robot, self.thesaurus, debug=self.speech_debug)
             self.speech_listener.start()
+            self.robot.speech_listener = self.speech_listener
 
         # Call parent's start() to launch the state machine by invoking the start node.
         super().start()

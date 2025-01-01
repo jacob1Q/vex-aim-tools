@@ -7,6 +7,8 @@ class GPT_test(StateMachineProgram):
         super().start(event)
         
     $setup{
+      Say("Talk to me") =C=> loop
+
       loop: StateNode() =Hear()=> AskGPT() =OpenAITrans()=> self.SpeakResponse() =C=> loop
     }
 

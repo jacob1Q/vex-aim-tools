@@ -107,6 +107,7 @@ class SoundActuator(Actuator):
         filepath = "/tmp/vex_speech.mp3"
         with open(filepath, "wb") as out:
             out.write(response.audio_content)
+        self.robot.speech_listener.disable()
         self.robot.robot0.play_sound_file(filepath)
 
     def play_sound(self, node, sound, volume=100):
