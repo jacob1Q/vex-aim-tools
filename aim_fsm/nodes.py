@@ -130,7 +130,6 @@ class AskGPT(StateNode):
 
 class ActionNode(StateNode):
     def complete(self,actuator):
-        print(f'{self} completes, actuator {actuator}')
         actuator.unlock(self)
         self.post_completion()
 
@@ -201,9 +200,7 @@ class Say(ActionNode):
         if not isinstance(utterance, str):
             utterance = repr(utterance)
         self.utterance = utterance
-        print(f'{self} running = {self.running}')
         super().start(event)
-        print(f'{self} running = {self.running}')
         print("Speaking: '",utterance,"'",sep='')
 
         self.robot.actuators['sound'].say_text(self, self.utterance)
@@ -211,7 +208,6 @@ class Say(ActionNode):
     def stop(self):
         super().stop()
         self.robot.actuators['sound'].unlock_if_held(self)
-        self.robot.speech_listener.enable()
 
 
 class PlaySound(ActionNode):

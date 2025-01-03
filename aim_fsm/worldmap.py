@@ -62,27 +62,25 @@ class AprilTagObj(WorldObject):
         return f'<{self.__class__.__name__} id={self.tag_id} {vis} at ({self.x:.1f}, {self.y:.1f}) @ {self.theta*180/pi:.1f} deg.>'
 
 class ArucoMarkerObj(WorldObject):
-    def __init__(self, aruco_parent, marker_number, id=None, x=0, y=0, z=0, theta=0):
-        if id is None:
-            id = 'Aruco-' + str(marker_number)
-        super().__init__(id,x,y,z)
-        self.aruco_parent = aruco_parent
-        self.marker_number = marker_number
+    def __init__(self, spec, x=0, y=0, z=0, theta=0):
+        super().__init__(self)
+        self.name = spec['name']
+        self.tag_id = spec['id']
+        self.aruco_parent = spec['marker'].aruco_parent
+        self.x = x
+        self.y = y
+        self.z = z
         self.theta = theta
         self.pose_confidence = +1
-
-    @property
-    def is_visible(self):
-        return self.marker_number in self.aruco_parent.seen_marker_ids
 
     def __repr__(self):
         if self.pose_confidence >= 0:
             vis = ' visible' if self.is_visible else ''
             fix = ' fixed' if self.is_fixed else ''
             return '<ArucoMarkerObj %d: (%.1f, %.1f, %.1f) @ %d deg.%s%s>' % \
-                (self.marker_number, self.x, self.y, self.z, self.theta*180/pi, fix, vis)
+                (self.tag_id, self.x, self.y, self.z, self.theta*180/pi, fix, vis)
         else:
-            return '<ArucoMarkerObj %d: position unknown>' % self.marker_number
+            return '<ArucoMarkerObj %d: position unknown>' % self.tag_id
 
 ################################################################
 
@@ -92,7 +90,6 @@ class WorldMap():
         self.robot = robot
         self.objects = dict()
         self.shared_objects = dict()
-        self.aruco = None
 
     def __repr__(self):
         return f'<WorldMap with {len(self.objects)} objects>'
@@ -102,8 +99,16 @@ class WorldMap():
         #self.robot.world.particle_filter.clear_landmarks()
 
     def update(self):
+        self.seen_objs = []
+        self.update_aivision_objects()
+        if self.robot.aruco_detector:
+            self.update_aruco_objects()
+        for obj in self.objects.values():
+            if obj not in self.seen_objs:
+                obj.is_visible = False
+
+    def update_aivision_objects(self):
         objspecs = self.robot.robot0._ws_status_thread.current_status['aivision']['objects']['items']
-        seen_objs = []
         for spec in objspecs:
             if spec['type_str'] == 'aiobj':
                 name = spec['name']
@@ -124,11 +129,21 @@ class WorldMap():
             else:
                 obj = self.objects[name]
             obj.is_visible = True
-            seen_objs.append(obj)
-            self.update_object(spec)
-        for obj in self.objects.values():
-            if obj not in seen_objs:
-                obj.is_visible = False
+            self.seen_objs.append(obj)
+            self.update_aivision_object_position(spec)
+
+    def update_aruco_objects(self):
+        for (id,marker) in self.robot.aruco_detector.seen_marker_objects.items():
+            name = f'ArucoMarker-{id}'
+            spec = {'name': name, 'id': id, 'marker': marker}
+            if name not in self.objects:
+                obj = self.make_object(spec)
+                self.objects[obj.name] = obj
+            else:
+                obj = self.objects[name]
+            obj.is_visible = True
+            self.seen_objs.append(obj)
+            self.update_aruco_object_position(spec)
 
     def make_object(self, spec):
         if spec['name'] == 'OrangeBarrel':
@@ -141,12 +156,14 @@ class WorldMap():
             obj = RobotObj(spec)
         elif spec['name'].startswith('AprilTag'):
             obj = AprilTagObj(spec)
+        elif spec['name'].startswith('ArucoMarker'):
+            obj = ArucoMarkerObj(spec)
         else:
             print(f"ERROR **** spec = {spec}")
             obj = None
         return obj
 
-    def update_object(self, spec):
+    def update_aivision_object_position(self, spec):
         resolution_scale = 2
         cx = (spec['originx'] + spec['width']/2) * resolution_scale
         cy = (spec['originy'] + spec['height']) * resolution_scale
@@ -166,4 +183,17 @@ class WorldMap():
         if spec.get('angle') != None:
             angle = spec['angle'] - (0 if spec['angle'] < 180 else 360)
             obj.theta = self.robot.theta - angle / 180 * pi * tag_angle_correction_factor
+
+    def update_aruco_object_position(self, spec):
+        obj = self.objects[spec['name']]
+        marker = spec['marker']
+        sensor_dist = marker.camera_distance
+        sensor_coords = marker.camera_coords
+        sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
+        sensor_orient = wrap_angle(pi - marker.euler_rotation[1] * (pi/180))
+        theta = self.robot.theta
+        obj.x = self.robot.x + sensor_dist * cos(theta + sensor_bearing)
+        obj.y = self.robot.y + sensor_dist * sin(theta + sensor_bearing)
+        obj.z = marker.aruco_parent.marker_size / 2  # *** TEMPORARY HACK ***
+        obj.theta = wrap_angle(self.robot.theta - sensor_orient)
 

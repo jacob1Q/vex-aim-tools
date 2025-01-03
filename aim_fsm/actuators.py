@@ -16,7 +16,6 @@ class Actuator():
         return f"<Actuator {self.name}>"
 
     def lock(self, node):
-        print(f'lock actuator {self}, holder={self.holder}')
         if self.holder is None:
             self.holder = node
             return True
@@ -39,7 +38,6 @@ class Actuator():
     def status_update(self): pass
 
     def complete(self):
-        print(f"{self.name} completes, holder {self.holder}")
         if self.holder:
             self.holder.complete(self)
 
@@ -88,6 +86,7 @@ class SoundActuator(Actuator):
         else:
             if self.playing is True:
                 self.playing = False
+                self.robot.loop.call_later(1, self.robot.speech_listener.enable)
                 self.complete()
 
     def say_text(self, node, text):

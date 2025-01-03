@@ -22,8 +22,6 @@ from .worldmap import WorldMap
 #from .particle_viewer import ParticleViewer
 #from .rrt import RRT
 #from .path_viewer import PathViewer
-from .speech import SpeechListener
-from .thesaurus import Thesaurus
 from . import opengl
 #from . import custom_objs
 #from .perched import *
@@ -54,10 +52,6 @@ class StateMachineProgram(StateNode):
 
                  rrt = None,
                  path_viewer = False,
-
-                 speech = True,
-                 speech_debug = True,
-                 thesaurus = Thesaurus(),
                  ):
         super().__init__()
         self.name = self.__class__.__name__.lower()
@@ -88,8 +82,8 @@ class StateMachineProgram(StateNode):
         self.aruco = aruco
         self.aruco_marker_size = aruco_marker_size
         if self.aruco:
-            self.robot.aruco = \
-                Aruco(self.robot, arucolibname, aruco_marker_size, aruco_disabled_ids)
+            self.robot.aruco_detector = \
+                ArucoDetector(self.robot, arucolibname, aruco_marker_size, aruco_disabled_ids)
 
         self.perched_cameras = perched_cameras
         if self.perched_cameras:
@@ -105,10 +99,6 @@ class StateMachineProgram(StateNode):
 
         self.rrt = rrt
         self.path_viewer = path_viewer
-
-        self.speech = speech
-        self.speech_debug = speech_debug
-        self.thesaurus = thesaurus
 
     def start(self):
         global running_fsm
@@ -159,12 +149,6 @@ class StateMachineProgram(StateNode):
                 self.path_viewer.set_rrt(self.robot.world.rrt)
             self.path_viewer.start()
         self.robot.world_map.path_viewer = self.path_viewer
-
-        # Start speech recognition if requested
-        if self.speech:
-            self.speech_listener = SpeechListener(self.robot, self.thesaurus, debug=self.speech_debug)
-            self.speech_listener.start()
-            self.robot.speech_listener = self.speech_listener
 
         # Call parent's start() to launch the state machine by invoking the start node.
         super().start()
@@ -223,7 +207,7 @@ class StateMachineProgram(StateNode):
         # Aruco image processing
         if self.aruco:
             gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-            self.robot.aruco.process_image(gray)
+            self.robot.aruco_detector.process_image(gray)
         # Other image processors can run here if the user supplies them.
         self.user_image(image,gray)
         # Done with image processing

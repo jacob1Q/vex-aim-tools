@@ -61,6 +61,7 @@ class SpeechListener():
 
     def handle_utterance(self, utterance):
         if not self.enabled:
+            print('Discarded:', utterance)
             return
         print("Raw utterance: '%s'" % utterance)
         utterance = utterance.strip().lower()

@@ -99,8 +99,8 @@ class CamViewer():
                           ((obj['originx'] + obj['width'])*2, (obj['originy'] + obj['height'])*2),
                           color,
                           1) 
-        if self.robot.aruco and len(self.robot.aruco.seen_marker_ids) > 0:
-            self.robot.aruco.annotate(image,scale)
+        if self.robot.aruco_detector and len(self.robot.aruco_detector.seen_marker_ids) > 0:
+            self.robot.aruco_detector.annotate(image,scale)
         self.robot.annotated_image = image.copy()
         # Done with annotation
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, self.width, self.height, 0, GL_BGR, GL_UNSIGNED_BYTE, image)

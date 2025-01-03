@@ -485,10 +485,10 @@ class WorldMapViewer():
 
     def make_aruco_marker(self,marker):
         global gl_lists
-        marker_number = marker.marker_number
-        s = light_cube_size_mm
+        tag_id = marker.tag_id
+        s = marker.aruco_parent.marker_size
         pos = (marker.x, marker.y, marker.z)
-        color = (color_red, color_green, color_blue)[marker_number%3]
+        color = (color_red, color_green, color_blue)[tag_id%3]
         c = glGenLists(1)
         glNewList(c, GL_COMPILE)
         glPushMatrix()
@@ -499,10 +499,10 @@ class WorldMapViewer():
         self.make_cube((marker_thickness,s,s), color=color, highlight=highlight)
         glRotatef(-90, 0., 0., 1.)
         glRotatef(90, 1., 0., 0.)
-        length = len(ascii(marker_number)) + 0.5
+        length = len(ascii(tag_id)) + 0.5
         glTranslatef(-s/4*length, -s/4, marker_thickness)
         glScalef(0.25, 0.2, 0.25)
-        glutStrokeString(GLUT_STROKE_MONO_ROMAN, c_char_p(bytes(ascii(marker_number),'utf8')))
+        glutStrokeString(GLUT_STROKE_MONO_ROMAN, c_char_p(bytes(ascii(tag_id),'utf8')))
         glPopMatrix()
         glEndList()
         gl_lists.append(c)
@@ -867,6 +867,8 @@ class WorldMapViewer():
                 self.make_ball(obj)
             elif isinstance(obj, worldmap.AprilTagObj):
                 self.make_apriltag(obj)
+            elif isinstance(obj, worldmap.ArucoMarkerObj):
+                self.make_aruco_marker(obj)
             continue
             if isinstance(obj, worldmap.LightCubeObj):
                 self.make_light_cube(obj)
@@ -888,8 +890,6 @@ class WorldMapViewer():
                 self.make_foreign_cube(obj)
             elif isinstance(obj, worldmap.CustomMarkerObj):
                 self.make_custom_marker(obj)
-            elif isinstance(obj, worldmap.ArucoMarkerObj):
-                self.make_aruco_marker(obj)
         # Make the doorways last, so transparency works correctly
         return
         for (key,obj) in items:

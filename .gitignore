@@ -1,5 +1,4 @@
-*.py~
-*.fsm~
+*~
 *.pyc
 notes.txt
 snap

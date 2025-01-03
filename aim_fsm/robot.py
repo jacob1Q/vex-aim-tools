@@ -9,6 +9,8 @@ from .aim_kin import *
 from .evbase import EventRouter
 from .events import *
 from .actuators import *
+from .speech import SpeechListener
+from .thesaurus import Thesaurus
 from .openai_client import OpenAIClient
 from .aruco import *
 from .worldmap import *
@@ -25,7 +27,7 @@ class Robot():
         self.camera = Camera()
         self.kine = AIMKinematics(self)
         self.world_map = WorldMap(self)
-        self.aruco = None
+        self.aruco_detector = None
         acts = [DriveActuator(self), SoundActuator(self), KickActuator(self), LEDsActuator(self)]
         self.actuators = {act.name : act for act in acts}
         self.erouter = EventRouter(self)
@@ -39,6 +41,9 @@ class Robot():
         robot0._ws_img_thread.callback = self.image_callback
         robot0.get_camera_image()  # start the image stream
         robot0.aiv.tag_detection(True)
+        self.thesaurus = Thesaurus()
+        self.speech_listener = SpeechListener(self, self.thesaurus, debug=False)
+        self.speech_listener.start()
 
     def status_callback(self):
         #print(f"status_callback in {threading.current_thread().native_id}")
@@ -61,8 +66,10 @@ class Robot():
         if heading > 180:
             heading = heading - 360
         self.theta = heading / 180 * pi
+        self.battery_percentage = self.status['battery']
         self.update_actuators()
-        self.world_map.update()
+        if self.robot0.is_stopped():
+            self.world_map.update()
         t = self.status['touch_flags']
         if self.touch != t:
             print(f"status_update in {threading.current_thread().native_id}")
@@ -118,10 +125,10 @@ class Robot():
         gyro_threshold = 15
         pitch = self.robot0.get_pitch()
         roll = self.robot0.get_roll()
-        attitude_threshold = 2
+        attitude_threshold = 4
         if abs(x) > gyro_threshold or abs(y) > gyro_threshold or \
            abs(pitch) > attitude_threshold or abs(roll) > attitude_threshold:
-            #print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
+            print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
             return True
         else:
             if self.was_picked_up:

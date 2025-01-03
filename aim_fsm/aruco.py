@@ -50,7 +50,7 @@ class ArucoMarker(object):
 
         return array([x, y, z])
 
-class Aruco(object):
+class ArucoDetector(object):
     def __init__(self, robot, arucolibname, marker_size=ARUCO_MARKER_SIZE, disabled_ids=[]):
         self.robot = robot
         self.arucolibname = arucolibname
