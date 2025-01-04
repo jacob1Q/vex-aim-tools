@@ -13,22 +13,34 @@ from .events import SpeechEvent
 app = Flask('VEX AIM')
 CORS(app)  # This will enable CORS for all routes
 
+session_id = None
+
 @app.route('/')
 def serve_index():
     return send_from_directory('.', 'speech_listener.html')
+
+@app.route('/closed.html')
+def serve_closed():
+    return send_from_directory('.', 'listener_closed.html')
+
+@app.route('/api/set-session-id', methods=['POST'])
+def handle_set_session_id():
+    global session_id
+    data = request.json
+    session_id = data['sessionID']
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/get-session-id', methods=['POST'])
+def handle_get_session_id():
+    global session_id
+    return jsonify({'sessionID': session_id})
 
 @app.route('/api/speech-to-text', methods=['POST'])
 def handle_speech_to_text():
     global speech_listener
     data = request.json
     speech_listener.handle_utterance(data['text'])
-    response = {
-        'message': 'Text received',
-        'data': data
-    }
-    #print('Response received:', response)
-    return jsonify(response)
-
+    return jsonify({'status': 'ok'})
 
 class SpeechListener():
     def __init__(self, _robot, thesaurus=Thesaurus(), debug=False):

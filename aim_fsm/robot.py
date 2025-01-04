@@ -72,8 +72,8 @@ class Robot():
             self.world_map.update()
         t = self.status['touch_flags']
         if self.touch != t:
-            print(f"status_update in {threading.current_thread().native_id}")
-            print(t)
+            #print(f"status_update in {threading.current_thread().native_id}")
+            #print(t)
             self.touch = t
             touch_event = TouchEvent(self.status['touch_x'],
                                      self.status['touch_y'],

@@ -407,7 +407,7 @@ loop = asyncio.get_event_loop()
 
 def loopthread():
     global loop
-    print(f"loop thead in {threading.current_thread().native_id}")
+    #print(f"loop thead in {threading.current_thread().native_id}")
     loop.run_forever()
 
 th = threading.Thread(target=loopthread)
