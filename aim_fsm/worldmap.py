@@ -1,4 +1,9 @@
+import numpy as np
+
 from .geometry import *
+
+# aivision currently uses 320x240 dimensions
+AIVISION_RESOLUTION_SCALE = 2
 
 class WorldObject():
     def __init__(self, id=None, x=0, y=0, z=0, is_visible=False):
@@ -56,6 +61,12 @@ class AprilTagObj(WorldObject):
         self.tag_id = spec['id']
         self.theta = spec['angle'] / 180 * pi
         self.diameter = 22 # mm
+        self.image_corners = np.array([
+            [spec['x0'], spec['y0']],
+            [spec['x1'], spec['y1']],
+            [spec['x2'], spec['y2']],
+            [spec['x3'], spec['y3']]
+        ]) * AIVISION_RESOLUTION_SCALE
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
@@ -164,12 +175,12 @@ class WorldMap():
         return obj
 
     def update_aivision_object_position(self, spec):
-        resolution_scale = 2
-        cx = (spec['originx'] + spec['width']/2) * resolution_scale
-        cy = (spec['originy'] + spec['height']) * resolution_scale
+        # Calculate midpoint of bottom edge, which we assume is on the floor
+        cx = (spec['originx'] + spec['width']/2) * AIVISION_RESOLUTION_SCALE
+        cy = (spec['originy'] + spec['height']) * AIVISION_RESOLUTION_SCALE
         obj = self.objects[spec['name']]
         if isinstance(obj, AprilTagObj):
-            cy += spec['height'] * 2 * resolution_scale
+            cy += spec['height'] * 2 * AIVISION_RESOLUTION_SCALE
         hit = self.robot.kine.project_to_ground(cx, cy)
         # offset hit by half the object thickness
         if obj.__dict__.get('diameter'):
@@ -179,8 +190,14 @@ class WorldMap():
         objpos = aboutZ(self.robot.theta).dot(hit) + robotpos
         obj.x = objpos[0][0]
         obj.y = objpos[1][0]
-        tag_angle_correction_factor = 4  # guesstimate
-        if spec.get('angle') != None:
+        if isinstance(obj, AprilTagObj):
+            obj.image_corners = np.array([
+                [spec['x0'], spec['y0']],
+                [spec['x1'], spec['y1']],
+                [spec['x2'], spec['y2']],
+                [spec['x3'], spec['y3']]
+            ]) * AIVISION_RESOLUTION_SCALE
+            tag_angle_correction_factor = 4  # guesstimate
             angle = spec['angle'] - (0 if spec['angle'] < 180 else 360)
             obj.theta = self.robot.theta - angle / 180 * pi * tag_angle_correction_factor
 

@@ -65,6 +65,10 @@ class DriveActuator(Actuator):
         self.lock(node)
         self.robot.forward(distance_mm, drive_speed=drive_speed)
 
+    def sideways(self, node, distance_mm, drive_speed=None):
+        self.lock(node)
+        self.robot.sideways(distance_mm, drive_speed=drive_speed)
+
 
 class SoundActuator(Actuator):
     def __init__(self, robot):

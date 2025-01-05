@@ -13,11 +13,12 @@ except:
     pass
 
 from . import opengl
+from .worldmap import AIVISION_RESOLUTION_SCALE
 
 # For capturing images
 global snapno, path, running_fsm
 snapno = 0
-path = 'snap/'
+path = 'snapshot/'
 
 WINDOW = None
 
@@ -91,14 +92,30 @@ class CamViewer():
             elif name == 'BlueBarrel':
                 color = (255, 50, 50)
             elif name == 'Robot':
-                color = (0, 0, 0)
+                color = (255, 255, 255)
             else:
                 color = (0, 255, 0)
-            cv2.rectangle(image,
-                          (obj['originx']*2, obj['originy']*2),
-                          ((obj['originx'] + obj['width'])*2, (obj['originy'] + obj['height'])*2),
-                          color,
-                          1) 
+            if obj['type_str'] == 'aiobj':
+                cv2.rectangle(image,
+                              (obj['originx']*AIVISION_RESOLUTION_SCALE,
+                               obj['originy']*AIVISION_RESOLUTION_SCALE),
+                              ((obj['originx'] + obj['width'])*AIVISION_RESOLUTION_SCALE,
+                               (obj['originy'] + obj['height'])*AIVISION_RESOLUTION_SCALE),
+                              color,
+                              1)
+            elif obj['type_str'] == 'tag':
+                corners = np.array(((obj['x0'], obj['y0']),
+                                    (obj['x1'], obj['y1']),
+                                    (obj['x2'], obj['y2']),
+                                    (obj['x3'], obj['y3'])),
+                                   np.int32) * AIVISION_RESOLUTION_SCALE
+                corners = corners.reshape(-1,1,2)
+                cv2.polylines(image,
+                              [corners],
+                              True,  # closed curve
+                              color)
+            else:
+                print('*** CamViewer:', obj)
         if self.robot.aruco_detector and len(self.robot.aruco_detector.seen_marker_ids) > 0:
             self.robot.aruco_detector.annotate(image,scale)
         self.robot.annotated_image = image.copy()

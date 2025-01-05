@@ -178,6 +178,21 @@ class Forward(ActionNode):
         self.robot.actuators['drive'].unlock_if_held(self)
 
 
+class SideWays(ActionNode):
+    def __init__(self, distance_mm, drive_speed=None):
+        super().__init__()
+        self.distance_mm = distance_mm
+        self.drive_speed = drive_speed
+    
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['drive'].sideways(self, self.distance_mm, self.drive_speed)
+
+    def stop(self):
+        super().stop()
+        self.robot.actuators['drive'].unlock_if_held(self)
+
+
 class Say(ActionNode):
     """Speaks some text, then posts a completion event."""
 

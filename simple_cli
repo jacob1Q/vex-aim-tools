@@ -374,12 +374,11 @@ def show_objects():
         print(f'{obj[0].rjust(width)}: {obj[1]}')
     print()
         
-def neaten(x):
-    return round(x*10)/10
-
 def show_pose():
-    print(f'Robot at {neaten(robot.x)}, {neaten(robot.y)} heading {neaten(robot.theta*180/pi)} deg.')
-    print(f'   Roll: {neaten(robot.robot0.get_roll())} deg.   Pitch:  {neaten(robot.robot0.get_pitch())} deg.  Yaw:  {neaten(robot.robot0.get_yaw())} deg.')
+    def neaten(x):
+        return round(x*10)/10
+    print(f'Robot at {neaten(robot.x)}, {neaten(robot.y)} heading {neaten(robot.theta*180/pi)} deg.', end='')
+    print(f'   [ Roll: {neaten(robot.robot0.get_roll())}  Pitch: {neaten(robot.robot0.get_pitch())}  Yaw: {neaten(robot.robot0.get_yaw())} ]')
     print()
 
 def do_reload(module_name):

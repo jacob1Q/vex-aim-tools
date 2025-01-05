@@ -108,8 +108,12 @@ class Robot():
         self.robot0.turn_for(turntype, abs(angle_rads)*180/pi, turn_speed=turn_speed, wait=False)
 
     def forward(self, distance_mm, drive_speed=None):
-        angle_zero = 0
-        self.robot0.move_for(distance_mm, angle_zero, drive_speed=drive_speed, wait=False)
+        angle_forward = 0
+        self.robot0.move_for(distance_mm, angle_forward, drive_speed=drive_speed, wait=False)
+
+    def sideways(self, distance_mm, drive_speed=None):
+        angle_leftward = -90
+        self.robot0.move_for(distance_mm, angle_leftward, drive_speed=drive_speed, wait=False)
 
     def is_picked_up(self):
         """
@@ -128,7 +132,7 @@ class Robot():
         attitude_threshold = 4
         if abs(x) > gyro_threshold or abs(y) > gyro_threshold or \
            abs(pitch) > attitude_threshold or abs(roll) > attitude_threshold:
-            print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
+            #print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
             return True
         else:
             if self.was_picked_up:
