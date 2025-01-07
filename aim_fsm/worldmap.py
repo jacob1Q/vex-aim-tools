@@ -11,6 +11,9 @@ class WorldObject():
         self.x = x
         self.y = y
         self.z = z
+        self.name = self.__class__.__name__
+        self.matched = None  # matching objevt from data association
+        # insert EKF data here
         self.is_fixed = False   # True for walls and markers in predefined maps
         self.is_obstacle = True
         self.is_visible = is_visible
@@ -22,22 +25,28 @@ class WorldObject():
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
-        return f'<{self.__class__.__name__} {vis} at ({self.x:.1f}, {self.y:.1f})>'
+        return f'<{self.name} {vis} at ({self.x:.1f}, {self.y:.1f})>'
 
+    def update_matched_object(self):
+        # Should use our x/y/z to update EKF values of object in self.matched.
+        # For now just do a stupid averaging operation.
+        self.matched.x = (self.matched.x + self.x) / 2
+        self.matched.y = (self.matched.y + self.y) / 2
+        self.matched.z = (self.matched.z + self.z) / 2
+        self.matched.is_visible = True
 
-class OrangeBarrelObj(WorldObject):
+class BarrelObj(WorldObject):
     def __init__(self, spec):
         super().__init__()
         self.spec = spec
         self.name = spec['name']
         self.diameter = 22 # mm
 
-class BlueBarrelObj(WorldObject):
-    def __init__(self, spec):
-        super().__init__()
-        self.spec = spec
-        self.name = spec['name']
-        self.diameter = 22 # mm
+class OrangeBarrelObj(BarrelObj):
+    pass
+
+class BlueBarrelObj(BarrelObj):
+    pass
 
 class BallObj(WorldObject):
     def __init__(self, spec):
@@ -61,12 +70,6 @@ class AprilTagObj(WorldObject):
         self.tag_id = spec['id']
         self.theta = spec['angle'] / 180 * pi
         self.diameter = 22 # mm
-        self.image_corners = np.array([
-            [spec['x0'], spec['y0']],
-            [spec['x1'], spec['y1']],
-            [spec['x2'], spec['y2']],
-            [spec['x3'], spec['y3']]
-        ]) * AIVISION_RESOLUTION_SCALE
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
@@ -101,60 +104,29 @@ class WorldMap():
         self.robot = robot
         self.objects = dict()
         self.shared_objects = dict()
+        self.name_counts = dict()
 
     def __repr__(self):
         return f'<WorldMap with {len(self.objects)} objects>'
 
     def clear(self):
         self.objects.clear()
-        #self.robot.world.particle_filter.clear_landmarks()
 
     def update(self):
-        self.seen_objs = []
-        self.update_aivision_objects()
+        self.updated = []
+        self.make_new_objects_from_vision()
+        self.associate_objects()
+        self.update_associated_objects()
+        self.add_unassociated_objects()
+        self.update_visibilities()
+        # Consider deletion of unmatched worldmap objects
+        # Update robot's pose if we have landmarks available
+
+    def make_new_objects_from_vision(self):
+        self.candidates = list()
+        self.make_new_aiv_objects()
         if self.robot.aruco_detector:
-            self.update_aruco_objects()
-        for obj in self.objects.values():
-            if obj not in self.seen_objs:
-                obj.is_visible = False
-
-    def update_aivision_objects(self):
-        objspecs = self.robot.robot0._ws_status_thread.current_status['aivision']['objects']['items']
-        for spec in objspecs:
-            if spec['type_str'] == 'aiobj':
-                name = spec['name']
-            elif spec['type_str'] == 'tag':
-                if 0 <= spec['id'] <= 4:
-                    name = 'AprilTag-' + repr(spec['id'])
-                    spec['name'] = name
-                else:
-                    #print('*** BAD TAG:', spec)
-                    continue
-            else:
-                print(f'spec={spec}')
-                continue
-            if name not in self.objects:
-                obj = self.make_object(spec)
-                self.objects[obj.name] = obj
-                print(f"Created {obj}")
-            else:
-                obj = self.objects[name]
-            obj.is_visible = True
-            self.seen_objs.append(obj)
-            self.update_aivision_object_position(spec)
-
-    def update_aruco_objects(self):
-        for (id,marker) in self.robot.aruco_detector.seen_marker_objects.items():
-            name = f'ArucoMarker-{id}'
-            spec = {'name': name, 'id': id, 'marker': marker}
-            if name not in self.objects:
-                obj = self.make_object(spec)
-                self.objects[obj.name] = obj
-            else:
-                obj = self.objects[name]
-            obj.is_visible = True
-            self.seen_objs.append(obj)
-            self.update_aruco_object_position(spec)
+            self.make_new_aruco_objects()
 
     def make_object(self, spec):
         if spec['name'] == 'OrangeBarrel':
@@ -174,43 +146,127 @@ class WorldMap():
             obj = None
         return obj
 
-    def update_aivision_object_position(self, spec):
-        # Calculate midpoint of bottom edge, which we assume is on the floor
-        cx = (spec['originx'] + spec['width']/2) * AIVISION_RESOLUTION_SCALE
-        cy = (spec['originy'] + spec['height']) * AIVISION_RESOLUTION_SCALE
-        obj = self.objects[spec['name']]
-        if isinstance(obj, AprilTagObj):
-            cy += spec['height'] * 2 * AIVISION_RESOLUTION_SCALE
-        hit = self.robot.kine.project_to_ground(cx, cy)
-        # offset hit by half the object thickness
-        if obj.__dict__.get('diameter'):
-            hit += point(obj.diameter / 2, 0, 0)
-        # convert to world coordinates
-        robotpos = point(self.robot.x, self.robot.y)
-        objpos = aboutZ(self.robot.theta).dot(hit) + robotpos
-        obj.x = objpos[0][0]
-        obj.y = objpos[1][0]
-        if isinstance(obj, AprilTagObj):
-            obj.image_corners = np.array([
-                [spec['x0'], spec['y0']],
-                [spec['x1'], spec['y1']],
-                [spec['x2'], spec['y2']],
-                [spec['x3'], spec['y3']]
-            ]) * AIVISION_RESOLUTION_SCALE
-            tag_angle_correction_factor = 4  # guesstimate
-            angle = spec['angle'] - (0 if spec['angle'] < 180 else 360)
-            obj.theta = self.robot.theta - angle / 180 * pi * tag_angle_correction_factor
+    def make_new_aiv_objects(self):
+        objspecs = self.robot.robot0.status['aivision']['objects']['items']
+        for spec in objspecs:
+            if spec['type_str'] == 'aiobj':
+                base_name = spec['name']
+            elif spec['type_str'] == 'tag':
+                if 0 <= spec['id'] <= 4:
+                    base_name = 'AprilTag-' + repr(spec['id'])
+                    spec['name'] = base_name
+                else:
+                    #print('*** BAD TAG:', spec)
+                    continue
+            else:
+                print(f'*** Unknown: spec={spec}')
+                continue
+            obj = self.make_object(spec)
+            # Calculate midpoint of bottom edge, which we assume is on the floor
+            cx = (spec['originx'] + spec['width']/2) * AIVISION_RESOLUTION_SCALE
+            cy = (spec['originy'] + spec['height']) * AIVISION_RESOLUTION_SCALE
+            if isinstance(obj, AprilTagObj):
+                cy += spec['height'] * 2 * AIVISION_RESOLUTION_SCALE
+            hit = self.robot.kine.project_to_ground(cx, cy)
+            # offset hit by half the object thickness
+            if obj.__dict__.get('diameter'):
+                hit += point(obj.diameter / 2, 0, 0)
+            # convert to world coordinates
+            robotpos = point(self.robot.x, self.robot.y)
+            objpos = aboutZ(self.robot.theta).dot(hit) + robotpos
+            obj.x = objpos[0][0]
+            obj.y = objpos[1][0]
+            if isinstance(obj, AprilTagObj):
+                tag_angle_correction_factor = 4  # guesstimate
+                angle = spec['angle'] - (0 if spec['angle'] < 180 else 360)
+                obj.theta = self.robot.theta - angle / 180 * pi * tag_angle_correction_factor
+            self.candidates.append(obj)
 
-    def update_aruco_object_position(self, spec):
-        obj = self.objects[spec['name']]
-        marker = spec['marker']
-        sensor_dist = marker.camera_distance
-        sensor_coords = marker.camera_coords
-        sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
-        sensor_orient = wrap_angle(pi - marker.euler_rotation[1] * (pi/180))
-        theta = self.robot.theta
-        obj.x = self.robot.x + sensor_dist * cos(theta + sensor_bearing)
-        obj.y = self.robot.y + sensor_dist * sin(theta + sensor_bearing)
-        obj.z = marker.aruco_parent.marker_size / 2  # *** TEMPORARY HACK ***
-        obj.theta = wrap_angle(self.robot.theta - sensor_orient)
+    def make_new_aruco_objects(self):
+        for (id,marker) in self.robot.aruco_detector.seen_marker_objects.items():
+            name = f'ArucoMarker-{id}'
+            spec = {'name': name, 'id': id, 'marker': marker}
+            sensor_dist = marker.camera_distance
+            sensor_coords = marker.camera_coords
+            sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
+            sensor_orient = wrap_angle(pi - marker.euler_rotation[1] * (pi/180))
+            theta = self.robot.theta
+            obj = self.make_object(spec)
+            obj.x = self.robot.x + sensor_dist * cos(theta + sensor_bearing)
+            obj.y = self.robot.y + sensor_dist * sin(theta + sensor_bearing)
+            obj.z = marker.aruco_parent.marker_size / 2  # *** TEMPORARY HACK ***
+            obj.theta = wrap_angle(self.robot.theta - sensor_orient)
+            self.candidates.append(obj)
 
+    def associate_objects(self):
+        obj_types = list(set(type(obj) for obj in self.candidates))
+        for otype in obj_types:
+            self.associate_objects_of_type(otype)
+
+    def associate_objects_of_type(self, otype):
+        def association_cost(obj1, obj2):
+            return ((obj1.x-obj2.x)**2 + (obj1.y-obj2.y)**2)
+        new = [c for c in self.candidates if type(c) is otype]
+        old = [o for o in self.objects.values() if type(o) is otype]
+        N_new = len(new)
+        N_old = len(old)
+        if N_old == 0:
+            return
+        costs = np.zeros([N_new,N_old])
+        for i in range(N_new):
+            for j in range(N_old):
+                costs[i,j] = association_cost(new[i], old[j])
+        #*** Stupid greedy algorithm; replace with the Hungarian algorithm
+        MAX_ACCEPTABLE_COST = 200
+        for i in range(N_new):
+            bestj = costs[i,:].argmin()
+            if costs[i,bestj] < MAX_ACCEPTABLE_COST:
+                new[i].matched = old[bestj]
+                costs[:,bestj] = 1 + MAX_ACCEPTABLE_COST
+
+    def update_associated_objects(self):
+        for candidate in self.candidates:
+            if candidate.matched:
+                candidate.update_matched_object()
+                self.updated.append(candidate.matched)
+
+    def add_unassociated_objects(self):
+        for candidate in self.candidates:
+            if candidate.matched is None:
+                candidate.name = self.next_in_sequence(candidate.name)
+                self.objects[candidate.name] = candidate
+                candidate.is_visible = True
+                self.updated.append(candidate)
+                print('Added', candidate)
+
+    def next_in_sequence(self,name):
+        count = 1 + self.name_counts.get(name, 0)
+        self.name_counts[name] = count
+        return name + "." + self.to_base_26(count)
+
+    def to_base_26(self, num):
+        result = []
+        while num > 0:
+            num -= 1  # Adjust for 1-based indexing (A=1, Z=26)
+            remainder = num % 26
+            result.append(chr(remainder + ord('a')))
+            num //= 26
+            return ''.join(reversed(result))
+    
+    def update_visibilities(self):
+        for obj in self.objects.values():
+            if obj not in self.updated:
+                obj.is_visible = False
+
+
+################ GPT interface ################
+
+    def get_prompt(self):
+        def neaten(x):
+            return round(x*10)/10
+        prompt = ''
+        prompt += f'You are located at ({neaten(self.robot.x)}, {neaten(self.robot.y)})\n'
+        prompt += f'Your heading is {neaten(self.robot.theta*180/pi)} degrees\n'
+        for (key,value) in self.objects.items():
+            prompt += f'{key} is located at ({neaten(value.x)}, {neaten(value.y)}) and is {"visible" if value.is_visible else "not visible"}\n'
+        return prompt

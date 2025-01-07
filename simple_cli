@@ -122,6 +122,10 @@ def cli_loop(_robot):
             start_args = cli_loop._line[6:].split(' ')
             start_stuff(start_args)
             continue
+        elif cli_loop._line[0:5] == 'stop ' or cli_loop._line == 'stop':
+            stop_args = cli_loop._line[5:].split(' ')
+            stop_stuff(stop_args)
+            continue
         cli_loop._do_await = False
         if cli_loop._line[0:7] == 'import ' or cli_loop._line[0:5] == 'from '  or \
                cli_loop._line[0:7] == 'global ' or cli_loop._line[0:4] == 'del '   or \
@@ -374,6 +378,12 @@ def show_objects():
         print(f'{obj[0].rjust(width)}: {obj[1]}')
     print()
         
+def start_stuff(args):
+    print('not yet implemented')
+
+def stop_stuff(args):
+    print('not yet implemented')
+
 def show_pose():
     def neaten(x):
         return round(x*10)/10

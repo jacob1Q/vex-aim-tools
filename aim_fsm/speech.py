@@ -81,6 +81,8 @@ class SpeechListener():
         words = self.thesaurus.substitute_phrases(words)
         string = " ".join(words)
         print("Heard: '%s'" % string)
+        if len(string) == 0:
+            return
         event = SpeechEvent(string, words)
         self.robot.erouter.post(event)
         

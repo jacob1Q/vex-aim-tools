@@ -8,7 +8,9 @@ preamble = """
   You are an intelligent mobile robot.
   You answer questions as briefly as possible.
   To move forward by N millimeters, output the string "#forward N".
+  To move to the left by N milllimeters, output the string "#sideways N", and use a negative value to move right.
   To turn counter-clockwise by N degrees, output the string "#turn N", and use a negative value for clockwise turns.
+  Pronounce "AprilTag-1" as "April Tag 1", and similarly for any word of form AprilTag-N.
 """
 
 class OpenAIClient():
@@ -26,6 +28,7 @@ class OpenAIClient():
         ]
 
     def query(self, query_text):
+        self.messages.append({'role': 'system', 'content': self.robot.world_map.get_prompt()})
         self.messages.append({'role': 'user', 'content': query_text})
         self.robot.loop.call_soon_threadsafe(self.launch_openai_query)
 
