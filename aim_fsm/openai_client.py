@@ -10,7 +10,8 @@ preamble = """
   To move forward by N millimeters, output the string "#forward N".
   To move to the left by N milllimeters, output the string "#sideways N", and use a negative value to move right.
   To turn counter-clockwise by N degrees, output the string "#turn N", and use a negative value for clockwise turns.
-  Pronounce "AprilTag-1" as "April Tag 1", and similarly for any word of form AprilTag-N.
+  Pronounce "AprilTag-1.a" as "April Tag 1 a", and similarly for any word of form "AprilTag-N.x".
+  Pronounce "OrangeBarrel.a" as "Orange Barrel a", pronounce "BlueBarrel.b" as "Blue Barrel b", and similarly for other barrel designators.
 """
 
 class OpenAIClient():
