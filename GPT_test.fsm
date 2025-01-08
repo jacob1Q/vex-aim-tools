@@ -1,14 +1,53 @@
 from aim_fsm import *
 
 class GPT_test(StateMachineProgram):
+
+    class CheckResponse(StateNode):
+        def start(self, event):
+            super().start(event)
+            response = event.response
+            if response.startswith('#'):
+                commands = response.split('\n')
+                self.post_event(DataEvent(commands))
+            else:
+                self.post_event(DataEvent(response))
+
+    class CmdForward(Forward):
+      def start(self,event):
+          print(event.data)
+          self.distance_mm = float((event.data.split(' '))[1])
+          super().start(event)
+
+    class CmdSideways(Sideways):
+      def start(self,event):
+          print(event.data)
+          self.distance_mm = float((event.data.split(' '))[1])
+          super().start(event)
+
+    class CmdTurn(Turn):
+      def start(self,event):
+          print(event.data)
+          self.angle_deg = float((event.data.split(' '))[1])
+          super().start(event)
+
     class SpeakResponse(Say):
       def start(self,event):
-        self.text = event.response
+        self.text = event.data
         super().start(event)
         
     $setup{
       Say("Talk to me") =C=> loop
 
-      loop: StateNode() =Hear()=> AskGPT() =OpenAITrans()=> self.SpeakResponse() =C=> loop
-    }
+      loop: StateNode() =Hear()=> AskGPT() =OpenAITrans()=> check
 
+      check: self.CheckResponse()
+      check =D(list)=> dispatch
+      check =D(str)=> self.SpeakResponse() =C=> loop
+
+      dispatch: Iterate()
+      dispatch =D(re.compile('#forward'))=> self.CmdForward() =CNext=> dispatch
+      dispatch =D(re.compile('#sideways'))=> self.CmdSideways() =CNext=> dispatch
+      dispatch =D(re.compile('#turn'))=> self.CmdTurn() =CNext=> dispatch
+      dispatch =D()=> Print() =Next=> dispatch
+      dispatch =C=> loop
+      }

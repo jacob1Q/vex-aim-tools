@@ -192,6 +192,9 @@ class DataTrans(Transition):
             if self.data is None or \
                (isinstance(self.data, type) and isinstance(event.data, self.data)):
                     self.fire(event)
+            elif isinstance(self.data, re.Pattern) and isinstance(event.data, str):
+                if self.data.match(event.data):
+                    self.fire(event)
             else:
                 try:
                     if self.data == event.data:    # error if == barfs

@@ -149,7 +149,7 @@ class Kick(ActionNode):
 
 
 class Turn(ActionNode):
-    def __init__(self, angle_deg, turn_speed=None):
+    def __init__(self, angle_deg=0, turn_speed=None):
         super().__init__()
         self.angle_deg = angle_deg
         self.turn_speed = turn_speed
@@ -164,7 +164,7 @@ class Turn(ActionNode):
 
 
 class Forward(ActionNode):
-    def __init__(self, distance_mm, drive_speed=None):
+    def __init__(self, distance_mm=0, drive_speed=None):
         super().__init__()
         self.distance_mm = distance_mm
         self.drive_speed = drive_speed
@@ -178,8 +178,8 @@ class Forward(ActionNode):
         self.robot.actuators['drive'].unlock_if_held(self)
 
 
-class SideWays(ActionNode):
-    def __init__(self, distance_mm, drive_speed=None):
+class Sideways(ActionNode):
+    def __init__(self, distance_mm=0, drive_speed=None):
         super().__init__()
         self.distance_mm = distance_mm
         self.drive_speed = drive_speed

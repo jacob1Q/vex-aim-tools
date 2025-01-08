@@ -262,11 +262,9 @@ class WorldMap():
 ################ GPT interface ################
 
     def get_prompt(self):
-        def neaten(x):
-            return round(x*10)/10
         prompt = ''
-        prompt += f'You are located at ({neaten(self.robot.x)}, {neaten(self.robot.y)})\n'
-        prompt += f'Your heading is {neaten(self.robot.theta*180/pi)} degrees\n'
+        prompt += f'You are located at ({round(self.robot.x)}, {round(self.robot.y)})\n'
+        prompt += f'Your heading is {round(self.robot.theta*180/pi)} degrees\n'
         for (key,value) in self.objects.items():
-            prompt += f'{key} is located at ({neaten(value.x)}, {neaten(value.y)}) and is {"visible" if value.is_visible else "not visible"}\n'
+            prompt += f'{key} is located at ({round(value.x)}, {round(value.y)}) and is {"visible" if value.is_visible else "not visible"}\n'
         return prompt
