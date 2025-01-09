@@ -12,7 +12,7 @@ class WorldObject():
         self.y = y
         self.z = z
         self.name = self.__class__.__name__
-        self.matched = None  # matching objevt from data association
+        self.matched = None  # matching object from data association
         # insert EKF data here
         self.is_fixed = False   # True for walls and markers in predefined maps
         self.is_obstacle = True
@@ -73,7 +73,7 @@ class AprilTagObj(WorldObject):
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
-        return f'<{self.__class__.__name__} id={self.tag_id} {vis} at ({self.x:.1f}, {self.y:.1f}) @ {self.theta*180/pi:.1f} deg.>'
+        return f'<{self.name} {vis} at ({self.x:.1f}, {self.y:.1f}) @ {self.theta*180/pi:.1f} deg.>'
 
 class ArucoMarkerObj(WorldObject):
     def __init__(self, spec, x=0, y=0, z=0, theta=0):
@@ -103,21 +103,29 @@ class WorldMap():
     def __init__(self,robot):
         self.robot = robot
         self.objects = dict()
+        self.pending_objects = dict()
+        self.missing_objects = []
         self.shared_objects = dict()
-        self.name_counts = dict()
+        self.name_counts = dict()  # For generating new object names
 
     def __repr__(self):
         return f'<WorldMap with {len(self.objects)} objects>'
 
     def clear(self):
         self.objects.clear()
+        self.pending_objects.clear()
+        self.missing_objects = []
+        self.shared_objects = []
+        self.name_counts.clear()
+        
 
     def update(self):
-        self.updated = []
+        self.updated_objects = []
         self.make_new_objects_from_vision()
         self.associate_objects()
         self.update_associated_objects()
-        self.add_unassociated_objects()
+        self.detect_missing_objects()
+        self.process_unassociated_objects()
         self.update_visibilities()
         # Consider deletion of unmatched worldmap objects
         # Update robot's pose if we have landmarks available
@@ -176,6 +184,10 @@ class WorldMap():
             objpos = aboutZ(self.robot.theta).dot(hit) + robotpos
             obj.x = objpos[0][0]
             obj.y = objpos[1][0]
+            distance = ((obj.x - self.robot.x)**2 + (obj.y - self.robot.y)**2) ** 0.5
+            MAX_DISTANCE = 300 # anything further than this is a spurious detection
+            if distance > MAX_DISTANCE:
+                continue
             if isinstance(obj, AprilTagObj):
                 tag_angle_correction_factor = 4  # guesstimate
                 angle = spec['angle'] - (0 if spec['angle'] < 180 else 360)
@@ -203,9 +215,10 @@ class WorldMap():
         for otype in obj_types:
             self.associate_objects_of_type(otype)
 
+    def association_cost(self, obj1, obj2):
+        return ((obj1.x-obj2.x)**2 + (obj1.y-obj2.y)**2)
+
     def associate_objects_of_type(self, otype):
-        def association_cost(obj1, obj2):
-            return ((obj1.x-obj2.x)**2 + (obj1.y-obj2.y)**2)
         new = [c for c in self.candidates if type(c) is otype]
         old = [o for o in self.objects.values() if type(o) is otype]
         N_new = len(new)
@@ -215,7 +228,7 @@ class WorldMap():
         costs = np.zeros([N_new,N_old])
         for i in range(N_new):
             for j in range(N_old):
-                costs[i,j] = association_cost(new[i], old[j])
+                costs[i,j] = self.association_cost(new[i], old[j])
         #*** Stupid greedy algorithm; replace with the Hungarian algorithm
         MAX_ACCEPTABLE_COST = 200
         for i in range(N_new):
@@ -228,16 +241,87 @@ class WorldMap():
         for candidate in self.candidates:
             if candidate.matched:
                 candidate.update_matched_object()
-                self.updated.append(candidate.matched)
+                self.updated_objects.append(candidate.matched)
+                if candidate.matched in self.missing_objects:
+                    self.missing_objects.remove(candidate.matched)
 
-    def add_unassociated_objects(self):
-        for candidate in self.candidates:
-            if candidate.matched is None:
-                candidate.name = self.next_in_sequence(candidate.name)
-                self.objects[candidate.name] = candidate
-                candidate.is_visible = True
-                self.updated.append(candidate)
-                print('Added', candidate)
+    def should_be_visible(self, obj):
+        # Really crude approach for now.  Should be doing camera
+        # projection and accounting for occlusion.  In the future we
+        # should employ the depth map for occusion detection.
+        # For now, just return true if the object's bearing is within
+        # the camera field of view and the distance is not too large.
+        dx = obj.x - self.robot.x
+        dy = obj.y - self.robot.y
+        bearing = wrap_angle(atan2(dy,dx) - self.robot.theta)
+        distance = (dx**2 + dy**2) ** 0.5
+        DISTANCE_THRESHOLD = 200 # mm
+        BEARING_THRESHOLD = 30 # degrees
+        result = abs(bearing)*180/pi < BEARING_THRESHOLD and distance < DISTANCE_THRESHOLD
+        return result
+
+    def detect_missing_objects(self):
+        for obj in self.objects.values():
+            if obj not in self.updated_objects and self.should_be_visible(obj):
+                if obj not in self.missing_objects:
+                    obj.is_visible = False
+                    self.missing_objects.append(obj)
+                    print('missing object:', obj)
+
+    def process_unassociated_objects(self):
+        """
+        The vision system produces lots of spurious objects, so we require
+        a new object to be seen 5 times in successive camera frames before
+        we add it to the world map.
+        """
+        unassociated = [c for c in self.candidates if c.matched is None]
+        pending = list(self.pending_objects.keys())
+        COST_THRESHOLD = 50
+        for candidate in unassociated:
+            matches = [p for p in pending if self.association_cost(candidate,p) < COST_THRESHOLD]
+            if matches:
+                m = matches[0]
+                self.pending_objects[m] += 1
+                if self.pending_objects[m] >= 5:
+                    if self.reclaim_object(candidate):
+                        pass
+                    else:
+                        candidate.name = self.next_in_sequence(candidate.name)
+                        self.objects[candidate.name] = candidate
+                        print('Added', candidate)
+                        candidate.is_visible = True
+                        self.updated_objects.append(candidate)
+                    del self.pending_objects[m]
+                pending.remove(m)
+            else:
+                self.pending_objects[candidate] = 1
+                #print('proposed', candidate)
+        for p in pending:
+            #print('retracted', p, '  count=', self.pending_objects[p])
+            del self.pending_objects[p]
+
+    def reclaim_object(self, obj):
+        t = type(obj)
+        missing = [m for m in self.missing_objects if type(m) == t]
+        if 'tag_id' in obj.__dir__():
+            missing = [m for m in missing if m.tag_id == obj.tag_id]
+        if len(missing) == 0:
+            return None
+        costs = [self.association_cost(obj, m) for m in missing]
+        min_index = np.argmin(costs)
+        match = missing[min_index]
+        match.is_visible = True
+        match.x = obj.x
+        match.y = obj.y
+        match.z = obj.z
+        if 'theta' in obj.__dir__():
+            match.theta = obj.theta
+        self.updated_objects.append(match)
+        self.missing_objects.remove(match)
+        match.is_visible = True
+        print('reclaimed', match)
+        return match
+        
 
     def next_in_sequence(self,name):
         count = 1 + self.name_counts.get(name, 0)
@@ -255,7 +339,7 @@ class WorldMap():
     
     def update_visibilities(self):
         for obj in self.objects.values():
-            if obj not in self.updated:
+            if obj not in self.updated_objects:
                 obj.is_visible = False
 
 

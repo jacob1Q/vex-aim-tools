@@ -92,3 +92,31 @@ class AIMKinematics(Kinematics):
         else:
             hit = point(rot_ray[0,0], rot_ray[1,0], rot_ray[2,0], abs(align))
         return hit
+
+import math
+
+def world_to_image_coordinates(px, py, cx, cy, cz, f, v, r_x, r_y, d):
+    # Translate the world coordinates by the camera position
+    X_w = px - cx
+    Y_w = py - cy
+    Z_w = -cz
+    
+    # Rotate the translated coordinates by the tilt angle d (convert d to radians)
+    d_rad = math.radians(d)
+    X_c = X_w
+    Y_c = Y_w * math.cos(d_rad) - Z_w * math.sin(d_rad)
+    Z_c = Y_w * math.sin(d_rad) + Z_w * math.cos(d_rad)
+    
+    # Project the rotated coordinates onto the camera's image plane using pinhole camera model
+    x_i = f * X_c / Z_c
+    y_i = f * Y_c / Z_c
+    
+    # Calculate the width and height of the image in the camera's image plane
+    width = 2 * f * math.tan(math.radians(v) / 2)
+    height = width * r_y / r_x
+    
+    # Convert the normalized image coordinates to pixel coordinates
+    u = r_x / 2 + x_i * r_x / width
+    v = r_y / 2 - y_i * r_y / height
+    
+    return u, v
