@@ -14,6 +14,10 @@ class WorldObject():
         self.name = self.__class__.__name__
         self.matched = None  # matching object from data association
         # insert EKF data here
+        self.kf_x = self.KalmanFilter(initial_estimate=x, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
+        self.kf_y = self.KalmanFilter(initial_estimate=y, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
+        self.kf_z = self.KalmanFilter(initial_estimate=z, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
+
         self.is_fixed = False   # True for walls and markers in predefined maps
         self.is_obstacle = True
         self.is_visible = is_visible
@@ -28,12 +32,47 @@ class WorldObject():
         return f'<{self.name} {vis} at ({self.x:.1f}, {self.y:.1f})>'
 
     def update_matched_object(self):
+        #KF implementation
+        estimate_x, uncertainty_x = self.matched.kf_x.update(self.x)
+        estimate_y, uncertainty_y = self.matched.kf_y.update(self.y)
+        estimate_z, uncertainty_z = self.matched.kf_z.update(self.z)
+
+        # Update the matched object's position
+        self.matched.x = estimate_x
+        self.matched.y = estimate_y
+        self.matched.z = estimate_z
+        
         # Should use our x/y/z to update EKF values of object in self.matched.
         # For now just do a stupid averaging operation.
-        self.matched.x = (self.matched.x + self.x) / 2
-        self.matched.y = (self.matched.y + self.y) / 2
-        self.matched.z = (self.matched.z + self.z) / 2
+        # self.matched.x = (self.matched.x + self.x) / 2
+        # self.matched.y = (self.matched.y + self.y) / 2
+        # self.matched.z = (self.matched.z + self.z) / 2
+     
         self.matched.is_visible = True
+
+    class KalmanFilter:
+        def __init__(self, initial_estimate, initial_uncertainty, measurement_noise, process_noise):
+            # Initialize state
+            self.estimate = initial_estimate
+            self.uncertainty = initial_uncertainty
+
+            # Kalman filter parameters
+            self.measurement_noise = measurement_noise  # R
+            self.process_noise = process_noise          # Q
+
+        def update(self, measurement):
+            # Prediction step (no process dynamics, so state remains the same)
+            predicted_estimate = self.estimate
+            predicted_uncertainty = self.uncertainty + self.process_noise
+
+            # Kalman gain
+            kalman_gain = predicted_uncertainty / (predicted_uncertainty + self.measurement_noise)
+
+            # Update step
+            self.estimate = predicted_estimate + kalman_gain * (measurement - predicted_estimate)
+            self.uncertainty = (1 - kalman_gain) * predicted_uncertainty
+
+            return self.estimate, self.uncertainty
 
 class BarrelObj(WorldObject):
     def __init__(self, spec):
