@@ -115,7 +115,7 @@ class WorldMap():
         self.objects.clear()
         self.pending_objects.clear()
         self.missing_objects = []
-        self.shared_objects = []
+        self.shared_objects.clear()
         self.name_counts.clear()
         
 
@@ -266,7 +266,7 @@ class WorldMap():
                 if obj not in self.missing_objects:
                     obj.is_visible = False
                     self.missing_objects.append(obj)
-                    print('missing object:', obj)
+                    #print('missing object:', obj)
 
     def process_unassociated_objects(self):
         """
@@ -319,7 +319,7 @@ class WorldMap():
         self.updated_objects.append(match)
         self.missing_objects.remove(match)
         match.is_visible = True
-        print('reclaimed', match)
+        #print('reclaimed', match)
         return match
         
 
