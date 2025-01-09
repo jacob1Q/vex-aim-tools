@@ -31,70 +31,71 @@ import matplotlib.pyplot as plt
 import aim_fsm
 from aim_fsm import *
 class KF_v1(StateMachineProgram):    
-    def setup(self):
-        self.robot.set_pose(0,0,0)
-        while True:
-            objs = sorted(self.robot.world_map.objects.items(), key=lambda x: x[0])
-            if len(objs) == 0:
-                print('No objects in the world map.\n')
-                return
-            width = max([len(x[0]) for x in objs])
-            for obj in objs:
-
-                if obj[1].is_visible and obj[0] == 'OrangeBarrel':
-                    
-                    print(f'{obj[0].rjust(width)}: {obj[1]}')
-                    print(f'  {obj[1].x} {obj[1].y}')
-                    print(obj[1].is_visible)
-                    time.sleep(0.1)
-        print('ffff')
-    
     # def setup(self):
-    #     initial_estimate = 0
-    #     initial_uncertainty = 200
-    #     measurement_noise = 0.25
-    #     process_noise = 0.25
-    #     self.robot.set_pose(0,0,0)
-    #     objs = sorted(self.robot.world_map.objects.items(), key=lambda x: x[0])
-    #     if len(objs) == 0:
-    #         print('No objects in the world map.\n')
-    #         return
-    #     kf_x=self.KalmanFilter(initial_estimate=0, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
-    #     kf_y=self.KalmanFilter(initial_estimate, initial_uncertainty, measurement_noise=0.01, process_noise=0.1)
-    #     x_coord,y_coord=[],[]
-    #     estimates_x,estimates_y = [],[]
-    #     uncertainties_x,uncertainties_y = [],[]
-    #     i=0
-    #     while True:
+    #     for i in range(10):
+    #         objs = sorted(self.robot.world_map.objects.items(), key=lambda x: x[0])
+    #         if len(objs) == 0:
+    #             print('No objects in the world map.\n')
+    #             return
+    #         width = max([len(x[0]) for x in objs])
     #         print('Objects in the world map:')
-            
+    #         print(objs[0])
     #         for obj in objs:
-    #             if obj[1].is_visible and obj[0] == 'OrangeBarrel':
-    #                 i=i+1
-    #                 print(f'{obj[0]}: {obj[1]}')
-    #                 print(f'  {obj[1].x} {obj[1].y}')
-    #                 x_coord.append(obj[1].x)
-    #                 y_coord.append(obj[1].y)
-    #                 estimate_x, uncertainty_x = kf_x.update(obj[1].x)
-    #                 estimate_y, uncertainty_y = kf_y.update(obj[1].y)
-    #                 estimates_x.append(estimate_x)
-    #                 uncertainties_y.append(uncertainty_y)
-    #                 estimates_y.append(estimate_y)
-    #                 uncertainties_x.append(uncertainty_x)
-    #                 time.sleep(0.1)
-        
-    #         print(f'measurement {i} taken')
-    #         if i%100==0:
-    #             self.visualize_uncertainty(x_coord, estimates_x, uncertainties_x)
-    #             self.visualize_uncertainty(y_coord, estimates_y, uncertainties_y)
-    #             print('Uncertainty reduced')
-    #             time.sleep(1)
 
-    #         if i==100:
-    #             break
+    #             if obj[1].is_visible and 'OrangeBarrel' in obj[0]:
+                    
+    #                 print(f'{obj[0].rjust(width)}: {obj[1]}')
+    #                 print(f'  {obj[1].x} {obj[1].y}')
+    #                 print(obj[1].is_visible)
+    #                 time.sleep(0.1)
+    #     print('ffff')
+    
+    def setup(self):
+        initial_estimate = 0
+        initial_uncertainty = 200
+        measurement_noise = 0.25
+        process_noise = 0.25
+        self.robot.set_pose(0,0,0)
+        objs = sorted(self.robot.world_map.objects.items(), key=lambda x: x[0])
+        if len(objs) == 0:
+            print('No objects in the world map.\n')
+            return
+        kf_x=self.KalmanFilter(initial_estimate=0, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
+        kf_y=self.KalmanFilter(initial_estimate, initial_uncertainty, measurement_noise=0.1, process_noise=0.01)
+        x_coord,y_coord=[],[]
+        estimates_x,estimates_y = [],[]
+        uncertainties_x,uncertainties_y = [],[]
+        i=0
+        while True:
+            print('Objects in the world map:')
+            
+            for obj in objs:
+                if obj[1].is_visible and 'OrangeBarrel' in obj[0]:
+                    i=i+1
+                    print(f'{obj[0]}: {obj[1]}')
+                    print(f'  {obj[1].x} {obj[1].y}')
+                    x_coord.append(obj[1].x)
+                    y_coord.append(obj[1].y)
+                    estimate_x, uncertainty_x = kf_x.update(obj[1].x)
+                    estimate_y, uncertainty_y = kf_y.update(obj[1].y)
+                    estimates_x.append(estimate_x)
+                    uncertainties_y.append(uncertainty_y)
+                    estimates_y.append(estimate_y)
+                    uncertainties_x.append(uncertainty_x)
+                    time.sleep(0.1)
+        
+            print(f'measurement {i} taken')
+            if i%100==0:
+                self.visualize_uncertainty(x_coord, estimates_x, uncertainties_x)
+                self.visualize_uncertainty(y_coord, estimates_y, uncertainties_y)
+                print('Uncertainty reduced')
+                time.sleep(1)
+
+            if i==100:
+                break
                 
             
-    #     print('ffff')
+        print('ffff')
 
     def filter(self):
         # Parameters

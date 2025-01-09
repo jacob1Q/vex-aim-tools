@@ -14,6 +14,13 @@ class WorldObject():
         self.name = self.__class__.__name__
         self.matched = None  # matching objevt from data association
         # insert EKF data here
+        self.state = np.array([x, y, 0, 0])  # x, y, vx, vy
+        self.P = np.eye(4)*100  # Initial covariance matrix
+        self.R = np.eye(2) * 0.1  # Measurement noise covariance
+        self.F = np.eye(4)  # State transition model
+        self.H = np.array([[1, 0, 0, 0], [0, 1, 0, 0]])  # Measurement model
+        
+
         self.is_fixed = False   # True for walls and markers in predefined maps
         self.is_obstacle = True
         self.is_visible = is_visible
@@ -27,9 +34,36 @@ class WorldObject():
         vis = "visible" if self.is_visible else "unseen"
         return f'<{self.name} {vis} at ({self.x:.1f}, {self.y:.1f})>'
 
+    def kalman_predict(self, dt):
+        self.F = np.array([
+            [1, 0, dt, 0],
+            [0, 1, 0, dt],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
+        self.state = self.F @ self.state
+        self.P = self.F @ self.P @ self.F.T
+
+    def kalman_update(self, measurement):
+        z = np.array(measurement)
+        y = z - self.H @ self.state
+        S = self.H @ self.P @ self.H.T + self.R
+        K = self.P @ self.H.T @ np.linalg.inv(S)
+        self.state = self.state + K @ y
+        self.P = (np.eye(4) - K @ self.H) @ self.P
+        self.x = self.state[0]
+        self.y = self.state[1]
+
+
     def update_matched_object(self):
         # Should use our x/y/z to update EKF values of object in self.matched.
-        # For now just do a stupid averaging operation.
+
+        #Kalman filter update
+        # self.matched.kalman_predict(dt=0.1)
+        # self.matched.kalman_update([self.x, self.y])
+        
+
+        # # For now just do a stupid averaging operation.
         self.matched.x = (self.matched.x + self.x) / 2
         self.matched.y = (self.matched.y + self.y) / 2
         self.matched.z = (self.matched.z + self.z) / 2
