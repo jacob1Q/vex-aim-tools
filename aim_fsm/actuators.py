@@ -11,6 +11,7 @@ class Actuator():
         self.robot = robot
         self.name = name
         self.holder = None
+        self.started = False
         self.stop_fn = stop_fn
 
     def __repr__(self):
@@ -53,20 +54,26 @@ class DriveActuator(Actuator):
         # Bad timing can cause a just-started node to complete prematurely;
         # must wait until robot is seen to be moving before considering
         # looking for a stopped-moving status.
-        if self.holder and not self.robot.robot0.is_move_active():
+        if self.robot.robot0.is_move_active() or self.robot.robot0.is_turn_active():
+            self.started = True
+        elif self.holder and self.started:
             self.holder.complete(self)
             self.holder = None
+            self.started = False
 
     def turn(self, node, angle_rads, turn_speed=None):
         self.lock(node)
+        self.started = False
         self.robot.turn(angle_rads, turn_speed=turn_speed)
 
     def forward(self, node, distance_mm, drive_speed=None):
         self.lock(node)
+        self.started = False
         self.robot.forward(distance_mm, drive_speed=drive_speed)
 
     def sideways(self, node, distance_mm, drive_speed=None):
         self.lock(node)
+        self.started = False
         self.robot.sideways(distance_mm, drive_speed=drive_speed)
 
 

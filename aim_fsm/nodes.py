@@ -1,21 +1,21 @@
 import time
 import asyncio
-import inspect
 import types
 import random
 import numpy as np
+from math import pi, sqrt, atan2, inf, nan
+import re
 
 import cv2
 
-from math import pi, sqrt, atan2, inf, nan
 from multiprocessing import Process, Queue
 
 from . import vex
 from . import evbase
 from .base import *
 from .events import *
-#from .geometry import wrap_angle
-#from .worldmap import WorldObject, FaceObj, CustomMarkerObj
+from .geometry import wrap_angle
+from .worldmap import WorldObject
 
 #________________ Ordinary Nodes ________________
 
@@ -80,6 +80,7 @@ class Print(StateNode):
 
     def start(self,event=None):
         super().start(event)
+        print('Print started:', event)
         if isinstance(self.spec, types.FunctionType):
             text = self.spec()
         else:
@@ -128,14 +129,47 @@ class AskGPT(StateNode):
 
 #________________ Actions ________________
 
-class ActionNode(StateNode):
+class ObjectSpecNode(StateNode):
+    def get_object_from_spec(self,spec):
+        if isinstance(spec, WorldObject):
+            obj = spec
+        elif isinstance(spec,str):
+            pat = re.compile(spec)
+            candidates = [o for o in self.robot.world_map.objects.values() if pat.match(o.name) and o.is_valid]
+            obj = None
+        elif isinstance(spec,type) and issubclass(spec,WorldObject):
+            candidates = [o for o in self.robot.world_map.objects.values() if isinstance(o,spec) and o.is_valid]
+            obj = None
+        else:
+            raise TypeError(f'{self.__class__.__name__} requires an object name spec, object, or object class, not {spec}')
+        x = self.robot.x
+        y = self.robot.y
+        if obj is None and candidates:
+            distances = [(o.x - x)**2 + (o.y - y)**2 for o in candidates]
+            index = np.argmin(distances)
+            obj = candidates[index]
+        return obj
+
+class ActionNode(ObjectSpecNode):
     def complete(self,actuator):
         actuator.unlock(self)
         self.post_completion()
 
+class Drop(ActionNode):
+    def __init__(self):
+        super().__init__()
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['kick'].kick(self, vex.KickType.SOFT)
+
+    def stop(self):
+        super().stop()
+        self.robot.actuators['kick'].unlock_if_held(self)
+
 
 class Kick(ActionNode):
-    def __init__(self, kicktype=vex.KickType.SOFT):
+    def __init__(self, kicktype=vex.KickType.MEDIUM):
         super().__init__()
         self.kicktype = kicktype
 
@@ -191,6 +225,28 @@ class Sideways(ActionNode):
     def stop(self):
         super().stop()
         self.robot.actuators['drive'].unlock_if_held(self)
+
+class TurnToward(Turn):
+    def __init__(self, object_spec=None):
+        super().__init__()
+        self.object_spec = object_spec
+
+    def start(self, event=None):
+        if isinstance(event, DataEvent):
+            spec = event.data
+        else:
+            spec = self.object_spec
+        obj = self.get_object_from_spec(spec)
+        if obj is None:
+            self.angle_deg = 0
+            super().start(event)
+            self.post_failure()
+            return
+        dx = obj.x - self.robot.x
+        dy = obj.y - self.robot.y
+        angle = wrap_angle(atan2(dy,dx) - self.robot.theta)
+        self.angle_deg = angle*180/pi
+        super().start(event)
 
 
 class Say(ActionNode):

@@ -30,6 +30,22 @@ class GPT_test(StateMachineProgram):
           self.angle_deg = float((event.data.split(' '))[1])
           super().start(event)
 
+    class CmdTurnToward(TurnToward):
+      def start(self,event):
+          print(event.data)
+          spec = event.data.split(' ')
+          self.object_spec = ''.join(spec[1:])
+          print('Turning toward', self.object_spec)
+          super().start(None)
+
+    class CmdPickup(PickUp):
+      def start(self,event):
+          print(event.data)
+          spec = event.data.split(' ')
+          self.object_spec = ''.join(spec[1:])
+          print('Picking up', self.object_spec)
+          super().start(None)
+
     class SpeakResponse(Say):
       def start(self,event):
         self.text = event.data
@@ -45,9 +61,21 @@ class GPT_test(StateMachineProgram):
       check =D(str)=> self.SpeakResponse() =C=> loop
 
       dispatch: Iterate()
-      dispatch =D(re.compile('#forward'))=> self.CmdForward() =CNext=> dispatch
-      dispatch =D(re.compile('#sideways'))=> self.CmdSideways() =CNext=> dispatch
-      dispatch =D(re.compile('#turn'))=> self.CmdTurn() =CNext=> dispatch
+      dispatch =D(re.compile('#forward '))=> self.CmdForward() =CNext=> dispatch
+      dispatch =D(re.compile('#sideways '))=> self.CmdSideways() =CNext=> dispatch
+      dispatch =D(re.compile('#turn '))=> self.CmdTurn() =CNext=> dispatch
+      dispatch =D(re.compile('#turntoward '))=> turntoward
+      dispatch =D(re.compile('#drop$'))=> Drop() =CNext=> dispatch
+      dispatch =D(re.compile('#pickup '))=> pickup
       dispatch =D()=> Print() =Next=> dispatch
       dispatch =C=> loop
+
+      turntoward: self.CmdTurnToward()
+      turntoward =CNext=> dispatch
+      turntoward =F=> StateNode() =Next=> dispatch
+
+      pickup: self.CmdPickup()
+      pickup =CNext=> dispatch
+      pickup =F=> StateNode() =Next=> dispatch
+
       }

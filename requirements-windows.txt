@@ -2,8 +2,7 @@ numpy
 Pillow
 opencv-python
 opencv-contrib-python
-PyOpenGL
-PyOpenGL_accelerate
+PyOpenGL @ git+https://github.com/mcfletch/pyopengl.git@release-3.1.8#egg=PyOpenGL
 termcolor
 websocket_client
 flask
