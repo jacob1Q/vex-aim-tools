@@ -210,6 +210,7 @@ class WorldMap():
                 print(f'*** Unknown: spec={spec}')
                 continue
             obj = self.make_object(spec)
+            obj.is_visible = True
             # Calculate midpoint of bottom edge, which we assume is on the floor
             cx = (spec['originx'] + spec['width']/2) * AIVISION_RESOLUTION_SCALE
             cy = (spec['originy'] + spec['height']) * AIVISION_RESOLUTION_SCALE
@@ -248,6 +249,7 @@ class WorldMap():
             obj.y = self.robot.y + sensor_dist * sin(theta + sensor_bearing)
             obj.z = marker.aruco_parent.marker_size / 2  # *** TEMPORARY HACK ***
             obj.theta = wrap_angle(self.robot.theta - sensor_orient)
+            obj.is_visible = True
             self.candidates.append(obj)
 
     def associate_objects(self):
@@ -389,6 +391,7 @@ class WorldMap():
         prompt = ''
         prompt += f'You are located at ({round(self.robot.x)}, {round(self.robot.y)})\n'
         prompt += f'Your heading is {round(self.robot.theta*180/pi)} degrees\n'
+        prompt += f'Your battery level is {self.robot.battery_percentage} percent.\n'
         for (key,value) in self.objects.items():
             prompt += f'{key} is located at ({round(value.x)}, {round(value.y)}) and is {"visible" if value.is_visible else "not visible"}\n'
         return prompt

@@ -105,6 +105,11 @@ def cli_loop(_robot):
         if cli_loop._line[0] == '!':
             do_shell_command(cli_loop._line[1:])
             continue
+        elif cli_loop._line == '.':
+            continue
+        elif cli_loop._line[0:2] == '. ':
+            do_hear_command(cli_loop._line[2:])
+            continue
         elif cli_loop._line[0:3] == 'tm ' or cli_loop._line == 'tm':
             text_message(cli_loop._line[3:])
             continue
@@ -408,6 +413,16 @@ def do_shell_command(cmd):
         subprocess.call(cmd, shell=True)
     except Exception as e:
         print(e)
+
+def do_hear_command(text):
+    utterance = text.strip().lower()
+    words = [robot.speech_listener.thesaurus.lookup_word(w) for w in utterance.split(" ")]
+    words = robot.speech_listener.thesaurus.substitute_phrases(words)
+    string = " ".join(words)
+    if len(string) == 0:
+        return
+    event = SpeechEvent(string, words)
+    robot.loop.call_soon_threadsafe(robot.erouter.post, event)
 
 ################ Set up threads and robot
 

@@ -44,6 +44,8 @@ class OpenAIClient():
         self.robot.loop.create_task(self.openai_query())
 
     async def openai_query(self):
+        if self.client is None:
+            return
         response = self.client.chat.completions.create(
             model = self.model,
             messages = self.messages
