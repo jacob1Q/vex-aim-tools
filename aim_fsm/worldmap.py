@@ -34,9 +34,18 @@ class WorldObject():
 
     def update_matched_object(self):
         #KF implementation
-        estimate_x, uncertainty_x = self.matched.kf_x.update(self.x)
-        estimate_y, uncertainty_y = self.matched.kf_y.update(self.y)
-        estimate_z, uncertainty_z = self.matched.kf_z.update(self.z)
+        noise=0
+        if self.x >=50:
+            noise=self.x*0.001
+        estimate_x, uncertainty_x = self.matched.kf_x.update(self.x,noise)
+        noise=0
+        if self.y >=50:
+            noise=self.y*0.001
+        estimate_y, uncertainty_y = self.matched.kf_y.update(self.y,noise)
+        noise=0
+        if self.z >=50:
+            noise=self.z*0.001
+        estimate_z, uncertainty_z = self.matched.kf_z.update(self.z,noise)
 
         # Update the matched object's position
         self.matched.x = estimate_x
@@ -61,10 +70,11 @@ class WorldObject():
             self.measurement_noise = measurement_noise  # R
             self.process_noise = process_noise          # Q
 
-        def update(self, measurement):
+        def update(self, measurement,noise=0):
             # Prediction step (no process dynamics, so state remains the same)
+        
             predicted_estimate = self.estimate
-            predicted_uncertainty = self.uncertainty + self.process_noise
+            predicted_uncertainty = self.uncertainty + self.process_noise+noise
 
             # Kalman gain
             kalman_gain = predicted_uncertainty / (predicted_uncertainty + self.measurement_noise)
@@ -110,10 +120,30 @@ class AprilTagObj(WorldObject):
         self.tag_id = spec['id']
         self.theta = spec['angle'] / 180 * pi
         self.diameter = 22 # mm
+        self.kf_theta = self.KalmanFilter(initial_estimate=self.theta, initial_uncertainty=200, measurement_noise=0.5, process_noise=0.05)
+
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
         return f'<{self.name} {vis} at ({self.x:.1f}, {self.y:.1f}) @ {self.theta*180/pi:.1f} deg.>'
+    
+    def update_matched_object(self):
+        #KF implementation
+        estimate_x, uncertainty_x = self.matched.kf_x.update(self.x)
+        estimate_y, uncertainty_y = self.matched.kf_y.update(self.y)
+        estimate_z, uncertainty_z = self.matched.kf_z.update(self.z)
+        noise = (self.theta + 2 * np.pi) % (2 * np.pi)*0.05
+        estimate_theta, uncertainty_theta = self.matched.kf_theta.update(self.theta,noise)
+        estimate_theta = wrap_angle(estimate_theta)
+        
+
+        # Update the matched object's position
+        self.matched.x = estimate_x
+        self.matched.y = estimate_y
+        self.matched.z = estimate_z
+        self.matched.theta = estimate_theta
+
+        self.matched.is_visible = True
 
 class ArucoMarkerObj(WorldObject):
     def __init__(self, spec, x=0, y=0, z=0, theta=0):
@@ -125,6 +155,7 @@ class ArucoMarkerObj(WorldObject):
         self.y = y
         self.z = z
         self.theta = theta
+        self.kf_theta = self.KalmanFilter(initial_estimate=theta, initial_uncertainty=200, measurement_noise=0.5, process_noise=0.05)
         self.pose_confidence = +1
 
     def __repr__(self):
@@ -135,6 +166,23 @@ class ArucoMarkerObj(WorldObject):
                 (self.tag_id, self.x, self.y, self.z, self.theta*180/pi, fix, vis)
         else:
             return '<ArucoMarkerObj %d: position unknown>' % self.tag_id
+        
+    def update_matched_object(self):
+        #KF implementation
+        estimate_x, uncertainty_x = self.matched.kf_x.update(self.x)
+        estimate_y, uncertainty_y = self.matched.kf_y.update(self.y)
+        estimate_z, uncertainty_z = self.matched.kf_z.update(self.z)
+        noise = (self.theta + 2 * np.pi) % (2 * np.pi)*0.05
+        estimate_theta, uncertainty_theta = self.matched.kf_theta.update(self.theta,noise)
+        estimate_theta = wrap_angle(estimate_theta)
+
+        # Update the matched object's position
+        self.matched.x = estimate_x
+        self.matched.y = estimate_y
+        self.matched.z = estimate_z
+        self.matched.theta = estimate_theta
+
+        self.matched.is_visible = True
 
 ################################################################
 
