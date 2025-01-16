@@ -68,13 +68,15 @@ class WorldObject():
 
             # Kalman filter parameters
             self.measurement_noise = measurement_noise  # R
+            self.base_measurement_noise=measurement_noise
             self.process_noise = process_noise          # Q
 
         def update(self, measurement,noise=0):
             # Prediction step (no process dynamics, so state remains the same)
         
             predicted_estimate = self.estimate
-            predicted_uncertainty = self.uncertainty + self.process_noise+noise
+            self.measurement_noise=self.base_measurement_noise+noise #updating the measurement noise based on influence from the measurement itself
+            predicted_uncertainty = self.uncertainty + self.process_noise
 
             # Kalman gain
             kalman_gain = predicted_uncertainty / (predicted_uncertainty + self.measurement_noise)
