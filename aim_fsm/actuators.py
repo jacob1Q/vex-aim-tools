@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from gtts import gTTS
 from google.cloud import texttospeech
@@ -11,6 +12,7 @@ class Actuator():
         self.robot = robot
         self.name = name
         self.holder = None
+        self.started = False
         self.stop_fn = stop_fn
 
     def __repr__(self):
@@ -53,20 +55,26 @@ class DriveActuator(Actuator):
         # Bad timing can cause a just-started node to complete prematurely;
         # must wait until robot is seen to be moving before considering
         # looking for a stopped-moving status.
-        if self.holder and not self.robot.robot0.is_move_active():
+        if self.robot.robot0.is_move_active() or self.robot.robot0.is_turn_active():
+            self.started = True
+        elif self.holder and self.started:
             self.holder.complete(self)
             self.holder = None
+            self.started = False
 
     def turn(self, node, angle_rads, turn_speed=None):
         self.lock(node)
+        self.started = False
         self.robot.turn(angle_rads, turn_speed=turn_speed)
 
     def forward(self, node, distance_mm, drive_speed=None):
         self.lock(node)
+        self.started = False
         self.robot.forward(distance_mm, drive_speed=drive_speed)
 
     def sideways(self, node, distance_mm, drive_speed=None):
         self.lock(node)
+        self.started = False
         self.robot.sideways(distance_mm, drive_speed=drive_speed)
 
 
@@ -107,7 +115,8 @@ class SoundActuator(Actuator):
         self.robot.loop.create_task(self.text_to_mp3(text))
 
     async def text_to_mp3(self, text):
-        filepath = "/tmp/vex_speech.mp3"
+        temp_dir = os.getenv('TEMP', '/tmp')
+        speech_file_path = os.path.join(temp_dir, 'vex_speech.mp3')
         if self.use_gcloud:
             synthesis_input = texttospeech.SynthesisInput(text=text)
             response = self.tts_client.synthesize_speech(
@@ -115,13 +124,13 @@ class SoundActuator(Actuator):
                 voice = self.tts_voice,
                 audio_config = self.tts_audio_config
             )
-            with open(filepath, "wb") as out:
+            with open(speech_file_path, 'wb') as out:
                 out.write(response.audio_content)
         else:
             tts = gTTS(text=text, lang='en')
-            tts.save(filepath)
+            tts.save(speech_file_path)
         self.robot.speech_listener.disable()
-        self.robot.robot0.play_sound_file(filepath)
+        self.robot.robot0.play_sound_file(speech_file_path)
 
     def play_sound(self, node, sound, volume=100):
         self.lock(node)

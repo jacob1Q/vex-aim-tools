@@ -1,0 +1,40 @@
+from .nodes import *
+from .transitions import *
+
+class PickUp(ObjectSpecNode):
+    def __init__(self, object_spec=None):
+        super().__init__()
+        self.object_spec = object_spec
+
+    def start(self,event=None):
+        if isinstance(event, DataEvent):
+            spec = event.data
+        else:
+            spec = self.object_spec
+        self.object = self.get_object_from_spec(spec)
+        super().start(event)
+        if self.object is None:
+            self.post_failure()
+
+    class Pickup_TurnToward(TurnToward):
+        def start(self, event=None):
+            self.object_spec = self.parent.object
+            super().start(event)
+
+    class Pickup_Forward(Forward):
+        def start(self, event=None):
+            robot_radius = 15
+            dx = self.parent.object.x - self.robot.x
+            dy = self.parent.object.y - self.robot.y
+            self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius
+            super().start(event)
+
+    $setup{
+        turn: self.Pickup_TurnToward()
+        turn =C=> forward
+        turn =F=> ParentFails()
+
+        forward: self.Pickup_Forward()
+        forward =C=> ParentCompletes()
+        forward =F=> ParentFails()
+        }

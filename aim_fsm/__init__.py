@@ -11,6 +11,7 @@ from .robot import Robot
 from .worldmap import *
 from .worldmap_viewer import WorldMapViewer
 from .program import StateMachineProgram, runfsm
+from .pickup import *
 
 del base
 

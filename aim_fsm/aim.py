@@ -24,7 +24,7 @@ SYS_FLAGS_IS_MOVING         = (1<<5) # if there is any wheel movement whatsoever
 SYS_FLAGS_HAS_CRASHED       = (1<<6)
 SYS_FLAGS_IS_SHAKE          = (1<<8)
 SOUND_SIZE_MAX_BYTES     = 255 * 1024
-BARREL_MIN_Y             = 180
+BARREL_MIN_Y             = 160 # *** changed from 180
 BARREL_MIN_CX            = 120
 BARREL_MAX_CX            = 200
 
@@ -1077,16 +1077,17 @@ class AiVision():
         if count > AIVISION_MAX_OBJECTS:
             count = AIVISION_MAX_OBJECTS
     
-        item_count = self.robot_instance.status["aivision"]["objects"]["count"]
+        objects = self.robot_instance.status["aivision"]["objects"]
+        item_count = objects["count"]
         ai_object_list = [AiVisionObject() for item in range(item_count)]
         # first just extract everything we got from ws_status
         for item in range(item_count):
-            ai_object_list[item].type       = self.robot_instance.status["aivision"]["objects"]["items"][item]["type"]
-            ai_object_list[item].id         = self.robot_instance.status["aivision"]["objects"]["items"][item]["id"]
-            ai_object_list[item].originX    = self.robot_instance.status["aivision"]["objects"]["items"][item]["originx"]
-            ai_object_list[item].originY    = self.robot_instance.status["aivision"]["objects"]["items"][item]["originy"]
-            ai_object_list[item].width      = self.robot_instance.status["aivision"]["objects"]["items"][item]["width"]
-            ai_object_list[item].height     = self.robot_instance.status["aivision"]["objects"]["items"][item]["height"]
+            ai_object_list[item].type       = objects["items"][item]["type"]
+            ai_object_list[item].id         = objects["items"][item]["id"]
+            ai_object_list[item].originX    = objects["items"][item]["originx"]
+            ai_object_list[item].originY    = objects["items"][item]["originy"]
+            ai_object_list[item].width      = objects["items"][item]["width"]
+            ai_object_list[item].height     = objects["items"][item]["height"]
 
             if ai_object_list[item].type ==  _ObjectTypeMask.modelObject: #AI model objects can have a classname
                 ai_object_list[item].classname  = self.robot_instance.status["aivision"]["classnames"]["items"][ai_object_list[item].id]["name"]

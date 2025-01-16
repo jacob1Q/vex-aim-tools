@@ -13,7 +13,7 @@ class WorldObject():
         self.z = z
         self.name = self.__class__.__name__
         self.matched = None  # matching object from data association
-        # insert EKF data here
+        # Kalman Filter data
         self.kf_x = self.KalmanFilter(initial_estimate=x, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
         self.kf_y = self.KalmanFilter(initial_estimate=y, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
         self.kf_z = self.KalmanFilter(initial_estimate=z, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
@@ -21,6 +21,7 @@ class WorldObject():
         self.is_fixed = False   # True for walls and markers in predefined maps
         self.is_obstacle = True
         self.is_visible = is_visible
+        self.is_valid = True
         self.is_foreign = False
         if is_visible:
             self.pose_confidence = +1

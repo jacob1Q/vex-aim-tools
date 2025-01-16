@@ -1,4 +1,4 @@
-#!/home/friday/codebase/cognitive_robotics/vex/py_vex/bin/python -i
+#!/usr/bin/env python3
 
 """
 VEX AIM Simple CLI
@@ -55,8 +55,9 @@ else:
 
 try:
     readline.read_history_file(histfile)
-except IOError:
+except:
     pass
+
 atexit.register(readline.write_history_file, histfile)
 
 os_version = platform.system()
