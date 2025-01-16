@@ -273,7 +273,6 @@ class Say(ActionNode):
         self.utterance = utterance
         super().start(event)
         print("Speaking: '",utterance,"'",sep='')
-
         self.robot.actuators['sound'].say_text(self, self.utterance)
 
     def stop(self):

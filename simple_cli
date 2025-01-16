@@ -16,10 +16,7 @@ import logging
 import os
 import platform
 import re
-try:
-    import readline
-except:
-    pass
+import readline
 import rlcompleter
 import subprocess
 import sys
@@ -57,10 +54,11 @@ else:
     histfile = '.pythonhistory'
 
 try:
-    atexit.register(readline.write_history_file, histfile)
     readline.read_history_file(histfile)
 except:
     pass
+
+atexit.register(readline.write_history_file, histfile)
 
 os_version = platform.system()
 

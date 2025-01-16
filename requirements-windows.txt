@@ -7,6 +7,7 @@ termcolor
 websocket_client
 flask
 flask_cors
+pyreadline3
 openai
 gtts
 google-cloud-texttospeech
