@@ -104,7 +104,10 @@ class SoundActuator(Actuator):
         else:
             if self.playing is True:
                 self.playing = False
-                self.robot.loop.call_later(1, self.robot.speech_listener.enable)
+                try:  # might fail if speech isn't up yet
+                    self.robot.loop.call_later(1, self.robot.speech_listener.enable)
+                except:
+                    pass
                 self.complete()
 
     def say_text(self, node, text):

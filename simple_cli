@@ -143,13 +143,14 @@ def cli_loop(_robot):
             cli_loop._do_await = True
             cli_loop._line = 'ans=' + cli_loop._line[6:]
         elif cli_loop._line[0:5] == 'exit':
+            loop.stop()
             # Clean up
             try:
                 world_viewer.exited = True
             except: pass
             if running_fsm:
                 running_fsm.stop()
-            print()
+            print('exiting...')
             RUNNING=False
             continue
         else:

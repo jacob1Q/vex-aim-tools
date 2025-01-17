@@ -122,7 +122,7 @@ color_white  = (1., 1., 1.)
 color_red    = (1., 0., 0.)
 color_green  = (0., 1., 0.)
 color_light_green  = (0., 0.5, 0.)
-color_blue   = (0., 0., 1.0)
+color_blue   = (0.2, 0.2, 1.0)
 color_cyan   = (0., 1.0, 1.0)
 color_yellow = (0.8, 0.8, 0.)
 color_orange = (1., 0.5, .063)
@@ -776,6 +776,8 @@ class WorldMapViewer():
             color = color_orange
         else:
             color = color_blue
+        if not obj.is_visible:
+            color = [c*0.65 for c in color]
         self.make_cylinder(radius=10, height=25, color=color)
         glPopMatrix()
         glEndList()

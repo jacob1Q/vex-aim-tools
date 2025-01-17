@@ -219,7 +219,7 @@ class WorldMap():
             hit = self.robot.kine.project_to_ground(cx, cy)
             # offset hit by half the object thickness
             if obj.__dict__.get('diameter'):
-                hit += point(obj.diameter / 2, 0, 0)
+                hit += point(obj.diameter / 2, 0, 0)   # *** should calculate y offset too
             # convert to world coordinates
             robotpos = point(self.robot.x, self.robot.y)
             objpos = aboutZ(self.robot.theta).dot(hit) + robotpos
@@ -330,8 +330,8 @@ class WorldMap():
                     else:
                         candidate.name = self.next_in_sequence(candidate.name)
                         self.objects[candidate.name] = candidate
-                        print('Added', candidate)
                         candidate.is_visible = True
+                        print('Added', candidate)
                         self.updated_objects.append(candidate)
                     del self.pending_objects[m]
                 pending.remove(m)
@@ -339,7 +339,7 @@ class WorldMap():
                 self.pending_objects[candidate] = 1
                 #print('proposed', candidate)
         for p in pending:
-            #print('retracted', p, '  count=', self.pending_objects[p])
+            print('retracted', p, '  count=', self.pending_objects[p])
             del self.pending_objects[p]
 
     def reclaim_object(self, obj):
@@ -361,7 +361,7 @@ class WorldMap():
         self.updated_objects.append(match)
         self.missing_objects.remove(match)
         match.is_visible = True
-        #print('reclaimed', match)
+        print('reclaimed', match)
         return match
         
 
