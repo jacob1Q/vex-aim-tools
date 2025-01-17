@@ -406,12 +406,16 @@ class WorldMap():
         match.x = obj.x
         match.y = obj.y
         match.z = obj.z
+        match.kf_x = obj.kf_x
+        match.kf_y = obj.kf_z
+        match.kf_z = obj.kf_z
         if 'theta' in obj.__dir__():
             match.theta = obj.theta
+            match.kf_theta = obj.kf_theta
         self.updated_objects.append(match)
         self.missing_objects.remove(match)
         match.is_visible = True
-        print('reclaimed', match)
+        #print('reclaimed', match)
         return match
         
 
