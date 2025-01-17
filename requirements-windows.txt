@@ -9,5 +9,5 @@ flask
 flask_cors
 pyreadline3
 openai
-gtts
+gTTS
 google-cloud-texttospeech
