@@ -18,7 +18,7 @@ from .worldmap import AIVISION_RESOLUTION_SCALE
 # For capturing images
 global snapno, path, running_fsm
 snapno = 0
-path = 'snapshot/'
+path = 'snapshots/'
 
 WINDOW = None
 
