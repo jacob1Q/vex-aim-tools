@@ -1,6 +1,6 @@
 numpy
 Pillow
-opencv-python==4.10.*
+opencv-python
 PyOpenGL @ git+https://github.com/mcfletch/pyopengl.git@release-3.1.8#egg=PyOpenGL
 termcolor
 websocket_client

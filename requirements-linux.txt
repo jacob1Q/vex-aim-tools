@@ -1,8 +1,7 @@
 numpy
 Pillow
-opencv-python==4.10.*
+opencv-python
 PyOpenGL
-PyOpenGL_accelerate
 termcolor
 websocket_client
 flask
