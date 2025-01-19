@@ -7,7 +7,6 @@ except:
         print(string)
 
 import cv2
-ARUCO_DICT_4x4_100 = cv2.aruco.DICT_4X4_100
 
 from . import vex
 from . import evbase
@@ -44,7 +43,7 @@ class StateMachineProgram(StateNode):
                  particle_viewer_scale = 1.0,
 
                  aruco = True,
-                 arucolibname = ARUCO_DICT_4x4_100,
+                 dictionary_name = cv2.aruco.DICT_4X4_100,
                  aruco_disabled_ids = (17, 37),
                  aruco_marker_size = ARUCO_MARKER_SIZE,
 
@@ -83,7 +82,7 @@ class StateMachineProgram(StateNode):
         self.aruco_marker_size = aruco_marker_size
         if self.aruco:
             self.robot.aruco_detector = \
-                ArucoDetector(self.robot, arucolibname, aruco_marker_size, aruco_disabled_ids)
+                RobotArucoDetector(self.robot, dictionary_name, aruco_marker_size, aruco_disabled_ids)
 
         self.perched_cameras = perched_cameras
         if self.perched_cameras:

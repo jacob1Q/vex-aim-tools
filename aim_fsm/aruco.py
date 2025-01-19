@@ -2,7 +2,8 @@ try: import cv2
 except: pass
 
 import math
-from numpy import sqrt, arctan2, array, multiply
+import numpy as np
+from numpy import sqrt, arctan2
 
 ARUCO_MARKER_SIZE = 40
 
@@ -48,63 +49,61 @@ class ArucoMarker(object):
             y = arctan2(-R[2,0], sy)
             z = 0
 
-        return array([x, y, z])
+        return np.array([x, y, z])
 
-class ArucoDetector(object):
-    def __init__(self, robot, arucolibname, marker_size=ARUCO_MARKER_SIZE, disabled_ids=[]):
+class RobotArucoDetector(object):
+    def __init__(self, robot, dictionary_name, marker_size=ARUCO_MARKER_SIZE, disabled_ids=[]):
         self.robot = robot
-        self.arucolibname = arucolibname
-        if arucolibname is not None:
-            self.aruco_lib = cv2.aruco.getPredefinedDictionary(arucolibname)
+        dictionary = cv2.aruco.getPredefinedDictionary(dictionary_name)
+        detector_params = cv2.aruco.DetectorParameters()
+        self.detector = cv2.aruco.ArucoDetector(dictionary, detector_params)
         self.seen_marker_ids = []
         self.seen_marker_objects = dict()
         self.disabled_ids = disabled_ids  # disable markers with high false detection rates
         self.ids = []
         self.corners = []
+        self.marker_corners_3d = np.array([
+            [-marker_size / 2, marker_size / 2, 0],  # Top left
+            [marker_size / 2, marker_size / 2, 0],   # Top right
+            [marker_size / 2, -marker_size / 2, 0],  # Bottom right
+            [-marker_size / 2, -marker_size / 2, 0]  # Bottom left
+            ], dtype=np.float32)
 
         # Added for pose estimation
         self.marker_size = marker_size #these units will be pose est units!!
         self.image_size = self.robot.camera.resolution
         focal_len = self.robot.camera.focal_length
         self.camera_matrix = \
-            array([[focal_len[0],  0,            self.image_size[0]/2],
-                   [0,          -focal_len[1],   self.image_size[1]/2],
-                   [0,             0,            1]]).astype(float)
-        self.distortion_array = array([[0,0,0,0,0]]).astype(float)
+            np.array([[focal_len[0],  0,            self.image_size[0]/2],
+                      [0,          -focal_len[1],   self.image_size[1]/2],
+                      [0,             0,            1]]).astype(float)
+        self.distortion_array = np.array([[0,0,0,0,0]]).astype(float)
 
     def process_image(self,gray):
         self.seen_marker_ids = []
         self.seen_marker_objects = dict()
-        (self.corners,self.ids,_) = \
-            cv2.aruco.detectMarkers(gray, self.aruco_lib)
+        (self.corners, self.ids, _) = self.detector.detectMarkers(gray)
         if self.ids is None: return
 
         # Estimate poses
-        # Warning: OpenCV 3.2 estimate returns a pair; 3.3 returns a triplet
-        estimate = \
-            cv2.aruco.estimatePoseSingleMarkers(self.corners,
-                                                self.marker_size,
-                                                self.camera_matrix,
-                                                self.distortion_array)
-
-        self.rvecs = estimate[0]
-        self.tvecs = estimate[1]
-        for i in range(len(self.ids)):
+        for i in range(len(self.corners)):
+            marker_corners_2d = self.corners[i]
             id = int(self.ids[i][0])
+            success, rvec, tvec = cv2.solvePnP(self.marker_corners_3d,
+                                               marker_corners_2d,
+                                               self.camera_matrix,
+                                               self.distortion_array)
             if id in self.disabled_ids: continue
-            tvec = self.tvecs[i][0]
-            rvec = self.rvecs[i][0]
-            if rvec[2] > math.pi/2 or rvec[2] < -math.pi/2:
+            if rvec[2][0] > math.pi/2 or rvec[2][0] < -math.pi/2:
                 # can't see a marker facing away from us, so bogus
                 print('Marker rejected! id=', id, 'tvec=', tvec, 'rvec=', rvec)
                 continue
-            marker = ArucoMarker(self, id,
-                                 self.corners[i], self.tvecs[i][0], self.rvecs[i][0])
+            marker = ArucoMarker(self, id, marker_corners_2d, tvec, -rvec)
             self.seen_marker_ids.append(marker.id)
             self.seen_marker_objects[marker.id] = marker
 
     def annotate(self, image, scale_factor):
-        scaled_corners = [ multiply(corner, scale_factor) for corner in self.corners ]
+        scaled_corners = [ np.multiply(corner, scale_factor) for corner in self.corners ]
         displayim = cv2.aruco.drawDetectedMarkers(image, scaled_corners, self.ids)
 
         #add poses currently fails since image is already scaled. How to scale camMat?
