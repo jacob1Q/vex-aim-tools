@@ -8,7 +8,7 @@ print(f"main thead in {threading.current_thread().native_id}")
 
 global loop
 loop = asyncio.get_event_loop()
-# loop.set_debug(True)
+loop.set_debug(True)
 
 def loopthread():
     global loop
@@ -22,7 +22,6 @@ th.start()
 global robot
 global robot_for_loading
 
-#robot_ip_addr = "172.26.167.23"
 robot_ip_addr = "192.168.4.1"
 
 robot = Robot(loop=loop, host=robot_ip_addr)

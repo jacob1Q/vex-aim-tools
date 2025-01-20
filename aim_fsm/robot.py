@@ -1,3 +1,4 @@
+import sys
 import threading
 import numpy as np
 import cv2
@@ -43,10 +44,9 @@ class Robot():
         robot0.aiv.tag_detection(True)
         self.thesaurus = Thesaurus()
         self.speech_listener = SpeechListener(self, self.thesaurus, debug=False)
-        self.speech_listener.start()
+        self.loop.call_soon_threadsafe(self.speech_listener.start)
 
     def status_callback(self):
-        #print(f"status_callback in {threading.current_thread().native_id}")
         self.loop.call_soon_threadsafe(self.status_update)
 
     def status_update(self):
