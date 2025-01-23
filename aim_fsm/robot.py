@@ -25,6 +25,7 @@ class Robot():
         robot0.inertial.calibrate()
         robot0.set_pose(0,0,0)
         self.robot0 = robot0
+        self.theta_correction = - wrap_angle(robot0.get_heading() / 180 * pi)
         self.loop = loop
         self.camera = Camera()
         self.kine = AIMKinematics(self)
@@ -63,10 +64,11 @@ class Robot():
         heading = 360 - self.robot0.get_heading()
         if heading > 180:
             heading = heading - 360
+        theta = wrap_angle(heading/180*pi + self.theta_correction)
         self.pose = PoseEstimate(self.robot0.get_y(),
                                  -self.robot0.get_x(),
                                  0,
-                                 heading / 180 * pi)
+                                 theta)
 
         self.battery_percentage = self.status['battery']
         self.update_actuators()
@@ -82,12 +84,16 @@ class Robot():
                                      self.status['touch_flags'])
             self.erouter.post(touch_event)
 
-    def set_pose(self, x, y, z, theta=0):
+    def set_pose(self, x, y, z, theta):
         self.pose = PoseEstimate(x, y, z, theta)
-        # bug preventing this from working
-        # self.theta = theta
-        x0, y0, theta0 = -y, x, (360 - theta * 180/pi)  # convert to VEX frame
-        self.robot0.set_pose(x0, y0, theta0)
+        x0, y0, heading0 = -y, x, (360 - theta * 180/pi)  # convert to VEX frame
+        self.robot0.set_pose(x0, y0, heading0)
+        heading0 = 360 - self.robot0.get_heading()
+        if heading0 > 180:
+            heading0 = heading0 - 360
+        new_theta = heading0/180 * pi
+        self.theta_correction = wrap_angle(theta - new_theta)
+        print(f'theta={theta} new_theta={new_theta} theta_correction={self.theta_correction}')
 
     def update_actuators(self):
         for act in self.actuators.values():
