@@ -343,9 +343,10 @@ class WorldMap():
 
     def get_prompt(self):
         prompt = ''
-        prompt += f'You are located at ({round(self.robot.x)}, {round(self.robot.y)})\n'
-        prompt += f'Your heading is {round(self.robot.theta*180/pi)} degrees\n'
+        prompt += f'You are located at ({round(self.robot.pose.x)}, {round(self.robot.pose.y)})\n'
+        prompt += f'Your heading is {round(self.robot.pose.theta*180/pi)} degrees\n'
         prompt += f'Your battery level is {self.robot.battery_percentage} percent.\n'
-        for (key,value) in self.objects.items():
-            prompt += f'{key} is located at ({round(value.x)}, {round(value.y)}) and is {"visible" if value.is_visible else "not visible"}\n'
+        for (name,obj) in self.objects.items():
+            prompt += f'{name} is located at ({round(obj.pose.x)}, {round(obj.pose.y)}) ' + \
+                f'and is {"visible" if obj.is_visible else "not visible"}\n'
         return prompt

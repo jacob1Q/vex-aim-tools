@@ -93,7 +93,6 @@ class Robot():
             heading0 = heading0 - 360
         new_theta = heading0/180 * pi
         self.theta_correction = wrap_angle(theta - new_theta)
-        print(f'theta={theta} new_theta={new_theta} theta_correction={self.theta_correction}')
 
     def update_actuators(self):
         for act in self.actuators.values():

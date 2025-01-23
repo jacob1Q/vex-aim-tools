@@ -174,7 +174,7 @@ class StateMachineProgram(StateNode):
                 self.stop_children()
         elif self.robot.was_picked_up:
             self.robot.was_picked_up = False
-            self.robot.set_pose(0,0,0)
+            self.robot.set_pose(0,0,0,0)
             self.robot.world_map.update()
             self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 100)
             if self.start_node:
