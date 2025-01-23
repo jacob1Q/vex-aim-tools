@@ -25,7 +25,6 @@ class Robot():
         robot0.inertial.calibrate()
         robot0.set_pose(0,0,0)
         self.robot0 = robot0
-        self.theta_correction = - wrap_angle(robot0.get_heading() / 180 * pi)
         self.loop = loop
         self.camera = Camera()
         self.kine = AIMKinematics(self)
@@ -64,7 +63,7 @@ class Robot():
         heading = 360 - self.robot0.get_heading()
         if heading > 180:
             heading = heading - 360
-        theta = wrap_angle(heading/180*pi + self.theta_correction)
+        theta = heading / 180 * pi
         self.pose = PoseEstimate(self.robot0.get_y(),
                                  -self.robot0.get_x(),
                                  0,
@@ -88,11 +87,6 @@ class Robot():
         self.pose = PoseEstimate(x, y, z, theta)
         x0, y0, heading0 = -y, x, (360 - theta * 180/pi)  # convert to VEX frame
         self.robot0.set_pose(x0, y0, heading0)
-        heading0 = 360 - self.robot0.get_heading()
-        if heading0 > 180:
-            heading0 = heading0 - 360
-        new_theta = heading0/180 * pi
-        self.theta_correction = wrap_angle(theta - new_theta)
 
     def update_actuators(self):
         for act in self.actuators.values():
