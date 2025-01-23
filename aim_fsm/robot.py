@@ -63,8 +63,8 @@ class Robot():
         heading = 360 - self.robot0.get_heading()
         if heading > 180:
             heading = heading - 360
-        self.pose = PoseEstimate(self.robot0.get_x(),
-                                 -self.robot0.get_y(),
+        self.pose = PoseEstimate(self.robot0.get_y(),
+                                 -self.robot0.get_x(),
                                  0,
                                  heading / 180 * pi)
 
@@ -86,7 +86,7 @@ class Robot():
         self.pose = PoseEstimate(x, y, z, theta)
         # bug preventing this from working
         # self.theta = theta
-        x0, y0, theta0 = x, -y, (360 - theta * 180/pi)  # convert to VEX frame
+        x0, y0, theta0 = -y, x, (360 - theta * 180/pi)  # convert to VEX frame
         self.robot0.set_pose(x0, y0, theta0)
 
     def update_actuators(self):
