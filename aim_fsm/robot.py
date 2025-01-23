@@ -15,6 +15,7 @@ from .thesaurus import Thesaurus
 from .openai_client import OpenAIClient
 from .aruco import *
 from .worldmap import *
+from .utils import Pose, PoseEstimate
 from . import program
 
 class Robot():
@@ -59,13 +60,14 @@ class Robot():
             self.robot0.stop_all_motion()
             self.robot0.play_sound(vex.SoundType.ALARM, 100)
         """
-        self.x = float(self.status['robot_y'])
-        self.y = -float(self.status['robot_x'])
-        self.z = 0
-        heading = 360 - float(self.status['heading'])
+        heading = 360 - self.robot0.get_heading()
         if heading > 180:
             heading = heading - 360
-        self.theta = heading / 180 * pi
+        self.pose = PoseEstimate(self.robot0.get_x(),
+                                 -self.robot0.get_y(),
+                                 0,
+                                 heading / 180 * pi)
+
         self.battery_percentage = self.status['battery']
         self.update_actuators()
         if self.robot0.is_stopped():
@@ -80,9 +82,8 @@ class Robot():
                                      self.status['touch_flags'])
             self.erouter.post(touch_event)
 
-    def set_pose(self, x, y, theta):
-        self.x = x
-        self.y = y
+    def set_pose(self, x, y, z, theta=0):
+        self.pose = PoseEstimate(x, y, z, theta)
         # bug preventing this from working
         # self.theta = theta
         x0, y0, theta0 = x, -y, (360 - theta * 180/pi)  # convert to VEX frame
