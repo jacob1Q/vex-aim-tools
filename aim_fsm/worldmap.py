@@ -9,7 +9,7 @@ AIVISION_RESOLUTION_SCALE = 2
 class WorldObject():
     def __init__(self, id=None, x=0, y=0, z=0, theta=None, is_visible=False):
         self.id = id
-        self.pose = PoseEstimate(x, y, z, theta)
+        self.pose = Pose(x, y, z, theta)
         self.name = self.__class__.__name__
         self.matched = None  # matching object from data association
         self.is_fixed = False   # True for walls and markers in predefined maps
