@@ -487,13 +487,13 @@ class WorldMapViewer():
         global gl_lists
         tag_id = marker.tag_id
         s = marker.aruco_parent.marker_size
-        pos = (marker.x, marker.y, marker.z)
+        pos = (marker.pose.x, marker.pose.y, marker.pose.z)
         color = (color_red, color_green, color_blue)[tag_id%3]
         c = glGenLists(1)
         glNewList(c, GL_COMPILE)
         glPushMatrix()
         glTranslatef(*pos)
-        glRotatef(marker.theta*180/pi+180, 0., 0., 1.)
+        glRotatef(marker.pose.theta*180/pi+180, 0., 0., 1.)
         highlight = marker.is_visible
         marker_thickness = 5 # must be thicker than wall
         self.make_cube((marker_thickness,s,s), color=color, highlight=highlight)
@@ -771,7 +771,7 @@ class WorldMapViewer():
         c = glGenLists(1)
         glNewList(c, GL_COMPILE)
         glPushMatrix()
-        glTranslatef(obj.x, obj.y, obj.z)
+        glTranslatef(obj.pose.x, obj.pose.y, obj.pose.z)
         if isinstance(obj, worldmap.OrangeBarrelObj):
             color = color_orange
         else:
@@ -788,7 +788,7 @@ class WorldMapViewer():
         c = glGenLists(1)
         glNewList(c, GL_COMPILE)
         glPushMatrix()
-        glTranslatef(obj.x, obj.y, obj.z)
+        glTranslatef(obj.pose.x, obj.pose.y, obj.pose.z)
         color = (0.9, 0.7, 0.1)
         glColor4f(*color,1.0)
         quadric = gluNewQuadric()
@@ -805,10 +805,10 @@ class WorldMapViewer():
         c = glGenLists(1)
         glNewList(c, GL_COMPILE)
         glPushMatrix()
-        glTranslatef(self.robot.x, self.robot.y, self.robot.z)
+        glTranslatef(self.robot.pose.x, self.robot.pose.y, self.robot.pose.z)
         color = color_light_gray
         self.make_cylinder(radius=32, height=72, color=color)
-        glRotatef(self.robot.theta*180/pi, 0, 0, 1)
+        glRotatef(self.robot.pose.theta*180/pi, 0, 0, 1)
         glTranslatef(30.0, 0.0, 42.0)
         glColor4f(*color_black, 1)
         quadric = gluNewQuadric()
@@ -826,10 +826,10 @@ class WorldMapViewer():
         glNewList(c, GL_COMPILE)
         glPushMatrix()
         tag_size = (2, 38, 48)
-        glTranslatef(obj.x, obj.y, obj.z+tag_size[2]/2+3)
+        glTranslatef(obj.pose.x, obj.pose.y, obj.pose.z+tag_size[2]/2+3)
         color = (0.5, 0.3, 0.9)
         glColor4f(*color,1.0)
-        t = geometry.aboutZ(obj.theta)
+        t = geometry.aboutZ(obj.pose.theta)
         t = t.transpose()   # Transpose the matrix for sending to OpenGL
         rotmat = array.array('f',t.flatten()).tobytes()
         glMultMatrixf(rotmat)

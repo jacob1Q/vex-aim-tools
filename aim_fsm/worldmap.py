@@ -1,23 +1,17 @@
 import numpy as np
 
 from .geometry import *
+from .utils import Pose, PoseEstimate
 
 # aivision currently uses 320x240 dimensions
 AIVISION_RESOLUTION_SCALE = 2
 
 class WorldObject():
-    def __init__(self, id=None, x=0, y=0, z=0, is_visible=False):
+    def __init__(self, id=None, x=0, y=0, z=0, theta=None, is_visible=False):
         self.id = id
-        self.x = x
-        self.y = y
-        self.z = z
+        self.pose = Pose(x, y, z, theta)
         self.name = self.__class__.__name__
         self.matched = None  # matching object from data association
-        # Kalman Filter data
-        self.kf_x = self.KalmanFilter(initial_estimate=x, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
-        self.kf_y = self.KalmanFilter(initial_estimate=y, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
-        self.kf_z = self.KalmanFilter(initial_estimate=z, initial_uncertainty=200, measurement_noise=0.1, process_noise=0.01)
-
         self.is_fixed = False   # True for walls and markers in predefined maps
         self.is_obstacle = True
         self.is_visible = is_visible
@@ -30,62 +24,12 @@ class WorldObject():
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
-        return f'<{self.name} {vis} at ({self.x:.1f}, {self.y:.1f})>'
+        return f'<{self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f})>'
 
     def update_matched_object(self):
-        #KF implementation
-        noise=0
-        if self.x >=50:
-            noise=self.x*0.001
-        estimate_x, uncertainty_x = self.matched.kf_x.update(self.x,noise)
-        noise=0
-        if self.y >=50:
-            noise=self.y*0.001
-        estimate_y, uncertainty_y = self.matched.kf_y.update(self.y,noise)
-        noise=0
-        if self.z >=50:
-            noise=self.z*0.001
-        estimate_z, uncertainty_z = self.matched.kf_z.update(self.z,noise)
-
-        # Update the matched object's position
-        self.matched.x = estimate_x
-        self.matched.y = estimate_y
-        self.matched.z = estimate_z
-        
-        # Should use our x/y/z to update EKF values of object in self.matched.
-        # For now just do a stupid averaging operation.
-        # self.matched.x = (self.matched.x + self.x) / 2
-        # self.matched.y = (self.matched.y + self.y) / 2
-        # self.matched.z = (self.matched.z + self.z) / 2
-     
+        sensor_noise = max(50, self.sensor_distance) * 0.1
+        self.matched.pose.update(self.pose, sensor_noise)
         self.matched.is_visible = True
-
-    class KalmanFilter:
-        def __init__(self, initial_estimate, initial_uncertainty, measurement_noise, process_noise):
-            # Initialize state
-            self.estimate = initial_estimate
-            self.uncertainty = initial_uncertainty
-
-            # Kalman filter parameters
-            self.measurement_noise = measurement_noise  # R
-            self.base_measurement_noise=measurement_noise
-            self.process_noise = process_noise          # Q
-
-        def update(self, measurement,noise=0):
-            # Prediction step (no process dynamics, so state remains the same)
-        
-            predicted_estimate = self.estimate
-            self.measurement_noise=self.base_measurement_noise+noise #updating the measurement noise based on influence from the measurement itself
-            predicted_uncertainty = self.uncertainty + self.process_noise
-
-            # Kalman gain
-            kalman_gain = predicted_uncertainty / (predicted_uncertainty + self.measurement_noise)
-
-            # Update step
-            self.estimate = predicted_estimate + kalman_gain * (measurement - predicted_estimate)
-            self.uncertainty = (1 - kalman_gain) * predicted_uncertainty
-
-            return self.estimate, self.uncertainty
 
 class BarrelObj(WorldObject):
     def __init__(self, spec):
@@ -120,44 +64,19 @@ class AprilTagObj(WorldObject):
         self.spec = spec
         self.name = spec['name']
         self.tag_id = spec['id']
-        self.theta = spec['angle'] / 180 * pi
         self.diameter = 22 # mm
-        self.kf_theta = self.KalmanFilter(initial_estimate=self.theta, initial_uncertainty=200, measurement_noise=0.5, process_noise=0.05)
-
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
-        return f'<{self.name} {vis} at ({self.x:.1f}, {self.y:.1f}) @ {self.theta*180/pi:.1f} deg.>'
+        return f'<{self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f}) @ {self.pose.theta*180/pi:.1f} deg.>'
     
-    def update_matched_object(self):
-        #KF implementation
-        estimate_x, uncertainty_x = self.matched.kf_x.update(self.x)
-        estimate_y, uncertainty_y = self.matched.kf_y.update(self.y)
-        estimate_z, uncertainty_z = self.matched.kf_z.update(self.z)
-        noise = (self.theta + 2 * np.pi) % (2 * np.pi)*0.05
-        estimate_theta, uncertainty_theta = self.matched.kf_theta.update(self.theta,noise)
-        estimate_theta = wrap_angle(estimate_theta)
-        
-
-        # Update the matched object's position
-        self.matched.x = estimate_x
-        self.matched.y = estimate_y
-        self.matched.z = estimate_z
-        self.matched.theta = estimate_theta
-
-        self.matched.is_visible = True
 
 class ArucoMarkerObj(WorldObject):
     def __init__(self, spec, x=0, y=0, z=0, theta=0):
-        super().__init__(self)
+        super().__init__(x, y, z, theta)
         self.name = spec['name']
         self.tag_id = spec['id']
         self.aruco_parent = spec['marker'].aruco_parent
-        self.x = x
-        self.y = y
-        self.z = z
-        self.theta = theta
-        self.kf_theta = self.KalmanFilter(initial_estimate=theta, initial_uncertainty=200, measurement_noise=0.5, process_noise=0.05)
         self.pose_confidence = +1
 
     def __repr__(self):
@@ -165,26 +84,10 @@ class ArucoMarkerObj(WorldObject):
             vis = ' visible' if self.is_visible else ''
             fix = ' fixed' if self.is_fixed else ''
             return '<ArucoMarkerObj %d: (%.1f, %.1f, %.1f) @ %d deg.%s%s>' % \
-                (self.tag_id, self.x, self.y, self.z, self.theta*180/pi, fix, vis)
+                (self.tag_id, self.pose.x, self.pose.y, self.pose.z, self.pose.theta*180/pi, fix, vis)
         else:
             return '<ArucoMarkerObj %d: position unknown>' % self.tag_id
         
-    def update_matched_object(self):
-        #KF implementation
-        estimate_x, uncertainty_x = self.matched.kf_x.update(self.x)
-        estimate_y, uncertainty_y = self.matched.kf_y.update(self.y)
-        estimate_z, uncertainty_z = self.matched.kf_z.update(self.z)
-        noise = (self.theta + 2 * np.pi) % (2 * np.pi)*0.05
-        estimate_theta, uncertainty_theta = self.matched.kf_theta.update(self.theta,noise)
-        estimate_theta = wrap_angle(estimate_theta)
-
-        # Update the matched object's position
-        self.matched.x = estimate_x
-        self.matched.y = estimate_y
-        self.matched.z = estimate_z
-        self.matched.theta = estimate_theta
-
-        self.matched.is_visible = True
 
 ################################################################
 
@@ -271,18 +174,22 @@ class WorldMap():
             if obj.__dict__.get('diameter'):
                 hit += point(obj.diameter / 2, 0, 0)   # *** should calculate y offset too
             # convert to world coordinates
-            robotpos = point(self.robot.x, self.robot.y)
-            objpos = aboutZ(self.robot.theta).dot(hit) + robotpos
-            obj.x = objpos[0][0]
-            obj.y = objpos[1][0]
-            distance = ((obj.x - self.robot.x)**2 + (obj.y - self.robot.y)**2) ** 0.5
+            robotpos = point(self.robot.pose.x, self.robot.pose.y)
+            objpos = aboutZ(self.robot.pose.theta).dot(hit) + robotpos
+            x = objpos[0][0]
+            y = objpos[1][0]
+            distance = ((x - self.robot.pose.x)**2 + (y - self.robot.pose.y)**2) ** 0.5
             MAX_DISTANCE = 300 # anything further than this is a spurious detection
             if distance > MAX_DISTANCE:
                 continue
+            obj.sensor_distance = distance
             if isinstance(obj, AprilTagObj):
                 tag_angle_correction_factor = 4  # guesstimate
                 angle = spec['angle'] - (0 if spec['angle'] < 180 else 360)
-                obj.theta = self.robot.theta - angle / 180 * pi * tag_angle_correction_factor
+                theta = self.robot.pose.theta - angle / 180 * pi * tag_angle_correction_factor
+            else:
+                theta = None
+            obj.pose = Pose(x, y, 0, theta)
             self.candidates.append(obj)
 
     def make_new_aruco_objects(self):
@@ -293,12 +200,13 @@ class WorldMap():
             sensor_coords = marker.camera_coords
             sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
             sensor_orient = wrap_angle(pi - marker.euler_rotation[1] * (pi/180))
-            theta = self.robot.theta
+            theta = self.robot.pose.theta
             obj = self.make_object(spec)
-            obj.x = self.robot.x + sensor_dist * cos(theta + sensor_bearing)
-            obj.y = self.robot.y + sensor_dist * sin(theta + sensor_bearing)
-            obj.z = marker.aruco_parent.marker_size / 2  # *** TEMPORARY HACK ***
-            obj.theta = wrap_angle(self.robot.theta - sensor_orient)
+            obj.pose = Pose(self.robot.pose.x + sensor_dist * cos(theta + sensor_bearing),
+                            self.robot.pose.y + sensor_dist * sin(theta + sensor_bearing),
+                            marker.aruco_parent.marker_size / 2,  # *** TEMPORARY HACK ***
+                            wrap_angle(self.robot.pose.theta - sensor_orient))
+            obj.sensor_distance = sensor_dist
             obj.is_visible = True
             self.candidates.append(obj)
 
@@ -308,7 +216,7 @@ class WorldMap():
             self.associate_objects_of_type(otype)
 
     def association_cost(self, obj1, obj2):
-        return ((obj1.x-obj2.x)**2 + (obj1.y-obj2.y)**2)
+        return ((obj1.pose.x-obj2.pose.x)**2 + (obj1.pose.y-obj2.pose.y)**2)
 
     def associate_objects_of_type(self, otype):
         new = [c for c in self.candidates if type(c) is otype]
@@ -343,9 +251,9 @@ class WorldMap():
         # should employ the depth map for occusion detection.
         # For now, just return true if the object's bearing is within
         # the camera field of view and the distance is not too large.
-        dx = obj.x - self.robot.x
-        dy = obj.y - self.robot.y
-        bearing = wrap_angle(atan2(dy,dx) - self.robot.theta)
+        dx = obj.pose.x - self.robot.pose.x
+        dy = obj.pose.y - self.robot.pose.y
+        bearing = wrap_angle(atan2(dy,dx) - self.robot.pose.theta)
         distance = (dx**2 + dy**2) ** 0.5
         DISTANCE_THRESHOLD = 200 # mm
         BEARING_THRESHOLD = 30 # degrees
@@ -363,7 +271,7 @@ class WorldMap():
     def process_unassociated_objects(self):
         """
         The vision system produces lots of spurious objects, so we require
-        a new object to be seen 5 times in successive camera frames before
+        a new object to be seen 6 times in successive camera frames before
         we add it to the world map.
         """
         unassociated = [c for c in self.candidates if c.matched is None]
@@ -374,11 +282,12 @@ class WorldMap():
             if matches:
                 m = matches[0]
                 self.pending_objects[m] += 1
-                if self.pending_objects[m] >= 5:
+                if self.pending_objects[m] >= 6:
                     if self.reclaim_object(candidate):
                         pass
                     else:
                         candidate.name = self.next_in_sequence(candidate.name)
+                        candidate.pose = PoseEstimate(candidate.pose)
                         self.objects[candidate.name] = candidate
                         candidate.is_visible = True
                         print('Added', candidate)
@@ -389,7 +298,7 @@ class WorldMap():
                 self.pending_objects[candidate] = 1
                 #print('proposed', candidate)
         for p in pending:
-            print('retracted', p, '  count=', self.pending_objects[p])
+            #print('retracted', p, '  count=', self.pending_objects[p])
             del self.pending_objects[p]
 
     def reclaim_object(self, obj):
@@ -403,22 +312,13 @@ class WorldMap():
         min_index = np.argmin(costs)
         match = missing[min_index]
         match.is_visible = True
-        match.x = obj.x
-        match.y = obj.y
-        match.z = obj.z
-        match.kf_x = obj.kf_x
-        match.kf_y = obj.kf_z
-        match.kf_z = obj.kf_z
-        if 'theta' in obj.__dir__():
-            match.theta = obj.theta
-            match.kf_theta = obj.kf_theta
+        match.pose = PoseEstimate(obj.pose)
         self.updated_objects.append(match)
         self.missing_objects.remove(match)
         match.is_visible = True
         #print('reclaimed', match)
         return match
         
-
     def next_in_sequence(self,name):
         count = 1 + self.name_counts.get(name, 0)
         self.name_counts[name] = count
@@ -443,9 +343,10 @@ class WorldMap():
 
     def get_prompt(self):
         prompt = ''
-        prompt += f'You are located at ({round(self.robot.x)}, {round(self.robot.y)})\n'
-        prompt += f'Your heading is {round(self.robot.theta*180/pi)} degrees\n'
+        prompt += f'You are located at ({round(self.robot.pose.x)}, {round(self.robot.pose.y)})\n'
+        prompt += f'Your heading is {round(self.robot.pose.theta*180/pi)} degrees\n'
         prompt += f'Your battery level is {self.robot.battery_percentage} percent.\n'
-        for (key,value) in self.objects.items():
-            prompt += f'{key} is located at ({round(value.x)}, {round(value.y)}) and is {"visible" if value.is_visible else "not visible"}\n'
+        for (name,obj) in self.objects.items():
+            prompt += f'{name} is located at ({round(obj.pose.x)}, {round(obj.pose.y)}) ' + \
+                f'and is {"visible" if obj.is_visible else "not visible"}\n'
         return prompt

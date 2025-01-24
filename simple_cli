@@ -394,8 +394,12 @@ def stop_stuff(args):
 def show_pose():
     def neaten(x):
         return round(x*10)/10
-    print(f'Robot at {neaten(robot.x)}, {neaten(robot.y)} heading {neaten(robot.theta*180/pi)} deg.', end='')
-    print(f'   [ Roll: {neaten(robot.robot0.get_roll())}  Pitch: {neaten(robot.robot0.get_pitch())}  Yaw: {neaten(robot.robot0.get_yaw())} ]')
+    print(f'Robot at {neaten(robot.pose.x)}, ' +
+          f'{neaten(robot.pose.y)} ' +
+          f'heading {neaten(robot.pose.theta*180/pi)} deg.', end='')
+    print(f'   [ Roll: {neaten(robot.robot0.get_roll())}  ' +
+          f'Pitch: {neaten(robot.robot0.get_pitch())}  ' +
+          f'Yaw: {neaten(robot.robot0.get_yaw())} ]')
     print()
 
 def do_reload(module_name):
