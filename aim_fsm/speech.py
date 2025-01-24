@@ -17,11 +17,15 @@ session_id = None
 
 @app.route('/')
 def serve_index():
-    return send_from_directory('.', 'speech_listener.html')
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.join(this_dir, '..' )
+    return send_from_directory(parent_dir, 'speech_listener.html')
 
 @app.route('/closed.html')
 def serve_closed():
-    return send_from_directory('.', 'listener_closed.html')
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.join(this_dir, '..' )
+    return send_from_directory(parent_dir, 'listener_closed.html')
 
 @app.route('/api/set-session-id', methods=['POST'])
 def handle_set_session_id():
