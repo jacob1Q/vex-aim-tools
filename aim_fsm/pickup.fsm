@@ -1,7 +1,7 @@
 from .nodes import *
 from .transitions import *
 
-class PickUp(ObjectSpecNode):
+class PickUp(ActionNode,ObjectSpecNode):
     def __init__(self, object_spec=None):
         super().__init__()
         self.object_spec = object_spec

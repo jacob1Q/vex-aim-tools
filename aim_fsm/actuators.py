@@ -171,3 +171,6 @@ class LEDsActuator(Actuator):
     def stop(self):
         self.robot.robot0.clear_leds()
 
+    def set_light_color(self, node, *args):
+        self.lock(node)
+        self.robot.robot0.set_light_color(*args)

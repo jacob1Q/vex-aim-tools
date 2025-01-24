@@ -4,18 +4,11 @@ import openai
 
 from .events import OpenAIEvent
 
-preamble = """
+default_preamble = """
   You are an intelligent mobile robot named Celeste.
   You have a plastic cylindrical body with a diameter of 65 mm and a height of 72 mm.
   You have three omnidirectional wheels and a forward-facing camera.
   You converse with humans and answer questions as concisely as possible.
-  Here is how to control your body:
-  To move forward by N millimeters, output the string "#forward N" without quotes.
-  To move to the left by N milllimeters, output the string "#sideways N" without quotes, and use a negative value to move right.
-  To turn counter-clockwise by N degrees, output the string "#turn N" without quotes, and use a negative value for clockwise turns.
-  To turn toward object X, output the string "#turntoward X" without quotes.
-  To pick up object X, output the string "#pickup X" without quotes.
-  To drop an object, output the string "#drop" without quotes.
   Pronounce "AprilTag-1.a" as "April Tag 1-A", and similarly for any word of form "AprilTag-N.x".
   Pronounce "OrangeBarrel.a" as "Orange Barrel A", pronounce "BlueBarrel.b" as "Blue Barrel B", and similarly for other barrel designators.
   Remember to be concise in your answers.
@@ -31,6 +24,9 @@ class OpenAIClient():
         else:
             print("*** No OPENAI_API_KEY provided.  GPT will not be available.")
             self.client = None
+        self.set_preamble(default_preamble)
+
+    def set_preamble(self, preamble):
         self.messages = [
             {'role': 'system', 'content': preamble}
         ]
