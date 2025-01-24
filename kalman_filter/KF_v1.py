@@ -40,14 +40,8 @@ class KF_v1(StateMachineProgram):
             width = max([len(x[0]) for x in objs])
             print('Objects in the world map:')
             print(objs[0])
-            for obj in objs:
-
-                if obj[1].is_visible and 'OrangeBarrel' in obj[0]:
-                    
-                    print(f'{obj[0].rjust(width)}: {obj[1]}')
-                    print(f'  {obj[1].x} {obj[1].y}')
-                    print(obj[1].is_visible)
-                    time.sleep(0.1)
+            print(self.robot.x,self.robot.y,self.robot.theta)
+ 
         print('ffff')
     
     # def setup(self):
