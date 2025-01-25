@@ -80,7 +80,6 @@ class Print(StateNode):
 
     def start(self,event=None):
         super().start(event)
-        print('Print started:', event)
         if isinstance(self.spec, types.FunctionType):
             text = self.spec()
         else:
@@ -316,6 +315,7 @@ class Glow(ActionNode):
         super().start(event)
         self.robot.actuators['leds'].set_light_color(self, *self.args)
         self.robot.actuators['leds'].unlock(self)
+        self.post_completion()
 
 
 class AbortAllActions(StateNode):

@@ -88,7 +88,7 @@ class GPT_test(StateMachineProgram):
       dispatch =D(re.compile('#turntoward '))=> turntoward
       dispatch =D(re.compile('#drop$'))=> Drop() =CNext=> dispatch
       dispatch =D(re.compile('#pickup '))=> pickup
-      dispatch =D()=> Print() =CNext=> dispatch
+      dispatch =D()=> Print() =Next=> dispatch
       dispatch =C=> loop
 
       turntoward: self.CmdTurnToward()

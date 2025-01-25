@@ -4,6 +4,8 @@ import os
 from gtts import gTTS
 from google.cloud import texttospeech
 
+from . import aim
+
 class Actuator():
     class ActuatorLocked(Exception): pass
     class ActuatorNotHeld(Exception): pass
@@ -120,20 +122,27 @@ class SoundActuator(Actuator):
     async def text_to_mp3(self, text):
         temp_dir = os.getenv('TEMP', '/tmp')
         speech_file_path = os.path.join(temp_dir, 'vex_speech.mp3')
-        if self.use_gcloud:
-            synthesis_input = texttospeech.SynthesisInput(text=text)
-            response = self.tts_client.synthesize_speech(
-                input = synthesis_input,
-                voice = self.tts_voice,
-                audio_config = self.tts_audio_config
-            )
-            with open(speech_file_path, 'wb') as out:
-                out.write(response.audio_content)
-        else:
-            tts = gTTS(text=text, lang='en')
-            tts.save(speech_file_path)
-        self.robot.speech_listener.disable()
-        self.robot.robot0.play_sound_file(speech_file_path)
+        while True:
+            if self.use_gcloud:
+                synthesis_input = texttospeech.SynthesisInput(text=text)
+                response = self.tts_client.synthesize_speech(
+                    input = synthesis_input,
+                    voice = self.tts_voice,
+                    audio_config = self.tts_audio_config
+                )
+                with open(speech_file_path, 'wb') as out:
+                    out.write(response.audio_content)
+            else:
+                tts = gTTS(text=text, lang='en')
+                tts.save(speech_file_path)
+            self.robot.speech_listener.disable()
+            try:
+                self.robot.robot0.play_sound_file(speech_file_path)
+            except aim.invalid_sound_file_exception:   # file too long
+                print("*** Speech too long. Truncating...")
+                text = text[0:len(text)//2]
+                continue
+            return            
 
     def play_sound(self, node, sound, volume=100):
         self.lock(node)

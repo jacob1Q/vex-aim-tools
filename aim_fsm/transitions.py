@@ -83,7 +83,7 @@ class NextTrans(Transition):
     """Transition sends a NextEvent to its target nodes to advance an iterator."""
     def start(self, event=None):
         super().start()
-        self.fire(Iterate.NextEvent())
+        self.handle = self.robot.loop.call_soon(self.fire, Iterate.NextEvent())
 
 
 class SayDataTrans(Transition):
