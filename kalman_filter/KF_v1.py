@@ -33,14 +33,21 @@ from aim_fsm import *
 class KF_v1(StateMachineProgram):    
     def setup(self):
         while True:
-            objs = sorted(self.robot.world_map.objects.items(), key=lambda x: x[0])
-            if len(objs) == 0:
-                print('No objects in the world map.\n')
-                return
-            width = max([len(x[0]) for x in objs])
-            print('Objects in the world map:')
-            print(objs[0])
-            print(self.robot.x,self.robot.y,self.robot.theta)
+            seen_marker_objects = self.robot.world_map.objects #all objects
+            seen_marker_objects = {key: value for key, value in seen_marker_objects.items() if "Aruco" in key} #only aruco markers
+
+            for (id, marker) in seen_marker_objects.items():
+                # if marker.id_string in self.landmarks:
+                #     sensor_dist = None
+                    # landmark_spec = self.landmarks[marker.id_string] #needs some tweaking to satisfy the type of landmark_spec
+                    # lm_x = landmark_spec.position.x
+                    # lm_y = landmark_spec.position.y
+
+                print('hhhhhh')
+                print(id)
+                print(marker.pose.x)
+
+
  
         print('ffff')
     
