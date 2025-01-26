@@ -80,7 +80,6 @@ class Print(StateNode):
 
     def start(self,event=None):
         super().start(event)
-        print('Print started:', event)
         if isinstance(self.spec, types.FunctionType):
             text = self.spec()
         else:
@@ -129,72 +128,10 @@ class AskGPT(StateNode):
 
 #________________ Actions ________________
 
-class ObjectSpecNode(StateNode):
-    def get_object_from_spec(self,spec):
-        if isinstance(spec, WorldObject):
-            obj = spec
-        elif isinstance(spec,str):
-            pat = re.compile(spec)
-            candidates = [o for o in self.robot.world_map.objects.values() if pat.match(o.name) and o.is_valid]
-            obj = None
-        elif isinstance(spec,type) and issubclass(spec,WorldObject):
-            candidates = [o for o in self.robot.world_map.objects.values() if isinstance(o,spec) and o.is_valid]
-            obj = None
-        else:
-            raise TypeError(f'{self.__class__.__name__} requires an object name spec, object, or object class, not {spec}')
-        x = self.robot.x
-        y = self.robot.y
-        if obj is None and candidates:
-            distances = [(o.x - x)**2 + (o.y - y)**2 for o in candidates]
-            index = np.argmin(distances)
-            obj = candidates[index]
-        return obj
-
-class ActionNode(ObjectSpecNode):
+class ActionNode(StateNode):
     def complete(self,actuator):
         actuator.unlock(self)
         self.post_completion()
-
-class Drop(ActionNode):
-    def __init__(self):
-        super().__init__()
-
-    def start(self, event=None):
-        super().start(event)
-        self.robot.actuators['kick'].kick(self, vex.KickType.SOFT)
-
-    def stop(self):
-        super().stop()
-        self.robot.actuators['kick'].unlock_if_held(self)
-
-
-class Kick(ActionNode):
-    def __init__(self, kicktype=vex.KickType.MEDIUM):
-        super().__init__()
-        self.kicktype = kicktype
-
-    def start(self, event=None):
-        super().start(event)
-        self.robot.actuators['kick'].kick(self, self.kicktype)
-
-    def stop(self):
-        super().stop()
-        self.robot.actuators['kick'].unlock_if_held(self)
-
-
-class Turn(ActionNode):
-    def __init__(self, angle_deg=0, turn_speed=None):
-        super().__init__()
-        self.angle_deg = angle_deg
-        self.turn_speed = turn_speed
-
-    def start(self, event=None):
-        super().start(event)
-        self.robot.actuators['drive'].turn(self, self.angle_deg*pi/180, self.turn_speed)
-
-    def stop(self):
-        super().stop()
-        self.robot.actuators['drive'].unlock_if_held(self)
 
 
 class Forward(ActionNode):
@@ -226,7 +163,45 @@ class Sideways(ActionNode):
         super().stop()
         self.robot.actuators['drive'].unlock_if_held(self)
 
-class TurnToward(Turn):
+class Turn(ActionNode):
+    def __init__(self, angle_deg=0, turn_speed=None):
+        super().__init__()
+        self.angle_deg = angle_deg
+        self.turn_speed = turn_speed
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['drive'].turn(self, self.angle_deg*pi/180, self.turn_speed)
+
+    def stop(self):
+        super().stop()
+        self.robot.actuators['drive'].unlock_if_held(self)
+
+
+class ObjectSpecNode():
+    "Supply a get_object_from_spec method for subclasses to use"
+    def get_object_from_spec(self,spec):
+        if isinstance(spec, WorldObject):
+            obj = spec
+        elif isinstance(spec,str):
+            pat = re.compile(spec)
+            candidates = [o for o in self.robot.world_map.objects.values() if pat.match(o.name) and o.is_valid]
+            obj = None
+        elif isinstance(spec,type) and issubclass(spec,WorldObject):
+            candidates = [o for o in self.robot.world_map.objects.values() if isinstance(o,spec) and o.is_valid]
+            obj = None
+        else:
+            raise TypeError(f'{self.__class__.__name__} requires an object name spec, object, or object class, not {spec}')
+        x = self.robot.pose.x
+        y = self.robot.pose.y
+        if obj is None and candidates:
+            distances = [(o.pose.x - x)**2 + (o.pose.y - y)**2 for o in candidates]
+            index = np.argmin(distances)
+            obj = candidates[index]
+        return obj
+
+
+class TurnToward(Turn, ObjectSpecNode):
     def __init__(self, object_spec=None):
         super().__init__()
         self.object_spec = object_spec
@@ -242,11 +217,38 @@ class TurnToward(Turn):
             super().start(event)
             self.post_failure()
             return
-        dx = obj.x - self.robot.x
-        dy = obj.y - self.robot.y
-        angle = wrap_angle(atan2(dy,dx) - self.robot.theta)
+        dx = obj.pose.x - self.robot.pose.x
+        dy = obj.pose.y - self.robot.pose.y
+        angle = wrap_angle(atan2(dy,dx) - self.robot.pose.theta)
         self.angle_deg = angle*180/pi
         super().start(event)
+
+
+class Drop(ActionNode):
+    def __init__(self):
+        super().__init__()
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['kick'].kick(self, vex.KickType.SOFT)
+
+    def stop(self):
+        super().stop()
+        self.robot.actuators['kick'].unlock_if_held(self)
+
+
+class Kick(ActionNode):
+    def __init__(self, kicktype=vex.KickType.MEDIUM):
+        super().__init__()
+        self.kicktype = kicktype
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['kick'].kick(self, self.kicktype)
+
+    def stop(self):
+        super().stop()
+        self.robot.actuators['kick'].unlock_if_held(self)
 
 
 class Say(ActionNode):
@@ -293,6 +295,7 @@ class PlaySound(ActionNode):
         super().start(event)
         self.robot.actuators['sound'].play_sound(self, self.sound, self.volume)
 
+
 class PlaySoundFile(ActionNode):
     def __init__(self, filepath):
         self.filepath = filepath
@@ -302,6 +305,17 @@ class PlaySoundFile(ActionNode):
         super().start(event)
         self.robot.actuators['sound'].play_sound_file(self, self.filepath)
 
+
+class Glow(ActionNode):
+    def __init__(self, *args):
+        self.args = args
+        super().__init__()
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['leds'].set_light_color(self, *self.args)
+        self.robot.actuators['leds'].unlock(self)
+        self.post_completion()
 
 
 class AbortAllActions(StateNode):
