@@ -201,7 +201,7 @@ class ArucoDistanceSensorModel(SensorModel):
                     p.log_weight -= (error*error)/self.distance_variance
         return True
     
-    class ArucoBearingSensorModel(SensorModel):
+class ArucoBearingSensorModel(SensorModel):
     """Sensor model using only landmark bearings."""
     def __init__(self, robot, landmarks=None, bearing_variance=0.1):
         if landmarks is None:
@@ -251,8 +251,8 @@ class ArucoCombinedSensorModel(SensorModel):
         # Called with force=True from particle_viewer to force evaluation.
 
         # Don't evaluate if robot is still moving; ArUco info will be bad.
-        if self.robot.is_moving:
-            return False
+        # if self.robot.is_moving:
+        #     return False
 
         # Only evaluate if the robot moved enough for evaluation to be worthwhile.
         (dist,turn_angle) = self.compute_robot_motion()
