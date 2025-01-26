@@ -27,6 +27,10 @@ class GPT_test(StateMachineProgram):
                 commands = response.split('\n')
                 self.post_event(DataEvent(commands))
             else:
+                lines = response.split('\n')
+                commands = [line for line in lines  if line.startswith('#')]
+                if len(commands) == 1:
+                    self.post_event(DataEvent(commands))
                 self.post_event(DataEvent(response))
 
     class CmdForward(Forward):
