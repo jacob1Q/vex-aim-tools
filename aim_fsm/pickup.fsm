@@ -24,8 +24,8 @@ class PickUp(ActionNode,ObjectSpecNode):
     class Pickup_Forward(Forward):
         def start(self, event=None):
             robot_radius = 15
-            dx = self.parent.object.x - self.robot.x
-            dy = self.parent.object.y - self.robot.y
+            dx = self.parent.object.pose.x - self.robot.pose.x
+            dy = self.parent.object.pose.y - self.robot.pose.y
             self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius
             super().start(event)
 

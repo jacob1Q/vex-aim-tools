@@ -1,5 +1,7 @@
 import os
 import re
+import cv2
+import base64
 import openai
 
 from .events import OpenAIEvent
@@ -34,6 +36,32 @@ class OpenAIClient():
     def query(self, query_text):
         self.messages.append({'role': 'system', 'content': self.robot.world_map.get_prompt()})
         self.messages.append({'role': 'user', 'content': query_text})
+        self.robot.loop.call_soon_threadsafe(self.launch_openai_query)
+
+    def camera_query(self, query_text):
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+        result, encimg = cv2.imencode('.jpg', self.robot.camera_image, encode_param)
+        base64_image = base64.b64encode(encimg).decode('utf-8')
+        self.messages.append(
+            {'role' : 'user',
+             'content' : [
+                 {'type': 'text', 'text': query_text },
+                 {'type': 'image_url',
+                  'image_url': {'url': f'data:image/jpeg;base64,{base64_image}'}}
+             ]})
+        self.robot.loop.call_soon_threadsafe(self.launch_openai_query)
+
+    def send_camera_image(self):
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+        result, encimg = cv2.imencode('.jpg', self.robot.camera_image, encode_param)
+        base64_image = base64.b64encode(encimg).decode('utf-8')
+        self.messages.append(
+            {'role' : 'user',
+             'content' : [
+                 {'type': 'text', 'text': 'Here is the current camera image. Please go ahead and reply to the last request.' },
+                 {'type': 'image_url',
+                  'image_url': {'url': f'data:image/jpeg;base64,{base64_image}'}}
+             ]})
         self.robot.loop.call_soon_threadsafe(self.launch_openai_query)
 
     def launch_openai_query(self):

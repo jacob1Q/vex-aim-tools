@@ -12,6 +12,8 @@ new_preamble = """
   To turn toward object X, output the string "#turntoward X" without quotes.
   To pick up object X, output the string "#pickup X" without quotes.
   To drop an object, output the string "#drop" without quotes.
+  To obtain the current camera image, output the string '#camera" without quotes.
+  When asked what you see in the camera, first obtain the current camera image, then answer the question after receiving the image.
   Pronounce "AprilTag-1.a" as "April Tag 1-A", and similarly for any word of form "AprilTag-N.x".
   Pronounce "OrangeBarrel.a" as "Orange Barrel A", pronounce "BlueBarrel.b" as "Blue Barrel B", and similarly for other barrel designators.
   Remember to be concise in your answers.
@@ -67,6 +69,16 @@ class GPT_test(StateMachineProgram):
           print('Picking up', self.object_spec)
           super().start(None)
 
+    class CmdDrop(Drop):
+      def start(self,event):
+          print(event.data)
+          super().start(event)
+
+    class CmdSendCamera(SendGPTCamera):
+        def start(self,event):
+            print(event.data)
+            super().start(event)
+
     class SpeakResponse(Say):
       def start(self,event):
         self.text = event.data
@@ -90,8 +102,10 @@ class GPT_test(StateMachineProgram):
       dispatch =D(re.compile('#sideways '))=> self.CmdSideways() =CNext=> dispatch
       dispatch =D(re.compile('#turn '))=> self.CmdTurn() =CNext=> dispatch
       dispatch =D(re.compile('#turntoward '))=> turntoward
-      dispatch =D(re.compile('#drop$'))=> Drop() =CNext=> dispatch
+      dispatch =D(re.compile('#drop$'))=> self.CmdDrop() =CNext=> dispatch
       dispatch =D(re.compile('#pickup '))=> pickup
+      dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
+        AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
       dispatch =D()=> Print() =Next=> dispatch
       dispatch =C=> loop
 

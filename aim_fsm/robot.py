@@ -141,3 +141,9 @@ class Robot():
 
     def ask_gpt(self, query_text):
         self.openai_client.query(query_text)
+
+    def send_gpt_camera(self):
+        self.openai_client.send_camera_image()
+
+    def ask_gpt_camera(self, query_text):
+        self.openai_client.camera_query(query_text)

@@ -126,6 +126,29 @@ class AskGPT(StateNode):
         self.robot.ask_gpt(self.query_text)
 
 
+class SendGPTCamera(StateNode):
+    "Send current camera image to GPT"
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.send_gpt_camera()
+        self.post_completion()
+
+
+class AskGPTCamera(StateNode):
+    "Send a query to GPT"
+
+    def __init__(self, query_text=None):
+        super().__init__()
+        self.query_text = query_text
+
+    def start(self, event=None):
+        super().start(event)
+        if isinstance(event, SpeechEvent):
+            self.query_text = event.string
+        self.robot.ask_gpt_camera(self.query_text)
+
+
 #________________ Actions ________________
 
 class ActionNode(StateNode):
