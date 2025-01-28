@@ -36,11 +36,12 @@ def neaten(x):
         return x
 
 class Pose():
-    def __init__(self, x=0, y=0, z=0, theta=None):
+    def __init__(self, x=0, y=0, z=0, theta=None,origin_id=-1):
         self.x = x
         self.y = y
         self.z = z
         self.theta = theta
+        self.origin_id=origin_id   #mod by kj - add origin_id
 
     def __repr__(self):
         return f'<Pose x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta)}>'
@@ -51,6 +52,12 @@ class Pose():
                     self.y - other.y,
                     self.z - other.z,
                     angdiff)
+    
+    def is_comparable(self, other):  #mod by kj - compare origin_id
+        return self.origin_id == other.origin_id
+    
+    def distance_2d(self, other):
+        return ((self.x - other.x)**2 + (self.y - other.y)**2)**0.5
 
 
 class PoseEstimate(Pose):

@@ -17,7 +17,7 @@ from .cam_viewer import CamViewer
 from .worldmap_viewer import WorldMapViewer
 from .aruco import *
 from .worldmap import WorldMap
-#from .particle import *
+from .particle import *
 #from .particle_viewer import ParticleViewer
 #from .rrt import RRT
 #from .path_viewer import PathViewer
@@ -41,7 +41,7 @@ class StateMachineProgram(StateNode):
                  #landmark_test = SLAMSensorModel.is_solo_aruco_landmark,
                  particle_viewer = False,
                  particle_viewer_scale = 1.0,
-
+                 landmarks=None,
                  aruco = True,
                  dictionary_name = cv2.aruco.DICT_4X4_100,
                  aruco_disabled_ids = (17, 37),
@@ -70,8 +70,8 @@ class StateMachineProgram(StateNode):
         self.force_annotation = force_annotation
         self.annotated_scale_factor = annotated_scale_factor
         self.viewer_crosshairs = viewer_crosshairs
-
-        #self.particle_filter = particle_filter
+        self.landmarks = landmarks
+        self.particle_filter = particle_filter
         #self.landmark_test = landmark_test
         self.particle_viewer = particle_viewer
         self.particle_viewer_scale = particle_viewer_scale
@@ -104,11 +104,11 @@ class StateMachineProgram(StateNode):
         running_fsm = self
         # Create a particle filter
         #if not isinstance(self.particle_filter,ParticleFilter):
-        #    self.particle_filter = SLAMParticleFilter(self.robot, landmark_test=self.landmark_test)
+        self.particle_filter = ParticleFilter(self.robot, landmarks=self.landmarks)
         # elif isinstance(self.particle_filter,SLAMParticleFilter):
         #    self.particle_filter.clear_landmarks()
-        #pf = self.particle_filter
-        #self.robot.world.particle_filter = pf
+        pf = self.particle_filter
+        self.robot.world_map.particle_filter = pf
 
         # Set up robot state
         self.robot.was_picked_up = False
@@ -180,22 +180,22 @@ class StateMachineProgram(StateNode):
             if self.start_node:
                 self.start_node.start()
 
-        """
-        if self.robot.really_picked_up():
-            # robot is in the air
+        
+        # if self.robot.really_picked_up():
+        #     # robot is in the air
+        #     if self.robot.was_picked_up:
+        #         pass  # we already knew that
+        #     else:
+        #         self.picked_up_callback()
+        # else:  # robot is on the ground
+        pf = self.robot.world_map.particle_filter
+        if pf:
             if self.robot.was_picked_up:
-                pass  # we already knew that
+                self.put_down_handler()
             else:
-                self.picked_up_callback()
-        else:  # robot is on the ground
-            pf = self.robot.world.particle_filter
-            if pf:
-                if self.robot.was_picked_up:
-                    self.put_down_handler()
-                else:
-                    pf.move()
-        self.robot.was_picked_up = self.robot.really_picked_up()
-        """
+                pf.move()
+        # self.robot.was_picked_up = self.robot.really_picked_up()
+        
 
     def user_image(self,image,gray): pass
 
