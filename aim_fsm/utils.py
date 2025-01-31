@@ -36,29 +36,26 @@ def neaten(x):
         return x
 
 class Pose():
-    def __init__(self, x=0, y=0, z=0, theta=None,origin_id=-1):
+    def __init__(self, x=0, y=0, z=0, theta=None, origin_id=-1):
         self.x = x
         self.y = y
         self.z = z
         self.theta = theta
-        self.origin_id=origin_id   #mod by kj - add origin_id
+        self.origin_id = origin_id
 
     def __repr__(self):
-        return f'<Pose x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta)}>'
+        return f'<Pose x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta)} origin_id={self.origin_id}>'
 
     def __sub__(self, other):
-        angdiff = wrap_angle(self.theta - other.theta) if self.theta is not None else None
+        angdiff = wrap_angle(self.theta - other.theta) if self.theta is not None and other.theta is not None else None
         return Pose(self.x - other.x,
                     self.y - other.y,
                     self.z - other.z,
                     angdiff)
     
-    def is_comparable(self, other):  #mod by kj - compare origin_id
+    def is_comparable(self, other):
         return self.origin_id == other.origin_id
     
-    def distance_2d(self, other):
-        return ((self.x - other.x)**2 + (self.y - other.y)**2)**0.5
-
 
 class PoseEstimate(Pose):
     def __init__(self, x=0, y=0, z=0, theta=None):
@@ -69,11 +66,20 @@ class PoseEstimate(Pose):
             z = p.z
             theta = p.theta
         super().__init__(x, y, z, theta)
-        self.kf_x = KalmanFilter(x, 200, 0.1, 0.01)
-        self.kf_y = KalmanFilter(y, 200, 0.1, 0.01)
-        self.kf_z = KalmanFilter(z, 200, 0.1, 0.01)
+        initial_uncertainty = 200
+        base_measurement_noise = 0.1
+        process_noise = 0.01
+        self.kf_x = KalmanFilter(x, initial_uncertainty, base_measurement_noise, process_noise)
+        self.kf_y = KalmanFilter(y, initial_uncertainty, base_measurement_noise, process_noise)
+        self.kf_z = KalmanFilter(z, initial_uncertainty, base_measurement_noise, process_noise)
+        theta_initial_uncertainty = 200
+        theta_base_measurement_noise = 0.5
+        theta_process_noise = 0.05
         if theta is not None:
-            self.kf_theta = KalmanFilter(theta, 1, 0.5, 0.05)
+            self.kf_theta = KalmanFilter(theta,
+                                         theta_initial_uncertainty,
+                                         theta_base_measurement_noise,
+                                         theta_process_noise)
 
     def update(self, new_pose, measurement_noise):
         self.x, _ = self.kf_x.update(new_pose.x, measurement_noise)
@@ -83,5 +89,5 @@ class PoseEstimate(Pose):
             self.theta, _ = self.kf_theta.update_circular(new_pose.theta)
 
     def __repr__(self):
-        return f'<PoseEstimate x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta)}>'
+        return f'<PoseEstimate x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta)} origin_id={self.origin_id}>'
 

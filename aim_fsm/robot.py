@@ -147,3 +147,19 @@ class Robot():
 
     def ask_gpt_camera(self, query_text):
         self.openai_client.camera_query(query_text)
+
+    def show_pose(self):
+        def neaten(x):
+            return round(x*10)/10
+        print(f'Odometry:  {neaten(self.pose.x)}, ' +
+              f'{neaten(self.pose.y)} ' +
+              f'heading {neaten(self.pose.theta*180/pi)} deg.', end='')
+        print(f'   [ Roll: {neaten(self.robot0.get_roll())}  ' +
+              f'Pitch: {neaten(self.robot0.get_pitch())}  ' +
+              f'Yaw: {neaten(self.robot0.get_yaw())} ]')
+        pf_pose = self.particle_filter.pose_estimate()
+        print(f'Particles: {neaten(pf_pose.x)}, ' +
+              f'{neaten(pf_pose.y)} ' +
+              f'heading {neaten(pf_pose.theta*180/pi)} deg.')
+        print()
+

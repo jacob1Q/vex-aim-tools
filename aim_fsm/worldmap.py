@@ -1,16 +1,16 @@
 import numpy as np
 
 from .geometry import *
-from .utils import Pose, PoseEstimate
+from .utils import *
 
-# aivision currently uses 320x240 dimensions
+# aivision currently uses 320x240 dimensions but image is 640x480
 AIVISION_RESOLUTION_SCALE = 2
 
 class WorldObject():
-    def __init__(self, id=None, x=0, y=0, z=0, theta=None, is_visible=False):
+    def __init__(self, id=None, name=None, x=0, y=0, z=0, theta=None, is_visible=False):
         self.id = id
         self.pose = Pose(x, y, z, theta)
-        self.name = self.__class__.__name__
+        self.name = name or self.__class__.__name__
         self.matched = None  # matching object from data association
         self.is_fixed = False   # True for walls and markers in predefined maps
         self.is_obstacle = True
@@ -24,11 +24,14 @@ class WorldObject():
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
-        return f'<{self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f})>'
+        return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f})>'
 
     def update_matched_object(self):
-        sensor_noise = max(50, self.sensor_distance) * 0.1
+        MIN_SENSOR_NOISE = 5
+        sensor_noise = max(MIN_SENSOR_NOISE, self.sensor_distance * 0.1)
         self.matched.pose.update(self.pose, sensor_noise)
+        if hasattr(self, 'spec'):
+            self.matched.spec = self.spec
         self.matched.is_visible = True
 
 class BarrelObj(WorldObject):
@@ -68,7 +71,7 @@ class AprilTagObj(WorldObject):
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
-        return f'<{self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f}) @ {self.pose.theta*180/pi:.1f} deg.>'
+        return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f}) @ {self.pose.theta*180/pi:.1f} deg.>'
     
 
 class ArucoMarkerObj(WorldObject):
@@ -286,9 +289,9 @@ class WorldMap():
                     if self.reclaim_object(candidate):
                         pass
                     else:
-                        candidate.name = self.next_in_sequence(candidate.name)
+                        candidate.id = self.next_in_sequence(candidate.name)
                         candidate.pose = PoseEstimate(candidate.pose)
-                        self.objects[candidate.name] = candidate
+                        self.objects[candidate.id] = candidate
                         candidate.is_visible = True
                         print('Added', candidate)
                         self.updated_objects.append(candidate)
@@ -338,6 +341,17 @@ class WorldMap():
             if obj not in self.updated_objects:
                 obj.is_visible = False
 
+    def show_objects(self):
+        objs = sorted(self.objects.items(), key=lambda x: x[0])
+        if len(objs) == 0:
+            print('No objects in the world map.\n')
+            return
+        width = max([len(x[0]) for x in objs])
+        for obj in objs:
+            print(f'{obj[0].rjust(width)}: {obj[1]}')
+        print()
+
+
 
 ################ GPT interface ################
 
@@ -346,7 +360,7 @@ class WorldMap():
         prompt += f'You are located at ({round(self.robot.pose.x)}, {round(self.robot.pose.y)})\n'
         prompt += f'Your heading is {round(self.robot.pose.theta*180/pi)} degrees\n'
         prompt += f'Your battery level is {self.robot.battery_percentage} percent.\n'
-        for (name,obj) in self.objects.items():
-            prompt += f'{name} is located at ({round(obj.pose.x)}, {round(obj.pose.y)}) ' + \
+        for (id,obj) in self.objects.items():
+            prompt += f'{id} is located at ({round(obj.pose.x)}, {round(obj.pose.y)}) ' + \
                 f'and is {"visible" if obj.is_visible else "not visible"}\n'
         return prompt

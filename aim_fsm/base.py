@@ -144,7 +144,7 @@ class StateNode(EventListener):
         # 'program' is inserted into this module by __init__ to avoid circular importing
         program.running_fsm.children = dict()
         program.running_fsm.children[self.name] = self
-        self.robot.loop.call_soon(self.start)
+        self.robot.loop.call_soon_threadsafe(self.start)
         return self
 
     def print_trace_message(self, msg1='', msg2=''):

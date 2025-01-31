@@ -1,7 +1,7 @@
 """
 Particle filter localization.
 """
-from .utils import Pose
+from .utils import *
 import math
 import random
 import numpy as np
@@ -46,7 +46,7 @@ class RandomWithinRadius(ParticleInitializer):
             p.theta = random.random()*2*pi
             p.log_weight = 0.0
             p.weight = 1.0
-        self.pf.pose = (0, 0, 0)
+        self.pf.pose = PoseEstimate(0, 0, 0, 0)
         self.pf.motion_model.old_pose = robot.pose
 
 class RobotPosition(ParticleInitializer):
@@ -73,7 +73,7 @@ class RobotPosition(ParticleInitializer):
             p.theta = theta
             p.log_weight = 0.0
             p.weight = 1.0
-        self.pf.pose = (x, y, theta)
+        self.pf.pose = PoseEstimate(x, y, 0, theta)
         self.pf.motion_model.old_pose = robot.pose
 
 
@@ -183,16 +183,14 @@ class ArucoDistanceSensorModel(SensorModel):
             return False
         self.last_evaluate_pose = self.robot.pose
         # Cache seen_marker_objects because vision is in another thread.
-        seen_marker_objects = self.robot.world_map.objects #all objects
-        seen_marker_objects = {key: value for key, value in seen_marker_objects.items() if "Aruco" in key} #only aruco markers
-
+        seen_marker_objects = self.robot.aruco_detector.seen_marker_objects
         # Process each seen marker:
         for (id, marker) in seen_marker_objects.items():
-            if marker.name in self.landmarks:
-                sensor_dist = self.robot.pose.distance_to(marker.pose) 
-                landmark_spec = self.landmarks[marker.name] #needs some tweaking to satisfy the type of landmark_spec
-                lm_x = landmark_spec.pose.x
-                lm_y = landmark_spec.pose.y
+            if marker.id_string in self.landmarks:
+                sensor_dist = marker.camera_distance
+                landmark_spec = self.landmarks[marker.id_string]
+                lm_x = landmark_spec.x
+                lm_y = landmark_spec.y
                 for p in particles:
                     dx = lm_x - p.x
                     dy = lm_y - p.y
@@ -219,17 +217,15 @@ class ArucoBearingSensorModel(SensorModel):
             return False
         self.last_evaluate_pose = self.robot.pose
         # Cache seen_marker_objects because vision is in another thread.
-        seen_marker_objects = self.robot.world_map.objects #all objects
-        seen_marker_objects = {key: value for key, value in seen_marker_objects.items() if "Aruco" in key} #only aruco markers
-        
+        seen_marker_objects = self.robot.aruco_detector.seen_marker_objects
         # Process each seen marker:
         for (id, marker) in seen_marker_objects.items():
-            if marker.name in self.landmarks:
-                sensor_coords = [seen_marker_objects[marker.name].pose.x,seen_marker_objects[marker.name].pose.y]   #camera_coords dont exist, need to do something about this
+            if marker.id_string in self.landmarks:
+                sensor_coords = marker.camera_coords
                 sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
-                landmark_spec = self.landmarks[marker.name] 
-                lm_x = landmark_spec.pose.x #needs some tweaking to satisfy the type of lm_x
-                lm_y = landmark_spec.pose.y
+                landmark_spec = self.landmarks[marker.id_string] 
+                lm_x = landmark_spec.x
+                lm_y = landmark_spec.y
                 for p in particles:
                     dx = lm_x - p.x
                     dy = lm_y - p.y
@@ -260,17 +256,16 @@ class ArucoCombinedSensorModel(SensorModel):
             return False
         self.last_evaluate_pose = self.robot.pose
         # Cache seen_marker_objects because vision is in another thread.
-        seen_marker_objects = self.robot.world_map.objects #all objects
-        seen_marker_objects = {key: value for key, value in seen_marker_objects.items() if "Aruco" in key} #only aruco markers
+        seen_marker_objects = self.robot.aruco_detector.seen_marker_objects
         # Process each seen marker:
         for (id, marker) in seen_marker_objects.items():
-            if marker.name in self.landmarks:
-                sensor_dist = self.robot.pose.distance_to(marker.pose)
-                sensor_coords = [seen_marker_objects[marker.name].pose.x,seen_marker_objects[marker.name].pose.y]
+            if marker.id_string in self.landmarks:
+                sensor_dist = marker.camera_distance
+                sensor_coords = marker.camera_coords
                 sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
-                landmark_spec = self.landmarks[marker.name]
-                lm_x = landmark_spec.pose.x
-                lm_y = landmark_spec.pose.y
+                landmark_spec = self.landmarks[marker.id_string]
+                lm_x = landmark_spec.x
+                lm_y = landmark_spec.y
                 for p in particles:
                     # Use sensed bearing and distance to get particle's
                     # estimate of landmark position on the world map.
@@ -311,6 +306,8 @@ class ParticleFilter():
 
         if sensor_model == "default":
             sensor_model = ArucoCombinedSensorModel(robot)
+        elif isinstance(sensor_model, type):
+            sensor_model = sensor_model(robot)
         if sensor_model:
             sensor_model.set_landmarks(landmarks)
         self.sensor_model = sensor_model
@@ -328,7 +325,7 @@ class ParticleFilter():
         self.new_x = [0.0] * num_particles # np.empty(self.num_particles)
         self.new_y = [0.0] * num_particles # np.empty(self.num_particles)
         self.new_theta = [0.0] * num_particles # np.empty(self.num_particles)
-        self.pose = (0., 0., 0.)
+        self.pose = PoseEstimate(0, 0, 0, 0)
         self.dist_jitter = 15 # mm
         self.angle_jitter = 10 / 180 * pi
         self.state = self.LOST
@@ -366,13 +363,14 @@ class ParticleFilter():
             weight_sum = 1
         cx /= weight_sum
         cy /= weight_sum
-        self.pose = (cx, cy, atan2(hsin,hcos))
+        self.pose = PoseEstimate(cx, cy, 0, atan2(hsin,hcos))
         self.best_particle = best_particle
         return self.pose
 
     def variance_estimate(self):
         weight = var_xx = var_xy = var_yy = r_sin = r_cos = 0.0
-        (mu_x, mu_y, mu_theta) = self.pose_estimate()
+        pose = self.pose_estimate()
+        mu_x = pose.x; mu_y = pose.y; mu_theta = pose.theta
         for p in self.particles:
             dx = (p.x - mu_x)
             dy = (p.y - mu_y)
@@ -474,13 +472,14 @@ class ParticleFilter():
 
     def show_landmarks_workhorse(self,landmarks):
         "Also called by show_particle"
-        sorted_keys = landmarks.keys().sort()
+        sorted_keys = list(landmarks.keys())
+        sorted_keys.sort()
         for key in sorted_keys:
-            value = landmarks[key].pose
+            value = landmarks[key]
             if isinstance(value, Pose):
-                x = value.pose.x
-                y = value.pose.y
-                theta = value.pose.theta
+                x = value.x
+                y = value.y
+                theta = value.theta
                 sigma_x = 0
                 sigma_y = 0
                 sigma_theta = 0
@@ -491,12 +490,12 @@ class ParticleFilter():
                 sigma_x = sqrt(value[2][0,0])
                 sigma_y = sqrt(value[2][1,1])
                 sigma_theta = sqrt(value[2][2,2])*180/pi
-            if key.startswith('Aruco-'):
-                print('  Aruco marker %s' % key[6:], end='')
+            if key.startswith('ArucoMarker-'):
+                print('  Aruco marker %s' % key[12:], end='')
             else:
                 print('  %r' % key, end='')
             print(' at (%6.1f, %6.1f) @ %4.1f deg    +/- (%4.1f,%4.1f)  +/- %3.1f deg' %
-                  (x, y, theta, sigma_x, sigma_y, sigma_theta))
+                  (x, y, theta*180/pi, sigma_x, sigma_y, sigma_theta*180/pi))
         print()
 
     # def sort_wmobject_ids(self,ids):
@@ -714,12 +713,8 @@ class SLAMParticle(Particle):
         # [ [x,y], [z,orient,pitch], covariance_matrix]
         self.landmarks[id] = (new_mu[0:2], new_mu[2:5], new_sigma)
 
-'''
-class SLAMSensorModel(SensorModel):
-    @staticmethod
-    def is_cube(x): #useless for vex
-        return isinstance(x, cozmo.objects.LightCube) and x.pose.is_valid
 
+class SLAMSensorModel(SensorModel):
     @staticmethod
     def is_solo_aruco_landmark(x):
         #return False # **** DEBUG HACK
@@ -731,7 +726,7 @@ class SLAMSensorModel(SensorModel):
         if landmarks is None:
             landmarks = dict()
         if landmark_test is None:
-            landmark_test = self.is_cube
+            landmark_test = self.is_solo_aruco_landmark
         self.landmark_test = landmark_test
         self.distance_variance = distance_variance
         self.candidate_arucos = dict()
@@ -1153,4 +1148,4 @@ class SLAMParticleFilter(ParticleFilter):
         self.sensor_model.evaluate(self.particles, force=True, just_looking=True)
         self.sensor_model.landmarks = self.best_particle.landmarks
 
-'''
+

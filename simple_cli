@@ -217,10 +217,10 @@ def show_stuff(args):
             robot.cam_viewer.start()
     elif spec == "crosshairs":
         robot.cam_viewer.crosshairs = not robot.cam_viewer.crosshairs
-#    elif spec == "particle_viewer":
-#        if not robot.world.particle_viewer:
-#            robot.world.particle_viewer = ParticleViewer(robot)
-#            robot.world.particle_viewer.start()
+    elif spec == "particle_viewer":
+        if not robot.particle_viewer:
+            robot.particle_viewer = ParticleViewer(robot)
+            robot.particle_viewer.start()
 #    elif spec == "path_viewer":
 #        if not robot.path_viewer:
 #            robot.path_viewer = PathViewer(robot,world.rrt)
@@ -241,13 +241,13 @@ def show_stuff(args):
         robot.worldmap_viewer = WorldMapViewer(robot)
         robot.worldmap_viewer.start()
     elif spec == "pose":
-        show_pose()
-#    elif spec == "landmarks":
-#        robot.world.particle_filter.show_landmarks()
+        robot.show_pose()
+    elif spec == "landmarks":
+        robot.particle_filter.show_landmarks()
     elif spec == "objects":
-        show_objects()
-#    elif spec == "particle":
-#        robot.world.particle_filter.show_particle(args[1:])
+        robot.world_map.show_objects()
+    elif spec == "particle":
+        robot.particle_filter.show_particle(args[1:])
 #    elif spec == "camera":
 #        show_camera(args[1:])
     else:
@@ -258,8 +258,9 @@ def show_stuff(args):
   show crosshairs
   show kine [joint]
   show objects
+  show particle n
   show pose
-  show viewer | cam_viewer
+  show viewer | cam_viewer | particle_viewer
   show worldmap_viewer
    """)
 
@@ -375,32 +376,11 @@ def show_landmarks_helper(landmarks):
     print()
 """
 
-def show_objects():
-    objs = sorted(robot.world_map.objects.items(), key=lambda x: x[0])
-    if len(objs) == 0:
-        print('No objects in the world map.\n')
-        return
-    width = max([len(x[0]) for x in objs])
-    for obj in objs:
-        print(f'{obj[0].rjust(width)}: {obj[1]}')
-    print()
-        
 def start_stuff(args):
     print('not yet implemented')
 
 def stop_stuff(args):
     print('not yet implemented')
-
-def show_pose():
-    def neaten(x):
-        return round(x*10)/10
-    print(f'Robot at {neaten(robot.pose.x)}, ' +
-          f'{neaten(robot.pose.y)} ' +
-          f'heading {neaten(robot.pose.theta*180/pi)} deg.', end='')
-    print(f'   [ Roll: {neaten(robot.robot0.get_roll())}  ' +
-          f'Pitch: {neaten(robot.robot0.get_pitch())}  ' +
-          f'Yaw: {neaten(robot.robot0.get_yaw())} ]')
-    print()
 
 def do_reload(module_name):
     the_module = None

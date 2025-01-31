@@ -1,3 +1,4 @@
+from math import pi
 import re
 from importlib import __import__, reload
 try:
@@ -18,7 +19,8 @@ from .worldmap_viewer import WorldMapViewer
 from .aruco import *
 from .worldmap import WorldMap
 from .particle import *
-#from .particle_viewer import ParticleViewer
+from .utils import Pose
+from .particle_viewer import ParticleViewer
 #from .rrt import RRT
 #from .path_viewer import PathViewer
 from . import opengl
@@ -37,11 +39,11 @@ class StateMachineProgram(StateNode):
                  annotated_scale_factor = 1, # set to 1 to avoid cost of resizing images
                  viewer_crosshairs = False,  # set to True to draw viewer crosshairs
 
-                 particle_filter = True,
                  #landmark_test = SLAMSensorModel.is_solo_aruco_landmark,
+                 landmarks = None,
+                 sensor_model = ArucoDistanceSensorModel,
                  particle_viewer = False,
                  particle_viewer_scale = 1.0,
-                 landmarks=None,
                  aruco = True,
                  dictionary_name = cv2.aruco.DICT_4X4_100,
                  aruco_disabled_ids = (17, 37),
@@ -71,12 +73,12 @@ class StateMachineProgram(StateNode):
         self.annotated_scale_factor = annotated_scale_factor
         self.viewer_crosshairs = viewer_crosshairs
         self.landmarks = landmarks
-        self.particle_filter = particle_filter
         #self.landmark_test = landmark_test
+        self.sensor_model = sensor_model
         self.particle_viewer = particle_viewer
         self.particle_viewer_scale = particle_viewer_scale
         #self.picked_up_callback = self.robot_picked_up
-        #self.put_down_handler = self.robot_put_down
+        self.put_down_handler = self.robot_put_down
 
         self.aruco = aruco
         self.aruco_marker_size = aruco_marker_size
@@ -103,12 +105,11 @@ class StateMachineProgram(StateNode):
         global running_fsm
         running_fsm = self
         # Create a particle filter
-        #if not isinstance(self.particle_filter,ParticleFilter):
-        self.particle_filter = ParticleFilter(self.robot, landmarks=self.landmarks)
+        self.particle_filter = ParticleFilter(self.robot, landmarks=self.landmarks, sensor_model=self.sensor_model)
         # elif isinstance(self.particle_filter,SLAMParticleFilter):
         #    self.particle_filter.clear_landmarks()
         pf = self.particle_filter
-        self.robot.world_map.particle_filter = pf
+        self.robot.particle_filter = pf
 
         # Set up robot state
         self.robot.was_picked_up = False
@@ -139,7 +140,7 @@ class StateMachineProgram(StateNode):
                 self.particle_viewer = \
                     ParticleViewer(self.robot, scale=self.particle_viewer_scale)
             self.particle_viewer.start()
-        self.robot.world_map.particle_viewer = self.particle_viewer
+        self.robot.particle_viewer = self.particle_viewer
 
         if self.path_viewer:
             if self.path_viewer is True:
@@ -147,7 +148,7 @@ class StateMachineProgram(StateNode):
             else:
                 self.path_viewer.set_rrt(self.robot.world.rrt)
             self.path_viewer.start()
-        self.robot.world_map.path_viewer = self.path_viewer
+        self.robot.path_viewer = self.path_viewer
 
         # Call parent's start() to launch the state machine by invoking the start node.
         super().start()
@@ -174,6 +175,7 @@ class StateMachineProgram(StateNode):
                 self.stop_children()
         elif self.robot.was_picked_up:
             self.robot.was_picked_up = False
+            self.robot.particle_filter.delocalize()
             self.robot.set_pose(0,0,0,0)
             self.robot.world_map.update()
             self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 100)
@@ -188,7 +190,7 @@ class StateMachineProgram(StateNode):
         #     else:
         #         self.picked_up_callback()
         # else:  # robot is on the ground
-        pf = self.robot.world_map.particle_filter
+        pf = self.robot.particle_filter
         if pf:
             if self.robot.was_picked_up:
                 self.put_down_handler()
@@ -196,6 +198,10 @@ class StateMachineProgram(StateNode):
                 pf.move()
         # self.robot.was_picked_up = self.robot.really_picked_up()
         
+    def robot_put_down(self):
+        pose = self.robot.particle_filter.pose_estimate()
+        print(f'Robot pose set to {pose}')
+        self.robot.set_pose(pose.x, pose.y, pose.z, pose.theta)
 
     def user_image(self,image,gray): pass
 
