@@ -82,58 +82,48 @@ class RobotPosition(ParticleInitializer):
 class MotionModel():
     def __init__(self, robot):
         self.robot = robot
+        self.last_pose = Pose(self.robot.robot0.get_x(),
+                              self.robot.robot0.get_y(),
+                              0,
+                              -self.robot.robot0.get_heading() * pi/180,
+                              'from robot0'
+        )
 
-class DefaultMotionModel(MotionModel):
-    def __init__(self, robot, sigma_trans=0.1, sigma_rot=0.01):
+    def compute_robot_motion(self):
+        # How much did we move since last evaluation?
+        x = self.robot.robot0.get_y()
+        y = - self.robot.robot0.get_x()
+        theta = - wrap_angle(self.robot.robot0.get_heading() * pi/180)
+        dx = x - self.last_pose.x
+        dy = y - self.last_pose.y
+        distance = sqrt(dx*dx + dy*dy)
+        turn_angle = wrap_angle(theta - self.last_pose.theta)
+        travel_direction = atan2(dy, dx)
+        if abs(distance) > 0.5 or abs(turn_angle) > 0.001:
+            pass # print(f'compute_robot_motion: x,y={x,y} last={self.last_pose} dist={distance} angle={turn_angle}')
+        self.last_pose = Pose(x, y, 0, theta, 'from robot0')
+        return (distance, turn_angle, travel_direction, theta)
+
+class DefaultVexMotionModel(MotionModel):
+    DEFAULT_TRANSLATION_SIGMA = 0.01
+    DEFAULT_ROTATION_SIGMA = 0.001
+    def __init__(self, robot,
+                 sigma_trans = DEFAULT_TRANSLATION_SIGMA,
+                 sigma_rot = DEFAULT_ROTATION_SIGMA):
         super().__init__(robot)
         self.sigma_trans = sigma_trans
         self.sigma_rot = sigma_rot
         self.old_pose = robot.pose
 
     def move(self, particles):
-        old_pose = self.old_pose
-        new_pose = self.robot.pose
-        self.old_pose = new_pose
-        if not new_pose.is_comparable(old_pose):
-            return  # can't path integrate if the robot switched reference frames
-        old_xyz = [old_pose.x, old_pose.y, old_pose.z]
-        new_xyz = [new_pose.x, new_pose.y, new_pose.z]
-        old_hdg = old_pose.theta
-        new_hdg = new_pose.theta
-        turn_angle = wrap_angle(new_hdg - old_hdg)
-        cor = 0  
-        old_rx = old_xyz[0] + cor * cos(old_hdg)
-        old_ry = old_xyz[1] + cor * sin(old_hdg)
-        new_rx = new_xyz[0] + cor * cos(new_hdg)
-        new_ry = new_xyz[1] + cor * sin(new_hdg)
-        dist = sqrt((new_rx-old_rx)**2 + (new_ry-old_ry)**2)
-        # Did we drive forward, or was it backward?
-        fwd_xy = (old_xyz[0] + dist * cos(old_hdg+turn_angle/2),
-                  old_xyz[1] + dist * sin(old_hdg+turn_angle/2))
-        rev_xy = (old_xyz[0] - dist * cos(old_hdg+turn_angle/2),
-                  old_xyz[1] - dist * sin(old_hdg+turn_angle/2))
-        fwd_dx = fwd_xy[0] - new_xyz[0]
-        fwd_dy = fwd_xy[1] - new_xyz[1]
-        rev_dx = rev_xy[0] - new_xyz[0]
-        rev_dy = rev_xy[1] - new_xyz[1]
-        if (fwd_dx*fwd_dx + fwd_dy*fwd_dy) >  (rev_dx*rev_dx + rev_dy*rev_dy):
-            dist = - dist    # we drove backward
+        (distance, turn_angle, travel_direction, theta) = self.compute_robot_motion()
         rot_var = 0 if abs(turn_angle) < 0.001 else self.sigma_rot
         for p in particles:
-            pdist = dist * (1 + random.gauss(0, self.sigma_trans))
-            pturn = random.gauss(turn_angle, rot_var)
-            # Correct for the center of rotation being behind the base frame
-            # (xc,yc) is the center of rotation
-            xc = p.x + cor * cos(p.theta)
-            yc = p.y + cor * sin(p.theta)
-            # Make half the turn, translate, then complete the turn
-            p.theta = p.theta + pturn/2
-            p.x = xc + cos(p.theta) * pdist
-            p.y = yc + sin(p.theta) * pdist
-            p.theta = wrap_angle(p.theta + pturn/2)
-            # Move from center of rotation back to (rotated) base frame
-            p.x = p.x - cor * cos(p.theta)
-            p.y = p.y - cor * sin(p.theta)        
+            jdist = distance * (1 + random.gauss(0, self.sigma_trans))
+            jdir = travel_direction + (p.theta - theta)  + random.gauss(0, self.sigma_rot)
+            p.x += jdist * cos(jdir)
+            p.y += jdist * sin(jdir)
+            p.theta += random.gauss(turn_angle, rot_var)
 
 
 #================ Sensor Model ================
@@ -144,26 +134,17 @@ class SensorModel():
         if landmarks is None:
             landmarks = dict()
         self.set_landmarks(landmarks)
-        self.last_evaluate_pose = robot.pose
+        self.last_evaluate_pose = Pose(0, 0, 0, 0)
+
+    def motion_since_last_evaluate(self):
+        dx = self.robot.pose.x - self.last_evaluate_pose.x
+        dy = self.robot.pose.y - self.last_evaluate_pose.y
+        distance = (dx**2 + dy**2) ** 0.5
+        turn_angle = wrap_angle(self.robot.pose.theta - self.last_evaluate_pose.theta)
+        return (distance, turn_angle)
 
     def set_landmarks(self,landmarks):
         self.landmarks = landmarks
-
-    def compute_robot_motion(self):
-        # How much did we move since last evaluation?
-        if self.robot.pose.is_comparable(self.last_evaluate_pose): 
-            dx = self.robot.pose.x - self.last_evaluate_pose.x
-            dy = self.robot.pose.y - self.last_evaluate_pose.y
-            dist = sqrt(dx*dx + dy*dy)
-            turn_angle = wrap_angle(self.robot.pose.theta -
-                                    self.last_evaluate_pose.theta) #pose.rotation.angle_z.radians replaced with pose.theta
-        else:
-            dist = 0
-            turn_angle = 0
-            print('** Robot origin_id changed from', self.last_evaluate_pose.origin_id, 
-                  'to', self.robot.pose.origin_id)
-            self.last_evaluate_pose = self.robot.pose
-        return (dist,turn_angle)
 
 class ArucoDistanceSensorModel(SensorModel):
     """Sensor model using only landmark distances."""
@@ -173,13 +154,14 @@ class ArucoDistanceSensorModel(SensorModel):
         super().__init__(robot,landmarks)
         self.distance_variance = distance_variance
 
-    def evaluate(self,particles,force=False):
+    def evaluate(self, particles, force=False):
         # Returns true if particles were evaluated.
         # Called with force=True from particle_viewer to force evaluation.
 
-        # Only evaluate if the robot moved enough for evaluation to be worthwhile.
-        (dist,turn_angle) = self.compute_robot_motion()
-        if (not force) and (dist < 5) and abs(turn_angle) < math.radians(5):
+        # Only evaluate if the robot moved enough for evaluation to be
+        # worthwhile, unless forced.
+        (distance, turn_angle) = self.motion_since_last_evaluate()
+        if (not force) and (distance < 5) and abs(turn_angle) < math.radians(5):
             return False
         self.last_evaluate_pose = self.robot.pose
         # Cache seen_marker_objects because vision is in another thread.
@@ -207,13 +189,13 @@ class ArucoBearingSensorModel(SensorModel):
         super().__init__(robot,landmarks)
         self.bearing_variance = bearing_variance
 
-    def evaluate(self,particles,force=False):
+    def evaluate(self, particles, force=False):
         # Returns true if particles were evaluated.
         # Called with force=True from particle_viewer to force evaluation.
 
         # Only evaluate if the robot moved enough for evaluation to be worthwhile.
-        (dist,turn_angle) = self.compute_robot_motion()
-        if not force and dist < 5 and abs(turn_angle) < math.radians(5):
+        (distance, turn_angle) = self.motion_since_last_evaluate()
+        if not force and distance < 5 and abs(turn_angle) < math.radians(5):
             return False
         self.last_evaluate_pose = self.robot.pose
         # Cache seen_marker_objects because vision is in another thread.
@@ -242,7 +224,7 @@ class ArucoCombinedSensorModel(SensorModel):
         super().__init__(robot,landmarks)
         self.distance_variance = distance_variance
 
-    def evaluate(self,particles,force=False):
+    def evaluate(self, particles, force=False):
         # Returns true if particles were evaluated.
         # Called with force=True from particle_viewer to force evaluation.
 
@@ -251,8 +233,8 @@ class ArucoCombinedSensorModel(SensorModel):
         #     return False
 
         # Only evaluate if the robot moved enough for evaluation to be worthwhile.
-        (dist,turn_angle) = self.compute_robot_motion()
-        if not force and dist < 5 and abs(turn_angle) < math.radians(5):
+        (distance, turn_angle) = self.motion_since_last_evaluate()
+        if not force and distance < 5 and abs(turn_angle) < math.radians(5):
             return False
         self.last_evaluate_pose = self.robot.pose
         # Cache seen_marker_objects because vision is in another thread.
@@ -300,7 +282,7 @@ class ParticleFilter():
         self.initializer.pf = self
 
         if motion_model == "default":
-            motion_model = DefaultMotionModel(robot)
+            motion_model = DefaultVexMotionModel(robot)
         self.motion_model = motion_model
         self.motion_model.pf = self
 
@@ -321,31 +303,34 @@ class ParticleFilter():
         self.exp_weights = np.empty(self.num_particles)
         self.cdf = np.empty(self.num_particles)
         self.variance = (np.array([[0,0],[0,0]]), 0.)
-        self.new_indices = [0] * num_particles # np.empty(self.num_particles, dtype=np.int)
-        self.new_x = [0.0] * num_particles # np.empty(self.num_particles)
-        self.new_y = [0.0] * num_particles # np.empty(self.num_particles)
-        self.new_theta = [0.0] * num_particles # np.empty(self.num_particles)
-        self.pose = PoseEstimate(0, 0, 0, 0)
+        self.new_indices = [0] * num_particles # lists are faster than arrays here
+        self.new_x = [0.0] * num_particles # lists are faster than arrays here
+        self.new_y = [0.0] * num_particles # lists are faster than arrays here
+        self.new_theta = [0.0] * num_particles # lists are faster than arrays here
         self.dist_jitter = 15 # mm
         self.angle_jitter = 10 / 180 * pi
         self.state = self.LOST
+        self.update_variance_estimate()
 
     def move(self):
         self.motion_model.move(self.particles)
         if self.sensor_model.evaluate(self.particles):  # true if log_weights changed
-            var = self.update_weights()
-            if var > 0:
+            weight_variance = self.update_weights()
+            if weight_variance > 0:
+                #print(f'pf move: weight_variance = {weight_variance}')
                 self.resample()
                 self.state = self.LOCALIZED
-                self.variance_estimate()
+            #print('pf move: ', end='')
+            self.update_variance_estimate()
         if self.robot.carrying:
             self.robot.world.world_map.update_carried_object(self.robot.carrying)
 
     def delocalize(self):
         self.state = self.LOST
         self.initializer.initialize(self.robot)
+        self.update_variance_estimate()
 
-    def pose_estimate(self):
+    def update_pose_estimate(self):
         cx = 0.0; cy = 0.0
         hsin = 0.0; hcos = 0.0
         weight_sum = 0.0
@@ -354,8 +339,8 @@ class ParticleFilter():
             p.weight = exp(p.log_weight)
             if p.weight > best_particle.weight:
                 best_particle = p
-            cx += p.weight * p.x
-            cy += p.weight * p.y
+            cx += p.x * p.weight
+            cy += p.y * p.weight
             hsin += sin(p.theta) * p.weight
             hcos += cos(p.theta) * p.weight
             weight_sum += p.weight
@@ -367,10 +352,11 @@ class ParticleFilter():
         self.best_particle = best_particle
         return self.pose
 
-    def variance_estimate(self):
+    def update_variance_estimate(self):
         weight = var_xx = var_xy = var_yy = r_sin = r_cos = 0.0
-        pose = self.pose_estimate()
+        pose = self.update_pose_estimate()
         mu_x = pose.x; mu_y = pose.y; mu_theta = pose.theta
+        #self.robot.robot0.set_pose(mu_x, mu_y, -mu_theta*180/pi)
         for p in self.particles:
             dx = (p.x - mu_x)
             dy = (p.y - mu_y)
@@ -386,24 +372,25 @@ class ParticleFilter():
         Rav = sqrt(Rsq) / weight
         theta_var = max(0, 1 - Rav)
         self.variance = (xy_var, theta_var)
+        #print('update_variance_estimate:', pose, self.variance)
         return self.variance
 
     def update_weights(self):
         # Clip the log_weight values and calculate the new weights.
-        max_weight = max(p.log_weight for p in self.particles)
+        particles = self.particles
+        max_weight = max(p.log_weight for p in particles)
         if max_weight >= self.min_log_weight:
             wt_inc = 0.0
         else:
             wt_inc = - self.min_log_weight / 2.0
             print('wt_inc',wt_inc,'applied for max_weight',max_weight)
         exp_weights = self.exp_weights
-        particles = self.particles
         for i in range(self.num_particles):
             p = particles[i]
             p.log_weight += wt_inc
             exp_weights[i] = p.weight = exp(p.log_weight)
-        variance = np.var(exp_weights)
-        return variance
+        weight_variance = np.var(exp_weights)
+        return weight_variance
 
     def resample(self):
         # Compute and normalize the cdf; make local pointers for faster access.
@@ -455,12 +442,20 @@ class ParticleFilter():
             p.theta = theta
             p.log_weight = 0.0
             p.weight = 1.0
-        self.variance_estimate()
+        self.update_variance_estimate()
 
     def look_for_new_landmarks(self): pass  # SLAM only
 
     def clear_landmarks(self):
         print('clear_landmarks: Landmarks are fixed in this particle filter.')
+
+    def increase_variance(self):
+        TRANSLATION_NOISE = 10 # mm
+        ROTATION_NOISE = 0.1 # radians
+        for p in self.particles:
+            p.x += (np.random.random() - 0.5) * TRANSLATION_NOISE
+            p.y += (np.random.random() - 0.5) * TRANSLATION_NOISE
+            p.theta += (np.random.random() - 0.5) * ROTATION_NOISE
 
     #================ "show" commands that can be used by simple_cli
 
@@ -472,9 +467,7 @@ class ParticleFilter():
 
     def show_landmarks_workhorse(self,landmarks):
         "Also called by show_particle"
-        sorted_keys = list(landmarks.keys())
-        sorted_keys.sort()
-        for key in sorted_keys:
+        for key in sorted(landmarks.keys()):
             value = landmarks[key]
             if isinstance(value, Pose):
                 x = value.x
@@ -497,21 +490,6 @@ class ParticleFilter():
             print(' at (%6.1f, %6.1f) @ %4.1f deg    +/- (%4.1f,%4.1f)  +/- %3.1f deg' %
                   (x, y, theta*180/pi, sigma_x, sigma_y, sigma_theta*180/pi))
         print()
-
-    # def sort_wmobject_ids(self,ids):
-    #     preference = ['Charger','Cube','Aruco','Wall','Doorway','CustomCube','CustomMarker','Room','Face']
-
-    #     def key(id):
-    #         index = 0
-    #         for prefix in preference:
-    #             if id.startswith(prefix):
-    #                 break
-    #             else:
-    #                 index += 1
-    #         return ('%02d' % index) + id
-
-    #     result = sorted(ids, key=key)
-    #     return result
 
     def show_particle(self,args=[]):
         if len(args) == 0:
@@ -820,7 +798,7 @@ class SLAMSensorModel(SensorModel):
             return False
 
         # Compute robot motion even if forced, to check for robot origin_id change
-        (dist,turn_angle) = self.compute_robot_motion()
+        (distance, turn_angle) = self.motion_since_last_evaluate()
 
         # If we're lost but have landmarks in view, see if we can
         # recover by using the landmarks to generate a new particle set.
@@ -838,18 +816,11 @@ class SLAMSensorModel(SensorModel):
 
         # Unless forced, don't evaluate unless the robot moved enough
         # for evaluation to be worthwhile.
-        #print('force=',force,'  dist=',dist, '  state=',self.pf.state)
-        if (not force) and (dist < 5) and abs(turn_angle) < 2*pi/180:
+        #print('force=',force,'  dist=',distance, '  state=',self.pf.state)
+        if (not force) and (distance < 5) and abs(turn_angle) < 2*pi/180:
             return False
         if not just_looking:
             self.last_evaluate_pose = self.robot.pose
-
-        # Evaluate any cube landmarks (but we don't normally use cubes as landmarks)
-        for cube in self.robot.world.light_cubes.values():
-            if self.landmark_test(cube):
-                id = 'Cube-'+str(cube.cube_id)
-                evaluated = self.process_landmark(id, cube, just_looking, []) \
-                            or evaluated
 
         # Evaluate ArUco landmarks
         try:
@@ -901,7 +872,8 @@ class SLAMSensorModel(SensorModel):
                 # print('wmax=',wmax,'wt_inc=',wt_inc)
                 for p in particles:
                     p.log_weight += wt_inc
-            self.robot.world.particle_filter.variance_estimate()
+            print('evaluate: ', end='')
+            self.update_variance_estimate()
 
         # Update counts for candidate arucos and delete any losers.
         cached_keys = tuple(self.candidate_arucos.keys())
@@ -1077,8 +1049,7 @@ class SLAMParticleFilter(ParticleFilter):
             seen_marker_objects = self.robot.world.aruco.seen_marker_objects.copy()
         except:
             seen_marker_objects = dict()
-        lm_specs = self.get_cube_landmark_specs() + \
-                   self.get_aruco_landmark_specs(seen_marker_objects) + \
+        lm_specs = self.get_aruco_landmark_specs(seen_marker_objects) + \
                    self.get_wall_landmark_specs(seen_marker_objects)
         if not lm_specs: return False
         num_specs = len(lm_specs)
@@ -1106,11 +1077,6 @@ class SLAMParticleFilter(ParticleFilter):
                       '  phi=',phi*180/pi)
                 print('lm_pose = ', lm_pose)
         return True
-
-    def get_cube_landmark_specs(self):
-        lm_specs = []
-        # TODO: iterate over cubes as we do aruco markers below
-        return lm_specs
 
     def get_aruco_landmark_specs(self, seen_marker_objects):
         lm_specs = []
@@ -1147,5 +1113,4 @@ class SLAMParticleFilter(ParticleFilter):
         Also updates existing landmarks."""
         self.sensor_model.evaluate(self.particles, force=True, just_looking=True)
         self.sensor_model.landmarks = self.best_particle.landmarks
-
 

@@ -204,6 +204,7 @@ class WorldMap():
             sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
             sensor_orient = wrap_angle(pi - marker.euler_rotation[1] * (pi/180))
             theta = self.robot.pose.theta
+            #print(f'sdist={sensor_dist} scoords={sensor_coords} sbearing={sensor_bearing*180/pi} sorient={sensor_orient*180/pi} theta={theta*180/pi}')
             obj = self.make_object(spec)
             obj.pose = Pose(self.robot.pose.x + sensor_dist * cos(theta + sensor_bearing),
                             self.robot.pose.y + sensor_dist * sin(theta + sensor_bearing),
@@ -229,11 +230,17 @@ class WorldMap():
         if N_old == 0:
             return
         costs = np.zeros([N_new,N_old])
+        if otype is ArucoMarkerObj:
+            MAX_ACCEPTABLE_COST = 5000  # **HACK** should adjust based on pf undertainty
+        else:
+            MAX_ACCEPTABLE_COST = 200  # should adjust based on pf undertainty
         for i in range(N_new):
             for j in range(N_old):
-                costs[i,j] = self.association_cost(new[i], old[j])
+                if otype is ArucoMarkerObj and new[i].tag_id != old[j].tag_id:
+                    costs[i,j] = MAX_ACCEPTABLE_COST + 1
+                else:
+                    costs[i,j] = self.association_cost(new[i], old[j])
         #*** Stupid greedy algorithm; replace with the Hungarian algorithm
-        MAX_ACCEPTABLE_COST = 200
         for i in range(N_new):
             bestj = costs[i,:].argmin()
             if costs[i,bestj] < MAX_ACCEPTABLE_COST:

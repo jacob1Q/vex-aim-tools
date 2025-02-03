@@ -27,9 +27,11 @@ help_text = """
 Particle viewer commands:
   w/a/s/d    Drive robot +/- 10 mm or turn +/- 22.5 degrees
   W/A/S/D    Drive robot +/- 40 mm or turn +/- 90 degrees
+  j/k/J/K    Strafe left/right by 10 or 40 mm
   e          Evaluate particles using current sensor info
   r          Resample particles (evaluates first)
   z          Reset particle positions (randomize, or all 0 for SLAM)
+  Z          Jitter particles (increase variance)
   c          Clear landmarks (for SLAM)
   o          Show objects
   p          Show pose
@@ -48,6 +50,7 @@ help_text_mac = """
 Particle viewer commands:
   option + w/a/s/d    Drive robot +/- 10 mm or turn +/- 22.5 degrees
   option + W/A/S/D    Drive robot +/- 40 mm or turn +/- 90 degrees
+  option + j/k/J/K    Strafe left/right by 10 or 40 mm
   option + e          Evaluate particles using current sensor info
   option + r          Resample particles (evaluates first)
   option + z          Reset particle positions (randomize, or all 0 for SLAM)
@@ -191,7 +194,7 @@ class ParticleViewer():
     def draw_landmarks(self):
         landmarks = self.robot.particle_filter.sensor_model.landmarks.copy()
         if not landmarks: return
-        # Extract values as quickly as we can because
+        # Copy landmarks as quickly as we can because
         # dictionary can change while we're iterating.
         objs = self.robot.world_map.objects.copy()
         arucos = [(marker.name, (np.array([[marker.pose.x], [marker.pose.y]]), marker.pose.theta, None))
@@ -315,7 +318,6 @@ class ParticleViewer():
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-
         # Draw the particles
         for p in self.robot.particle_filter.particles:
             pscale = 1 - p.weight
@@ -363,35 +365,49 @@ class ParticleViewer():
         (xy_var, theta_var) = pf.variance
         print ('xy_var=', xy_var, '  theta_var=', theta_var)
 
-    def report_pose(self):
-        pose = self.robot.particle_filter.pose
-        x = pose.x; y = pose.y; theta = pose.theta
-        hdg = math.degrees(theta)
+    def update_pose(self):
+        pf = self.robot.particle_filter
+        pf.update_pose_estimate()
         if self.verbose:
+            pose = pf.pose
+            x = pose.x; y = pose.y; theta = pose.theta
+            hdg = math.degrees(theta)
             print('Pose = (%5.1f, %5.1f) @ %3d deg.' % (x, y, hdg))
 
-    async def forward(self,distance):
+    def forward(self,distance):
         self.robot.forward(distance)
+        while not self.robot.robot0.is_move_active():
+            time.sleep(0.1)
+        while self.robot.robot0.is_move_active():
+            time.sleep(0.1)
+            glutPostRedisplay()
         pf = self.robot.particle_filter
         self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
-        self.report_pose()
 
-    async def turn(self,angle_deg):
+    def turn(self,angle_deg):
         self.robot.turn(angle_deg/180*pi)
+        while not self.robot.robot0.is_turn_active():
+            time.sleep(0.1)
+        while self.robot.robot0.is_turn_active():
+            time.sleep(0.1)
+            glutPostRedisplay()
         pf = self.robot.particle_filter
         self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
-        self.report_pose()
 
-    async def sideways(self,distance):
+    def sideways(self,distance):
         self.robot.sideways(distance)
+        while not self.robot.robot0.is_move_active():
+            time.sleep(0.1)
+        while self.robot.robot0.is_move_active():
+            time.sleep(0.1)
+            glutPostRedisplay()
         pf = self.robot.particle_filter
         self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
-        self.report_pose()
 
     async def look(self,angle):
         pf = self.robot.particle_filter
         self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
-        self.report_pose()
+        self.update_pose()
 
     def keyPressed(self,key,mouseX,mouseY):
         pf = self.robot.particle_filter
@@ -408,33 +424,35 @@ class ParticleViewer():
             pf.update_weights()
             pf.resample()
         elif key == b'w':     # forward
-            self.robot.loop.create_task(self.forward(translate_wasd))
+            self.forward(translate_wasd)
         elif key == b'W':     # forward
-            self.robot.loop.create_task(self.forward(translate_WASD))
+            self.forward(translate_WASD)
         elif key == b's':     # back
-            self.robot.loop.create_task(self.forward(-translate_wasd))
+            self.forward(-translate_wasd)
         elif key == b'S':     # back
-            self.robot.loop.create_task(self.forward(-translate_WASD))
+            self.forward(-translate_WASD)
         elif key == b'a':     # turn left
-            self.robot.loop.create_task(self.turn(rotate_wasd))
+            self.turn(rotate_wasd)
         elif key == b'A':     # turn left
-            self.robot.loop.create_task(self.turn(rotate_WASD))
+            self.turn(rotate_WASD)
         elif key == b'd':     # turn right
-            self.robot.loop.create_task(self.turn(-rotate_wasd))
+            self.turn(-rotate_wasd)
         elif key == b'D':     # turn right
-            self.robot.loop.create_task(self.turn(-rotate_WASD))
+            self.turn(-rotate_WASD)
         elif key == b'j':     # strafe left
-            self.robot.loop.create_task(self.sideways(translate_wasd))
+            self.sideways(translate_wasd)
         elif key == b'J':     # strafe left
-            self.robot.loop.create_task(self.sideways(translate_WASD))
+            self.sideways(translate_WASD)
         elif key == b'k':     # strafe right
-            self.robot.loop.create_task(self.sideways(-translate_wasd))
+            self.sideways(-translate_wasd)
         elif key == b'K':     # strafe right
-            self.robot.loop.create_task(self.sideways(-translate_WASD))
+            self.sideways(-translate_WASD)
         elif key == b'z':     # delocalize
             pf.delocalize()
-        elif key == b'Z':     # randomize
+        elif key == b'Z':     # jitter
             pf.increase_variance()
+        elif key == b'l':     # show landmarks
+            self.robot.particle_filter.show_landmarks()
         elif key == b'c':     # clear landmarks
             pf.clear_landmarks()
             print('Landmarks cleared.')
@@ -442,10 +460,8 @@ class ParticleViewer():
             self.robot.world_map.show_objects()
         elif key == b'p':     # show pose
             self.robot.show_pose()
-        elif key == b'P':     # show particle
+        elif key == b'P':     # show best particle
             self.robot.particle_filter.show_particle()
-        elif key == b'l':     # show landmarks
-            self.robot.particle_filter.show_landmarks()
         elif key == b'V':     # display weight variance
             self.report_variance(pf)
         elif key == b'<':     # zoom in
@@ -458,7 +474,7 @@ class ParticleViewer():
             return
         elif key == b'v':     # toggle verbose mode
             self.verbose = not self.verbose
-            self.report_pose()
+            self.update_pose()
             return
         elif key == b'h':     # print help
             self.print_help()
@@ -471,8 +487,8 @@ class ParticleViewer():
             global WINDOW
             glutDestroyWindow(WINDOW)
             glutLeaveMainLoop()
+        self.update_pose()
         glutPostRedisplay()
-        self.report_pose()
 
     def specialKeyPressed(self, key, mouseX, mouseY):
         pf = self.robot.particle_filter

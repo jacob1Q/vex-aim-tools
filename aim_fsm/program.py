@@ -32,17 +32,18 @@ running_fsm = None
 
 class StateMachineProgram(StateNode):
     def __init__(self,
-                 cam_viewer = True,
-                 worldmap_viewer = True,
+                 launch_cam_viewer = True,
+                 launch_worldmap_viewer = True,
                  force_annotation = False,   # set to True for annotation even without cam_viewer
                  annotate_sdk = True,        # include annotations for SDK's object detections
                  annotated_scale_factor = 1, # set to 1 to avoid cost of resizing images
                  viewer_crosshairs = False,  # set to True to draw viewer crosshairs
+                 speech = True,
 
                  #landmark_test = SLAMSensorModel.is_solo_aruco_landmark,
                  landmarks = None,
                  sensor_model = ArucoDistanceSensorModel,
-                 particle_viewer = False,
+                 launch_particle_viewer = False,
                  particle_viewer_scale = 1.0,
                  aruco = True,
                  dictionary_name = cv2.aruco.DICT_4X4_100,
@@ -66,16 +67,17 @@ class StateMachineProgram(StateNode):
         else:
             self.robot.erouter.clear()
 
-        self.cam_viewer = cam_viewer
+        self.launch_cam_viewer = launch_cam_viewer
         self.viewer = None
         self.annotate_sdk = annotate_sdk
         self.force_annotation = force_annotation
         self.annotated_scale_factor = annotated_scale_factor
         self.viewer_crosshairs = viewer_crosshairs
+        self.speech = speech
         self.landmarks = landmarks
         #self.landmark_test = landmark_test
         self.sensor_model = sensor_model
-        self.particle_viewer = particle_viewer
+        self.launch_particle_viewer = launch_particle_viewer
         self.particle_viewer_scale = particle_viewer_scale
         #self.picked_up_callback = self.robot_picked_up
         self.put_down_handler = self.robot_put_down
@@ -96,7 +98,7 @@ class StateMachineProgram(StateNode):
         #self.robot.world_map.client = ClientThread(self.robot)
         #self.robot.world_map.is_server = True # Writes directly into perched.camera_pool
 
-        self.worldmap_viewer = worldmap_viewer
+        self.launch_worldmap_viewer = launch_worldmap_viewer
 
         self.rrt = rrt
         self.path_viewer = path_viewer
@@ -115,6 +117,7 @@ class StateMachineProgram(StateNode):
         self.robot.was_picked_up = False
         self.robot.carrying = None
         self.robot.fetching = None
+        self.robot.robot0.set_light_color(vex.LightType.ALL, vex.Color.TRANSPARENT)
 
         # World map and path planner
         #self.robot.world.rrt = self.rrt or RRT(self.robot)
@@ -123,24 +126,21 @@ class StateMachineProgram(StateNode):
         self.set_polling_interval(0.025)  # for kine and motion model update
 
         # Launch viewers
-        if self.cam_viewer:
-            if self.cam_viewer is True:
-                self.cam_viewer = CamViewer(self.robot)
-            self.cam_viewer.start()
-        self.robot.cam_viewer = self.cam_viewer
+        if self.launch_cam_viewer:
+            if not self.robot.cam_viewer:
+                self.robot.cam_viewer = CamViewer(self.robot)
+                self.robot.cam_viewer.start()
 
-        if self.worldmap_viewer:
-            if self.worldmap_viewer is True:
-                self.worldmap_viewer = WorldMapViewer(self.robot)
-            self.worldmap_viewer.start()
-        self.robot.worldmap_viewer = self.worldmap_viewer
+        if self.launch_worldmap_viewer:
+            if not self.robot.worldmap_viewer is True:
+                self.robot.worldmap_viewer = WorldMapViewer(self.robot)
+                self.robot.worldmap_viewer.start()
 
-        if self.particle_viewer:
-            if self.particle_viewer is True:
-                self.particle_viewer = \
+        if self.launch_particle_viewer:
+            if not self.robot.particle_viewer:
+                self.robot.particle_viewer = \
                     ParticleViewer(self.robot, scale=self.particle_viewer_scale)
-            self.particle_viewer.start()
-        self.robot.particle_viewer = self.particle_viewer
+                self.robot.particle_viewer.start()
 
         if self.path_viewer:
             if self.path_viewer is True:
@@ -149,6 +149,11 @@ class StateMachineProgram(StateNode):
                 self.path_viewer.set_rrt(self.robot.world.rrt)
             self.path_viewer.start()
         self.robot.path_viewer = self.path_viewer
+
+        if self.speech:
+            self.robot.speech_listener.enable()
+        else:
+            self.robot.speech_listener.disable()
 
         # Call parent's start() to launch the state machine by invoking the start node.
         super().start()
@@ -199,7 +204,7 @@ class StateMachineProgram(StateNode):
         # self.robot.was_picked_up = self.robot.really_picked_up()
         
     def robot_put_down(self):
-        pose = self.robot.particle_filter.pose_estimate()
+        pose = self.robot.particle_filter.update_pose_estimate()
         print(f'Robot pose set to {pose}')
         self.robot.set_pose(pose.x, pose.y, pose.z, pose.theta)
 

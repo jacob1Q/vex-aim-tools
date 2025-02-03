@@ -207,9 +207,12 @@ class ObjectSpecNode():
         if isinstance(spec, WorldObject):
             obj = spec
         elif isinstance(spec,str):
-            pat = re.compile(spec)
-            candidates = [o for o in self.robot.world_map.objects.values() if pat.match(o.name) and o.is_valid]
-            obj = None
+            if spec in self.robot.world_map.objects:  # spec is an object id
+                obj = self.robot.world_map.objects[spec]
+            else:
+                pat = re.compile(spec)
+                candidates = [o for o in self.robot.world_map.objects.values() if pat.match(o.name) and o.is_valid]
+                obj = None
         elif isinstance(spec,type) and issubclass(spec,WorldObject):
             candidates = [o for o in self.robot.world_map.objects.values() if isinstance(o,spec) and o.is_valid]
             obj = None
@@ -234,6 +237,11 @@ class TurnToward(Turn, ObjectSpecNode):
             spec = event.data
         else:
             spec = self.object_spec
+        if spec is None:
+            self.angle_deg = 0
+            super().start(event)
+            self.post_failure()
+            return
         obj = self.get_object_from_spec(spec)
         if obj is None:
             self.angle_deg = 0

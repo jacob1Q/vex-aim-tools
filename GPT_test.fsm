@@ -54,12 +54,12 @@ class GPT_test(StateMachineProgram):
           super().start(event)
 
     class CmdTurnToward(TurnToward):
-      def start(self,event):
-          print(event.data)
-          spec = event.data.split(' ')
-          self.object_spec = ''.join(spec[1:])
-          print('Turning toward', self.object_spec)
-          super().start(None)
+        def start(self,event):
+            print(event.data)
+            spec = event.data.split(' ')
+	    self.obj_spec  = ''.join(spec[1:])
+            print('Turning toward', self.object_spec)
+            super().start(None)
 
     class CmdPickup(PickUp):
       def start(self,event):

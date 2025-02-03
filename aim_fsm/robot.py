@@ -24,15 +24,19 @@ class Robot():
             robot0 = aim.Robot(host=host)
         robot0.inertial.calibrate()
         robot0.set_pose(0,0,0)
+        self.pose = Pose(0,0,0,0)
         self.robot0 = robot0
         self.loop = loop
         self.camera = Camera()
         self.kine = AIMKinematics(self)
         self.world_map = WorldMap(self)
+        self.worldmap_viewer = None
         self.aruco_detector = None
         acts = [DriveActuator(self), SoundActuator(self), KickActuator(self), LEDsActuator(self)]
         self.actuators = {act.name : act for act in acts}
         self.erouter = EventRouter(self)
+        self.particle_filter = None
+        self.particle_viewer = None
         self.cam_viewer = None
         self.touch = '0x00'
         self.flask_thread = None
@@ -87,6 +91,8 @@ class Robot():
         self.pose = PoseEstimate(x, y, z, theta)
         x0, y0, heading0 = -y, x, (360 - theta * 180/pi)  # convert to VEX frame
         self.robot0.set_pose(x0, y0, heading0)
+        if self.particle_filter:
+            self.particle_filter.set_pose(x,y,theta)
 
     def update_actuators(self):
         for act in self.actuators.values():
@@ -157,9 +163,11 @@ class Robot():
         print(f'   [ Roll: {neaten(self.robot0.get_roll())}  ' +
               f'Pitch: {neaten(self.robot0.get_pitch())}  ' +
               f'Yaw: {neaten(self.robot0.get_yaw())} ]')
-        pf_pose = self.particle_filter.pose_estimate()
+        pf_pose = self.particle_filter.update_pose_estimate()
         print(f'Particles: {neaten(pf_pose.x)}, ' +
               f'{neaten(pf_pose.y)} ' +
               f'heading {neaten(pf_pose.theta*180/pi)} deg.')
         print()
 
+    def print_raw_odometry(self):
+        print(f'x={self.robot0.get_x()} y={self.robot0.get_y()} hdg={self.robot0.get_heading()}')

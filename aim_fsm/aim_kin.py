@@ -61,7 +61,8 @@ class AIMKinematics(Kinematics):
         super().__init__(joints,robot)
 
     def get_world(self):
-        return point(0,0,0) # *** FIX THIS SHOULD BE NEGATIVE OF ROBOT POSITION ***
+        pose = self.robot.pose
+        return (pose.x, pose.y, pose.theta)
 
     def project_to_ground(self, cx, cy):
         "Converts camera coordinates to a ground point in the base frame."

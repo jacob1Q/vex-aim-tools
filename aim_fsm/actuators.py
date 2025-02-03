@@ -107,7 +107,7 @@ class SoundActuator(Actuator):
             if self.playing is True:
                 self.playing = False
                 try:  # might fail if speech isn't up yet
-                    self.robot.loop.call_later(1, self.robot.speech_listener.enable)
+                    self.robot.loop.call_later(1, self.robot.speech_listener.unpause)
                 except:
                     pass
                 self.complete()
@@ -135,7 +135,7 @@ class SoundActuator(Actuator):
             else:
                 tts = gTTS(text=text, lang='en')
                 tts.save(speech_file_path)
-            self.robot.speech_listener.disable()
+            self.robot.speech_listener.pause()
             try:
                 self.robot.robot0.play_sound_file(speech_file_path)
             except aim.invalid_sound_file_exception:   # file too long

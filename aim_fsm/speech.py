@@ -57,6 +57,7 @@ class SpeechListener():
         self.thesaurus = thesaurus
         self.debug = debug
         self.enabled = True
+        self.paused = False  # speaking pauses the listener
 
     def run_flask(self):
         # Suppress the default Flask logging
@@ -74,10 +75,18 @@ class SpeechListener():
 
     def enable(self):
         self.enabled = True
+        self.paused = False
+
+    def pause(self):
+        self.paused = True
+
+    def unpause(self):
+        self.paused = False
 
     def handle_utterance(self, utterance):
-        if not self.enabled:
-            print('Discarded:', utterance)
+        if self.enabled:
+                print('Discarded:', utterance)
+        if self.paused or not self.enabled:
             return
         print("Raw utterance: '%s'" % utterance)
         utterance = utterance.strip().lower()

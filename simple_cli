@@ -72,7 +72,7 @@ ans = None
 RUNNING = True
 
 def cli_loop(_robot):
-    global ans, RUNNING, robot
+    global ans, RUNNING, robot, file_to_run
 
     robot = _robot
 
@@ -82,6 +82,9 @@ def cli_loop(_robot):
     running_fsm = aim_fsm.program.running_fsm = StateMachineProgram()
     cli_globals['running_fsm'] = running_fsm
     robot.loop.call_soon_threadsafe(running_fsm.start)
+    if file_to_run:
+        time.sleep(0.25)
+        runfsm(file_to_run)
 
     cli_loop._console = code.InteractiveConsole()
     time.sleep(0.5) # give time for Windows to pop up before prompting
@@ -257,6 +260,7 @@ def show_stuff(args):
   show battery
   show crosshairs
   show kine [joint]
+  show landmarks
   show objects
   show particle n
   show pose
@@ -436,4 +440,6 @@ evbase.robot_for_loading = robot
 
 ################ Launch
 
+
+file_to_run = sys.argv[1] if len(sys.argv) > 1 else None
 cli_loop(robot)

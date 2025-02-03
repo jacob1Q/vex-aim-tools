@@ -93,6 +93,7 @@ class RobotArucoDetector(object):
                                                marker_corners_2d,
                                                self.camera_matrix,
                                                self.distortion_array)
+            tvec = (tvec[0][0], tvec[1][0], tvec[2][0])
             if id in self.disabled_ids: continue
             if rvec[2][0] > math.pi/2 or rvec[2][0] < -math.pi/2:
                 # can't see a marker facing away from us, so bogus
