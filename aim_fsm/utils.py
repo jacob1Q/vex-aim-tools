@@ -1,4 +1,5 @@
 from .geometry import wrap_angle
+import numpy as np
 
 class KalmanFilter:
     def __init__(self, initial_estimate, initial_uncertainty, base_measurement_noise, process_noise):
@@ -10,6 +11,8 @@ class KalmanFilter:
         self.base_measurement_noise = base_measurement_noise
         self.measurement_noise = base_measurement_noise  # R
         self.process_noise = process_noise          # Q
+
+        self.angle_history = []
 
     def update(self, measurement, noise=0):
         # Prediction step (no process dynamics, so state remains the same)
@@ -27,7 +30,43 @@ class KalmanFilter:
         return self.estimate, self.uncertainty
 
     def update_circular(self, measurement):
-        return self.update(measurement) # **** TEMPORARY HACK ****
+        predicted_estimate = self.estimate
+        predicted_uncertainty = self.uncertainty + self.process_noise
+
+        # Normalize measurement residual
+        residual = measurement - predicted_estimate
+        residual = np.arctan2(np.sin(residual), np.cos(residual))
+
+        # Kalman gain
+        kalman_gain = predicted_uncertainty / (predicted_uncertainty + self.measurement_noise)
+
+        # Update step
+        self.estimate = predicted_estimate + kalman_gain * residual
+        self.estimate = np.arctan2(np.sin(self.estimate), np.cos(self.estimate))
+
+        self.uncertainty = (1 - kalman_gain) * predicted_uncertainty
+
+        # Store estimate in history
+        self.angle_history.append(self.estimate)
+
+        # Compute circular variance
+        circ_var = self.circular_variance()
+
+        return self.estimate, self.uncertainty
+    
+    def circular_variance(self):
+        if len(self.angle_history) == 0:
+            return 0
+
+        angles = np.array(self.angle_history)
+        # Compute mean angle
+        mean_angle = np.arctan2(np.mean(np.sin(angles)), np.mean(np.cos(angles)))
+
+        # Compute circular variance
+        circ_var = 1 - (np.sqrt(np.mean(np.sin(angles - mean_angle)**2) + np.mean(np.cos(angles - mean_angle)**2)) / 2)
+
+        return circ_var
+
 
 def neaten(x):
     if isinstance(x, (int,float)):
