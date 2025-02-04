@@ -237,10 +237,10 @@ def show_stuff(args):
             running_fsm.cam_viewer = True
         robot.cam_viewer = CamViewer(robot)
         robot.cam_viewer.start()
-#        robot.world.particle_viewer = ParticleViewer(robot)
-#        robot.world.particle_viewer.start()
-#        robot.world.path_viewer = PathViewer(robot,world.rrt)
-#        robot.world.path_viewer.start()
+#        robot.particle_viewer = ParticleViewer(robot)
+#        robot.particle_viewer.start()
+#        robot.path_viewer = PathViewer(robot,world.rrt)
+#        robot.path_viewer.start()
         robot.worldmap_viewer = WorldMapViewer(robot)
         robot.worldmap_viewer.start()
     elif spec == "pose":
