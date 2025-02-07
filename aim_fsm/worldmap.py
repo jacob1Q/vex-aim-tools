@@ -231,7 +231,7 @@ class WorldMap():
             return
         costs = np.zeros([N_new,N_old])
         if otype is ArucoMarkerObj:
-            MAX_ACCEPTABLE_COST = 5000  # **HACK** should adjust based on pf undertainty
+            MAX_ACCEPTABLE_COST = 5000  # should adjust based on pf undertainty
         else:
             MAX_ACCEPTABLE_COST = 200  # should adjust based on pf undertainty
         for i in range(N_new):
@@ -240,7 +240,7 @@ class WorldMap():
                     costs[i,j] = MAX_ACCEPTABLE_COST + 1
                 else:
                     costs[i,j] = self.association_cost(new[i], old[j])
-        #*** Stupid greedy algorithm; replace with the Hungarian algorithm
+        # *** Greedy algorithm; replace with the Hungarian algorithm
         for i in range(N_new):
             bestj = costs[i,:].argmin()
             if costs[i,bestj] < MAX_ACCEPTABLE_COST:

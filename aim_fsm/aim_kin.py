@@ -49,7 +49,8 @@ class AIMKinematics(Kinematics):
                              description='Camera dummy joint located above base frame',
                              d=y2, theta=-pi/2, alpha=-(90+camera_angle)*pi/180)
 
-        # camera frame: x axis points right, y points down, z points forward
+        # camera frame: origin is at the actual camera; x axis points
+        # right, y points down, z points forward
         r1 = (x1**2 + y1**2) ** 0.5
         r2 = (x2**2 + y2**2) ** 0.5
         camera_frame = Joint('camera', parent=camera_dummy,

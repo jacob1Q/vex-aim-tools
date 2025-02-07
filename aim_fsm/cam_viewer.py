@@ -194,12 +194,16 @@ class CamViewer():
         if ord(key) == 27:
             print("Use 'exit' to quit.")
             return
-        if key == b'c':
+        elif key == b's':
             print("Taking a raw snap")
             self.capture_raw()
-        if key == b'C':
+        elif key == b'S':
             print("Taking an annotated snap")
             self.capture_annotated()
+        elif key == b'c':
+            self.crosshairs = not self.crosshairs
+        elif key == b'h':
+            print(self.keyboard_help)
         self.display()
 
     def specialKeyPressed(self, key, x, y):
@@ -243,3 +247,11 @@ class CamViewer():
         res = cv2.imwrite(filename, image)
         print(f"Wrote {filename} with result {res}")
         snapno +=1
+
+    keyboard_help = """
+Camera viewer help:
+    Type 'c' to toggle crosshairs.
+    Type 's' to take a snapshot of the raw camera image.
+    Type 'S' to take an annotated snapshot (includes bounding boxes and crosshairs).
+
+"""

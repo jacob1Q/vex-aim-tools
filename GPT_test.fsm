@@ -30,9 +30,9 @@ class GPT_test(StateMachineProgram):
             # If the response contains any #command lines then convert
             # raw text lines to #say commands.
             if any((line.startswith('#') for line in lines)):
-                cmds = [line if line.startswith('#') else ('#say ' + line) for line in lines]
-                print(cmds)
-                self.post_data(cmds)
+                commands = [line if line.startswith('#') else ('#say ' + line) for line in lines]
+                print(commands)
+                self.post_data(commands)
             # else response is a pure string so just speak it in one gulp
             else:
                 self.post_data(response_string)
