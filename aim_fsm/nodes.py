@@ -317,7 +317,7 @@ class Say(ActionNode):
 
 
 class PlaySound(ActionNode):
-    def __init__(self, sound=vex.SoundType.DOORBELL, volume=1):
+    def __init__(self, sound=vex.SoundType.DOORBELL, volume=100):
         self.sound = sound
         self.volume = volume
         super().__init__()
