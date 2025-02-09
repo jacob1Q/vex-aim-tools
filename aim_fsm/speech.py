@@ -84,7 +84,7 @@ class SpeechListener():
         self.paused = False
 
     def handle_utterance(self, utterance):
-        if self.enabled:
+        if self.enabled and self.paused:
                 print('Discarded:', utterance)
         if self.paused or not self.enabled:
             return

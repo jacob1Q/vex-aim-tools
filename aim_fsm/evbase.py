@@ -198,6 +198,10 @@ class EventListener:
             self.polling_interval = interval
         else:
             raise TypeError('interval must be a number')
+        if self.poll_handle:
+            self.poll_handle.cancel()
+        self.poll_handle = \
+            self.robot.loop.call_later(self.polling_interval, self._next_poll)
 
     def _next_poll(self):
         """Called to schedule the next polling interval and then poll the node."""

@@ -72,7 +72,7 @@ ans = None
 RUNNING = True
 
 def cli_loop(_robot):
-    global ans, RUNNING, robot, file_to_run
+    global ans, RUNNING, robot, file_to_run, running_fsm
 
     robot = _robot
 
@@ -93,6 +93,7 @@ def cli_loop(_robot):
             return
         cli_loop._line = ''
         while cli_loop._line == '':
+            running_fsm = aim_fsm.program.running_fsm
             readline.write_history_file(histfile)
             try:
                 cli_loop._line = cli_loop._console.raw_input('C> ').strip()
