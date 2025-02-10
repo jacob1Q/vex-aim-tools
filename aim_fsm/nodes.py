@@ -129,9 +129,12 @@ class AskGPT(StateNode):
 class SendGPTCamera(StateNode):
     "Send current camera image to GPT"
 
+    def __init__(self, instruction=None):
+        self.instruction = instruction
+
     def start(self, event=None):
         super().start(event)
-        self.robot.send_gpt_camera()
+        self.robot.send_gpt_camera(instruction=self.instruction)
         self.post_completion()
 
 

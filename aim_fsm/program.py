@@ -41,6 +41,8 @@ class StateMachineProgram(StateNode):
                  speech = True,
 
                  #landmark_test = SLAMSensorModel.is_solo_aruco_landmark,
+                 particle_filter = None,
+                 num_particles = 500,
                  landmarks = None,
                  sensor_model = ArucoDistanceSensorModel,
                  launch_particle_viewer = False,
@@ -74,6 +76,8 @@ class StateMachineProgram(StateNode):
         self.annotated_scale_factor = annotated_scale_factor
         self.viewer_crosshairs = viewer_crosshairs
         self.speech = speech
+        self.particle_filter = particle_filter
+        self.num_particles = num_particles
         self.landmarks = landmarks
         #self.landmark_test = landmark_test
         self.sensor_model = sensor_model
@@ -107,11 +111,14 @@ class StateMachineProgram(StateNode):
         global running_fsm
         running_fsm = self
         # Create a particle filter
-        self.particle_filter = ParticleFilter(self.robot, landmarks=self.landmarks, sensor_model=self.sensor_model)
+        if self.particle_filter is None:
+            self.particle_filter = ParticleFilter(self.robot,
+                                                  num_particles=self.num_particles,
+                                                  landmarks=self.landmarks,
+                                                  sensor_model=self.sensor_model)
         # elif isinstance(self.particle_filter,SLAMParticleFilter):
         #    self.particle_filter.clear_landmarks()
-        pf = self.particle_filter
-        self.robot.particle_filter = pf
+        self.robot.particle_filter = self.particle_filter
 
         # Set up robot state
         self.robot.was_picked_up = False
