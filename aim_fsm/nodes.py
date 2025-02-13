@@ -130,6 +130,7 @@ class SendGPTCamera(StateNode):
     "Send current camera image to GPT"
 
     def __init__(self, instruction=None):
+        super().__init__()
         self.instruction = instruction
 
     def start(self, event=None):
