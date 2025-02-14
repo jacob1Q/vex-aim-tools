@@ -89,7 +89,7 @@ class ArucoMarkerObj(WorldObject):
             vis = ' visible' if self.is_visible else ''
             fix = ' fixed' if self.is_fixed else ''
             return '<ArucoMarkerObj %s: (%.1f, %.1f, %.1f) @ %d deg.%s%s>' % \
-                (self.id[12:], self.pose.x, self.pose.y, self.pose.z, self.pose.theta*180/pi, fix, vis)
+                (self.id, self.pose.x, self.pose.y, self.pose.z, self.pose.theta*180/pi, fix, vis)
         else:
             return f'<ArucoMarkerObj {self.id[12:]}: position unknown>'
         

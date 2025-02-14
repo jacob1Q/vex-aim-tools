@@ -487,7 +487,7 @@ class ParticleViewer():
             global REDISPLAY
             REDISPLAY = not REDISPLAY
             print('Redisplay ',('off','on')[REDISPLAY],'.',sep='')
-        elif key == b'q':     #kill window
+        elif key == b'Q':     #kill window
             global WINDOW
             glutDestroyWindow(WINDOW)
             glutLeaveMainLoop()
