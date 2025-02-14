@@ -145,6 +145,9 @@ class Robot():
                 pass # print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
             return False
 
+    def is_moving(self):
+        return not self.robot0.is_stopped()
+
     def ask_gpt(self, query_text):
         self.openai_client.query(query_text)
 
@@ -166,7 +169,8 @@ class Robot():
         pf_pose = self.particle_filter.update_pose_estimate()
         print(f'Particles: {neaten(pf_pose.x)}, ' +
               f'{neaten(pf_pose.y)} ' +
-              f'heading {neaten(pf_pose.theta*180/pi)} deg.')
+              f'heading {neaten(pf_pose.theta*180/pi)} deg.  ' +
+              f'[{self.particle_filter.state}]')
         print()
 
     def print_raw_odometry(self):

@@ -197,20 +197,24 @@ class ParticleViewer():
         # Copy landmarks as quickly as we can because
         # dictionary can change while we're iterating.
         objs = self.robot.world_map.objects.copy()
-        arucos = [(marker.name, (np.array([[marker.pose.x], [marker.pose.y]]), marker.pose.theta, None))
+        arucos = [(marker.id, (np.array([[marker.pose.x], [marker.pose.y]]), marker.pose.theta, None))
                   for marker in objs.values()
                   if isinstance(marker, ArucoMarkerObj)]
         all_specs = list(landmarks.items()) + \
             [marker for marker in arucos if marker[0] not in landmarks]
-        for (name,specs) in all_specs:
-            if not isinstance(name,str):
+        for (id,specs) in all_specs:
+            if not isinstance(id,str):
                 raise TypeError("Landmark names must be strings: %r" % id)
             color = None
-            if name.startswith('ArucoMarker-'):
-                label = name[12:]
-                num = int(label)
-                seen = num in self.robot.aruco_detector.seen_marker_ids
-            elif name.startswith('Wall-'):
+            if id.startswith('ArucoMarker-'):
+                if id in self.robot.world_map.objects:
+                    obj = self.robot.world_map.objects[id]
+                else:
+                    continue
+                num = obj.marker_id
+                label = str(num)
+                seen = obj.is_visible
+            elif id.startswith('Wall-'):
                 label = 'W' + id[id.find('-')+1:]
                 try:
                     seen = self.robot.world.world_map.objects[id].is_visible
@@ -220,7 +224,7 @@ class ParticleViewer():
                     color = (1, 0.5, 0.3, 0.75)
                 else:
                     color = (0.5, 0, 0, 0.75)
-            elif name.startswith('Video'):
+            elif id.startswith('Video'):
                 seen = self.robot.aruco_id in self.robot.world.perched.camera_pool and \
                        id in self.robot.world.perched.camera_pool[self.robot.aruco_id]
                 label = id
@@ -236,7 +240,7 @@ class ParticleViewer():
             if isinstance(specs, Pose):
                 self.draw_landmark_from_pose(id, specs, label, color)
             else:
-                self.draw_landmark_from_particle(name, specs, label, color)
+                self.draw_landmark_from_particle(id, specs, label, color)
 
     def draw_landmark_from_pose(self, id, specs, label, color):
         coords = (specs.x, specs.y)
@@ -271,7 +275,7 @@ class ParticleViewer():
         else: # Aruco
             size = (18,25)
             angle_offset = 90
-            translate = 15
+            translate = 0 # was 15
         if id.startswith('Video'):
             self.draw_triangle(coords, height=75, angle=lm_orient[1]*(180/pi),
                                color=color, fill=True)
@@ -331,7 +335,7 @@ class ParticleViewer():
         theta = self.robot.particle_filter.pose.theta
         (xy_var, theta_var) = self.robot.particle_filter.variance
         hdg = math.degrees(theta)
-        self.draw_triangle((rx,ry), height=100, angle=hdg, tip_offset=-10,
+        self.draw_triangle((rx,ry), height=60, angle=hdg, tip_offset=-10,
                            color=(1,1,0,0.7))
 
         # Draw the error ellipse and heading error wedge

@@ -8,6 +8,7 @@ from .geometry import tprint, point, translation_part, rotation_part
 # ================ Constants ================
 
 body_diameter = 57 # mm
+robot_height = 72 # mm
 kicker_extension = 15 # mm
 camera_angle = 18 # degrees (design spec)
 camera_angle = 25 # degrees (measured)

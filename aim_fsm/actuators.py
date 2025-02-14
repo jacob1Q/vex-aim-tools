@@ -176,6 +176,7 @@ class KickActuator(Actuator):
 class LEDsActuator(Actuator):
     def __init__(self, robot):
         super().__init__(robot, 'leds')
+        self.NUM_LEDS = 6
 
     def stop(self):
         self.robot.robot0.clear_leds()

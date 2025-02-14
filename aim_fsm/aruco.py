@@ -9,8 +9,7 @@ ARUCO_MARKER_SIZE = 25
 
 class ArucoMarker(object):
     def __init__(self, aruco_parent, marker_id, bbox, translation, rotation):
-        self.id = marker_id
-        self.id_string = 'ArucoMarker-' + str(marker_id)
+        self.marker_id = marker_id
         self.bbox = bbox
         self.aruco_parent = aruco_parent
 
@@ -31,7 +30,7 @@ class ArucoMarker(object):
 
     def __str__(self):
         return "<ArucoMarker id=%d trans=(%d,%d,%d) rot=(%d,%d,%d) erot=(%d,%d,%d)>" % \
-                (self.id, *self.opencv_translation, *self.opencv_rotation, *self.euler_rotation)
+                (self.marker_id, *self.opencv_translation, *self.opencv_rotation, *self.euler_rotation)
 
     def __repr__(self):
         return self.__str__()
@@ -100,8 +99,8 @@ class RobotArucoDetector(object):
                 print('Marker rejected! id=', id, 'tvec=', tvec, 'rvec=', rvec)
                 continue
             marker = ArucoMarker(self, id, marker_corners_2d, tvec, -rvec)
-            self.seen_marker_ids.append(marker.id)
-            self.seen_marker_objects[marker.id] = marker
+            self.seen_marker_ids.append(marker.marker_id)
+            self.seen_marker_objects[marker.marker_id] = marker
 
     def annotate(self, image, scale_factor):
         scaled_corners = [ np.multiply(corner, scale_factor) for corner in self.corners ]

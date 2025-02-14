@@ -480,29 +480,26 @@ class WorldMapViewer():
         glEndList()
         gl_lists.append(c)
 
-    def make_custom_marker(self,marker):
-        self.make_aruco_marker(marker)
-
-    def make_aruco_marker(self,marker):
+    def make_aruco_marker(self,markerobj):
         global gl_lists
-        tag_id = marker.tag_id
-        s = marker.aruco_parent.marker_size
-        pos = (marker.pose.x, marker.pose.y, marker.pose.z)
-        color = (color_red, color_green, color_blue)[tag_id%3]
+        marker_id = markerobj.marker_id
+        s = markerobj.marker.aruco_parent.marker_size
+        pos = (markerobj.pose.x, markerobj.pose.y, markerobj.pose.z)
+        color = (color_red, color_green, color_blue)[marker_id%3]
         c = glGenLists(1)
         glNewList(c, GL_COMPILE)
         glPushMatrix()
         glTranslatef(*pos)
-        glRotatef(marker.pose.theta*180/pi+180, 0., 0., 1.)
-        highlight = marker.is_visible
+        glRotatef(markerobj.pose.theta*180/pi+180, 0., 0., 1.)
+        highlight = markerobj.is_visible
         marker_thickness = 5 # must be thicker than wall
         self.make_cube((marker_thickness,s,s), color=color, highlight=highlight)
         glRotatef(-90, 0., 0., 1.)
         glRotatef(90, 1., 0., 0.)
-        length = len(ascii(tag_id)) + 0.5
+        length = len(ascii(marker_id)) + 0.5
         glTranslatef(-s/4*length, -s/4, marker_thickness)
         glScalef(0.25, 0.2, 0.25)
-        glutStrokeString(GLUT_STROKE_MONO_ROMAN, c_char_p(bytes(ascii(tag_id),'utf8')))
+        glutStrokeString(GLUT_STROKE_MONO_ROMAN, c_char_p(bytes(ascii(marker_id),'utf8')))
         glPopMatrix()
         glEndList()
         gl_lists.append(c)
@@ -890,8 +887,6 @@ class WorldMapViewer():
                 self.make_foreign_robot(obj)
             elif isinstance(obj, worldmap.LightCubeForeignObj):
                 self.make_foreign_cube(obj)
-            elif isinstance(obj, worldmap.CustomMarkerObj):
-                self.make_custom_marker(obj)
         # Make the doorways last, so transparency works correctly
         return
         for (key,obj) in items:

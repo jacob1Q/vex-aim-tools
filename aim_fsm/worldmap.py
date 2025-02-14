@@ -32,6 +32,8 @@ class WorldObject():
         self.matched.pose.update(self.pose, sensor_noise)
         if hasattr(self, 'spec'):
             self.matched.spec = self.spec
+        if hasattr(self, 'marker'):
+            self.matched.marker = self.marker
         self.matched.is_visible = True
 
 class BarrelObj(WorldObject):
@@ -78,18 +80,18 @@ class ArucoMarkerObj(WorldObject):
     def __init__(self, spec, x=0, y=0, z=0, theta=0):
         super().__init__(x, y, z, theta)
         self.name = spec['name']
-        self.tag_id = spec['id']
-        self.aruco_parent = spec['marker'].aruco_parent
+        self.marker_id = spec['id']
+        self.marker = spec['marker']
         self.pose_confidence = +1
 
     def __repr__(self):
         if self.pose_confidence >= 0:
             vis = ' visible' if self.is_visible else ''
             fix = ' fixed' if self.is_fixed else ''
-            return '<ArucoMarkerObj %d: (%.1f, %.1f, %.1f) @ %d deg.%s%s>' % \
-                (self.tag_id, self.pose.x, self.pose.y, self.pose.z, self.pose.theta*180/pi, fix, vis)
+            return '<ArucoMarkerObj %s: (%.1f, %.1f, %.1f) @ %d deg.%s%s>' % \
+                (self.id[12:], self.pose.x, self.pose.y, self.pose.z, self.pose.theta*180/pi, fix, vis)
         else:
-            return '<ArucoMarkerObj %d: position unknown>' % self.tag_id
+            return f'<ArucoMarkerObj {self.id[12:]}: position unknown>'
         
 
 ################################################################
@@ -230,13 +232,15 @@ class WorldMap():
         if N_old == 0:
             return
         costs = np.zeros([N_new,N_old])
-        if otype is ArucoMarkerObj:
+        if self.robot.particle_filter.state == self.robot.particle_filter.LOST:
+            MAX_ACCEPTABLE_COST = np.inf
+        elif otype is ArucoMarkerObj:
             MAX_ACCEPTABLE_COST = 5000  # should adjust based on pf undertainty
         else:
             MAX_ACCEPTABLE_COST = 200  # should adjust based on pf undertainty
         for i in range(N_new):
             for j in range(N_old):
-                if otype is ArucoMarkerObj and new[i].tag_id != old[j].tag_id:
+                if otype is ArucoMarkerObj and new[i].marker_id != old[j].marker_id:
                     costs[i,j] = MAX_ACCEPTABLE_COST + 1
                 else:
                     costs[i,j] = self.association_cost(new[i], old[j])
@@ -287,6 +291,10 @@ class WorldMap():
         unassociated = [c for c in self.candidates if c.matched is None]
         pending = list(self.pending_objects.keys())
         COST_THRESHOLD = 50
+        if self.robot.particle_filter and self.robot.particle_filter.state == self.robot.particle_filter.LOST:
+            if unassociated:
+                print("Not localized: can't add", unassociated)
+            return
         for candidate in unassociated:
             matches = [p for p in pending if self.association_cost(candidate,p) < COST_THRESHOLD]
             if matches:
@@ -314,8 +322,8 @@ class WorldMap():
     def reclaim_object(self, obj):
         t = type(obj)
         missing = [m for m in self.missing_objects if type(m) == t]
-        if 'tag_id' in obj.__dir__():
-            missing = [m for m in missing if m.tag_id == obj.tag_id]
+        if hasattr(obj,'marker_id'):
+            missing = [m for m in missing if m.marker_id == obj.marker_id]
         if len(missing) == 0:
             return None
         costs = [self.association_cost(obj, m) for m in missing]

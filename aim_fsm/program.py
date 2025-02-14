@@ -40,11 +40,10 @@ class StateMachineProgram(StateNode):
                  viewer_crosshairs = False,  # set to True to draw viewer crosshairs
                  speech = True,
 
-                 #landmark_test = SLAMSensorModel.is_solo_aruco_landmark,
+                 landmark_test = SLAMSensorModel.is_solo_aruco_landmark,
                  particle_filter = None,
                  num_particles = 500,
                  landmarks = None,
-                 sensor_model = ArucoDistanceSensorModel,
                  launch_particle_viewer = False,
                  particle_viewer_scale = 1.0,
                  aruco = True,
@@ -76,11 +75,9 @@ class StateMachineProgram(StateNode):
         self.annotated_scale_factor = annotated_scale_factor
         self.viewer_crosshairs = viewer_crosshairs
         self.speech = speech
-        self.particle_filter = particle_filter
         self.num_particles = num_particles
         self.landmarks = landmarks
         #self.landmark_test = landmark_test
-        self.sensor_model = sensor_model
         self.launch_particle_viewer = launch_particle_viewer
         self.particle_viewer_scale = particle_viewer_scale
         #self.picked_up_callback = self.robot_picked_up
@@ -91,6 +88,11 @@ class StateMachineProgram(StateNode):
         if self.aruco:
             self.robot.aruco_detector = \
                 RobotArucoDetector(self.robot, dictionary_name, aruco_marker_size, aruco_disabled_ids)
+
+        if particle_filter:
+            self.particle_filter = particle_filter
+        else:
+            self.particle_filter = SLAMParticleFilter(self.robot)
 
         self.perched_cameras = perched_cameras
         if self.perched_cameras:
@@ -166,6 +168,7 @@ class StateMachineProgram(StateNode):
         super().start()
 
     def stop(self):
+        self.stop_children()
         super().stop()
         self.robot.erouter.clear()
 
@@ -181,18 +184,18 @@ class StateMachineProgram(StateNode):
         if self.robot.is_picked_up():
             if not self.robot.was_picked_up:
                 self.robot.robot0.stop_all_movement()
-                self.robot.robot0.play_sound(vex.SoundType.HUAH, 100)
-                self.robot.world_map.clear()
+                self.robot.robot0.play_sound(vex.SoundType.HUAH, 50)
+                #self.robot.world_map.clear()
                 self.robot.was_picked_up = True
-                self.stop_children()
+                #self.stop_children()
         elif self.robot.was_picked_up:
             self.robot.was_picked_up = False
-            self.robot.particle_filter.delocalize()
             self.robot.set_pose(0,0,0,0)
+            self.robot.particle_filter.delocalize()
             self.robot.world_map.update()
-            self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 100)
-            if self.start_node:
-                self.start_node.start()
+            self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 50)
+            #if self.start_node:
+            #    self.start_node.start()
 
         
         # if self.robot.really_picked_up():
@@ -212,7 +215,7 @@ class StateMachineProgram(StateNode):
         
     def robot_put_down(self):
         pose = self.robot.particle_filter.update_pose_estimate()
-        print(f'Robot pose set to {pose}')
+        #print(f'Robot pose set to {pose}')
         self.robot.set_pose(pose.x, pose.y, pose.z, pose.theta)
 
     def user_image(self,image,gray): pass

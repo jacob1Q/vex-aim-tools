@@ -7,6 +7,7 @@ from .nodes import *
 from .transitions import *
 from .trace import tracefsm
 from .cam_viewer import CamViewer
+from .particle import ParticleFilter, SLAMParticleFilter
 from .particle_viewer import ParticleViewer
 from .robot import Robot
 from .worldmap import *

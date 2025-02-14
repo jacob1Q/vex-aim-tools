@@ -10,6 +10,8 @@ from .geometry import wrap_angle, wrap_selected_angles
 from .aruco import ArucoMarker
 from .worldmap import WorldObject, ArucoMarkerObj
 
+wall_marker_dict = dict()
+
 class Particle():
     def __init__(self, index=-1):
         self.x = 0
@@ -270,6 +272,7 @@ class ParticleFilter():
 
     def __init__(self, robot, num_particles=500,
                  initializer = RandomWithinRadius(),
+                 randomizer = RandomWithinRadius(),
                  motion_model = "default",
                  sensor_model = "default",
                  particle_factory = Particle,
@@ -280,6 +283,8 @@ class ParticleFilter():
         self.num_particles = num_particles
         self.initializer = initializer
         self.initializer.pf = self
+        self.randomizer = randomizer
+        self.randomizer.pf = self
 
         if motion_model == "default":
             motion_model = DefaultVexMotionModel(robot)
@@ -323,11 +328,11 @@ class ParticleFilter():
             #print('pf move: ', end='')
             self.update_variance_estimate()
         if self.robot.carrying:
-            self.robot.world.world_map.update_carried_object(self.robot.carrying)
+            self.robot.world_map.update_carried_object(self.robot.carrying)
 
     def delocalize(self):
         self.state = self.LOST
-        self.initializer.initialize(self.robot)
+        self.randomizer.initialize(self.robot)
         self.update_variance_estimate()
 
     def update_pose_estimate(self):
@@ -488,7 +493,7 @@ class ParticleFilter():
             else:
                 print('  %r' % key, end='')
             print(' at (%6.1f, %6.1f) @ %4.1f deg    +/- (%4.1f,%4.1f)  +/- %3.1f deg' %
-                  (x, y, theta*180/pi, sigma_x, sigma_y, sigma_theta*180/pi))
+                  (x, y, theta, sigma_x, sigma_y, sigma_theta))
         print()
 
     def show_particle(self,args=[]):
@@ -580,7 +585,7 @@ class SLAMParticle(Particle):
         lm_x = self.x + dx
         lm_y = self.y + dy
 
-        if lm_id.startswith('Aruco-') or lm_id.startswith('Wall-'):
+        if lm_id.startswith('ArucoMarker-') or lm_id.startswith('Wall-'):
             lm_orient = wrap_angle(sensor_orient + self.theta)
         else:
             print('Unrecognized landmark type:',lm_id)
@@ -697,7 +702,7 @@ class SLAMSensorModel(SensorModel):
     def is_solo_aruco_landmark(x):
         #return False # **** DEBUG HACK
         "True for independent Aruco landmarks not associated with any wall."
-        return isinstance(x, ArucoMarker) and x.id_string not in wall_marker_dict
+        return isinstance(x, ArucoMarkerObj) and x.marker_id not in wall_marker_dict
 
     def __init__(self, robot, landmark_test=None, landmarks=None,
                  distance_variance=200):
@@ -721,11 +726,11 @@ class SLAMSensorModel(SensorModel):
             (s, (cx, cy)) = wall_spec.marker_specs[id]
 
             if cy < 100:
-                marker_size = self.robot.world.aruco.marker_size
+                marker_size = self.robot.aruco_detector.marker_size
             else:
                 # Compensate for lintel marker foreshortening.
                 # TODO: This could be smarter; make it distance-dependent.
-                marker_size = 0.85 * self.robot.world.aruco.marker_size
+                marker_size = 0.85 * self.robot.aruco_detector.marker_size
 
             world_points.append((cx-s*marker_size/2, cy+marker_size/2, s))
             world_points.append((cx+s*marker_size/2, cy+marker_size/2, s))
@@ -740,8 +745,8 @@ class SLAMSensorModel(SensorModel):
         # Find rotation and translation vector from camera frame using SolvePnP
         (success, rvec, tvec) = cv2.solvePnP(np.array(world_points),
                                                np.array(image_points),
-                                               self.robot.world.aruco.camera_matrix,
-                                               self.robot.world.aruco.distortion_array)
+                                               self.robot.aruco_detector.camera_matrix,
+                                               self.robot.aruco_detector.distortion_array)
         rotationm, jcob = cv2.Rodrigues(rvec)
         # Change to marker frame.
         # Arucos seen head-on have orientation 0, so work with that for now.
@@ -765,7 +770,8 @@ class SLAMSensorModel(SensorModel):
         return wall
 
     def generate_walls_from_markers(self, seen_marker_objects, good_markers):
-        if self.robot.is_moving:
+        return []
+        if self.robot.is_moving():
             return []
         walls = []
         wall_markers = dict()  # key is wall id
@@ -783,7 +789,7 @@ class SLAMSensorModel(SensorModel):
             # in the world map we only require one marker to recognize it.
             # Necessary to avoid spurious wall creation.
             # NOTE: switched to only requiring 1 marker for wall creation.
-            if len(markers) >= 1 or wall_id in self.robot.world.world_map.objects:
+            if len(markers) >= 1 or wall_id in self.robot.world_map.objects:
                 walls.append(self.infer_wall_from_corners_lists(wall_id,markers))
         return walls
 
@@ -793,8 +799,8 @@ class SLAMSensorModel(SensorModel):
         # Call with just_looking=True to just look for new landmarks; no evaluation.
         evaluated = False
 
-        # Don't evaluate if robot is still moving; ArUco info will be bad.
-        if self.robot.is_moving:
+        # Don't evaluate if robot is still moving; ArucoMarker info will be bad.
+        if self.robot.is_moving():
             return False
 
         # Compute robot motion even if forced, to check for robot origin_id change
@@ -825,22 +831,24 @@ class SLAMSensorModel(SensorModel):
         # Evaluate ArUco landmarks
         try:
             # Cache seen marker objects because vision is in another thread.
-            seen_marker_objects = self.robot.world.aruco.seen_marker_objects.copy()
+            #seen_marker_objects = self.robot.aruco_detector.seen_marker_objects.copy()
+            seen_marker_objects = [obj for obj in self.robot.world_map.objects.values()
+                                   if isinstance(obj,ArucoMarkerObj) and obj.is_visible]
         except:
-            seen_marker_objects = dict()
-        for marker in seen_marker_objects.values():
-            if self.landmark_test(marker):
-                evaluated = self.process_landmark(marker.id_string, marker,
+            seen_marker_objects = []
+        for markerobj in seen_marker_objects:
+            if self.landmark_test(markerobj):
+                evaluated = self.process_landmark(markerobj.id, markerobj.marker,
                                                   just_looking, seen_marker_objects) \
                             or evaluated
 
         # Evaluate walls.  First find the set of "good" markers.
         # Good markers have been seen consistently enough to be deemed reliable.
         good_markers = []
-        for marker in seen_marker_objects.values():
-            if marker.id_string in self.robot.world.world_map.objects or \
-               self.candidate_arucos.get(marker.id_string,-1) > 10:
-                good_markers.append(marker.id)
+        for markerobj in seen_marker_objects:
+            if markerobj.id in self.robot.world_map.objects or \
+               self.candidate_arucos.get(markerobj.id,-1) > 2:
+                good_markers.append(markerobj.id)
         walls = self.generate_walls_from_markers(seen_marker_objects, good_markers)
         for wall in walls:
             evaluated = self.process_landmark(wall.id, wall, just_looking, seen_marker_objects) \
@@ -850,7 +858,7 @@ class SLAMSensorModel(SensorModel):
         # Evaluate perched cameras as landmarks
         if self.use_perched_cameras:
             # Add cameras that can see the robot as landmarks.
-            perched = list(self.robot.world.perched.camera_pool.get(self.robot.aruco_id,{}).values())
+            perched = list(self.robot.perched.camera_pool.get(self.robot.aruco_id,{}).values())
             for cam in perched:
                 id = 'Cam-XXX'
                 evaluated = self.process_landmark(id, cam, just_looking, seen_marker_objects) \
@@ -866,31 +874,27 @@ class SLAMSensorModel(SensorModel):
                 self.pf.state = ParticleFilter.LOCALIZED
             elif self.pf.state != ParticleFilter.LOCALIZED:
                 print('not localized because wmax =', wmax)
-            min_log_weight = self.robot.world.particle_filter.min_log_weight
+            min_log_weight = self.robot.particle_filter.min_log_weight
             if wmax < min_log_weight:
                 wt_inc = min_log_weight - wmax
                 # print('wmax=',wmax,'wt_inc=',wt_inc)
                 for p in particles:
                     p.log_weight += wt_inc
-            print('evaluate: ', end='')
-            self.update_variance_estimate()
 
         # Update counts for candidate arucos and delete any losers.
         cached_keys = tuple(self.candidate_arucos.keys())
-        for id in cached_keys:
-            self.candidate_arucos[id] -= 1
-            if self.candidate_arucos[id] <= 0:
+        for id_string in cached_keys:
+            self.candidate_arucos[id_string] -= 1
+            if self.candidate_arucos[id_string] <= 0:
                 #print('*** DELETING CANDIDATE ARUCO', id)
-                del self.candidate_arucos[id]
+                del self.candidate_arucos[id_string]
 
         return evaluated
 
     def process_landmark(self, id, data, just_looking, seen_marker_objects):
-        particles = self.robot.world.particle_filter.particles
-        if id.startswith('Aruco-'):
-            marker_number = int(id[6:])
-            # print('spurious data=',data)
-            marker = seen_marker_objects[marker_number]
+        particles = self.robot.particle_filter.particles
+        if id.startswith('ArucoMarker-'):
+            marker = data
             sensor_dist = marker.camera_distance
             sensor_bearing = atan2(marker.camera_coords[0],
                                    marker.camera_coords[2])
@@ -901,18 +905,6 @@ class SLAMSensorModel(SensorModel):
             sensor_dist = sqrt(data.x**2 + data.y**2)
             sensor_bearing = atan2(data.y, data.x)
             sensor_orient = wrap_angle(data.theta)
-        elif id.startswith('Cube-'):
-            # sdk values are in SDK's coordinate system, not ours
-            sdk_dx = data.pose.position.x - self.robot.pose.position.x
-            sdk_dy = data.pose.position.y - self.robot.pose.position.y
-            sensor_dist = sqrt(sdk_dx**2 + sdk_dy**2)
-            sdk_bearing = atan2(sdk_dy, sdk_dx)
-            # sensor_bearing is lm bearing relative to robot centerline
-            sensor_bearing = \
-                wrap_angle(sdk_bearing-self.robot.pose.rotation.angle_z.radians)
-            # sensor_orient is lm bearing relative to cube's North
-            sensor_orient = \
-                wrap_angle(sdk_bearing - data.pose.rotation.angle_z.radians)
         elif id.startswith('Cam'):
             # Converting to cylindrical coordinates
             sensor_dist = sqrt(landmark.x**2 + landmark.y**2)
@@ -927,9 +919,9 @@ class SLAMSensorModel(SensorModel):
             print("Don't know how to process landmark; id =",id)
 
         if id not in self.landmarks:
-            if id.startswith('Aruco-'):
+            if id.startswith('ArucoMarker-'):
                 seen_count = self.candidate_arucos.get(id,0)
-                if seen_count < 10:
+                if seen_count < 3:
                     # add 2 because we're going to subtract 1 later
                     self.candidate_arucos[id] = seen_count + 2
                     return False
@@ -942,10 +934,10 @@ class SLAMSensorModel(SensorModel):
                     # special function for cameras as landmark list has more variables
                     p.add_cam_landmark(id, sensor_dist, sensor_bearing, sensor_height, sensor_phi, sensor_theta)
             # Add new landmark to sensor model's landmark list so worldmap can reference it
-            #self.landmarks[id] = self.robot.world.particle_filter.particles[0].landmarks[id]
+            #self.landmarks[id] = self.robot.particle_filter.particles[0].landmarks[id]
             self.landmarks[id] = self.pf.best_particle.landmarks[id]
             # Delete new aruco from tentative candidate list; it's established now.
-            if id.startswith('Aruco-'):
+            if id.startswith('ArucoMarker-'):
                 del self.candidate_arucos[id]
             return False
 
@@ -963,8 +955,8 @@ class SLAMSensorModel(SensorModel):
             pp = particles
             evaluated = True
 
-        if id in self.robot.world.world_map.objects:
-            obj = self.robot.world.world_map.objects[id]
+        if id in self.robot.world_map.objects:
+            obj = self.robot.world_map.objects[id]
             should_update_landmark = (not obj.is_fixed) and \
                                      (self.pf.state == ParticleFilter.LOCALIZED)
         else:
@@ -1008,8 +1000,11 @@ class SLAMParticleFilter(ParticleFilter):
             kwargs['particle_factory'] = SLAMParticle
         if 'initializer' not in kwargs:
             kwargs['initializer'] = RobotPosition(0,0,0)
+        if 'randomizer' not in kwargs:
+            kwargs['randomizer'] = RandomWithinRadius()
         super().__init__(robot, **kwargs)
         self.initializer.pf = self
+        self.randomizer.pf = self
         self.new_landmarks = [None] * self.num_particles
 
     def clear_landmarks(self):
@@ -1046,9 +1041,10 @@ class SLAMParticleFilter(ParticleFilter):
     def make_particles_from_landmarks(self):
         try:
             # Cache seen marker objects because vision is in another thread.
-            seen_marker_objects = self.robot.world.aruco.seen_marker_objects.copy()
+            seen_marker_objects = [obj for obj in self.robot.world_map.objects.values()
+                                   if isinstance(obj,ArucoMarkerObj) and obj.is_visible]
         except:
-            seen_marker_objects = dict()
+            seen_marker_objects = []
         lm_specs = self.get_aruco_landmark_specs(seen_marker_objects) + \
                    self.get_wall_landmark_specs(seen_marker_objects)
         if not lm_specs: return False
@@ -1080,10 +1076,10 @@ class SLAMParticleFilter(ParticleFilter):
 
     def get_aruco_landmark_specs(self, seen_marker_objects):
         lm_specs = []
-        for marker in seen_marker_objects.values():
-            id = 'Aruco-'+str(marker.id)
-            lm_pose = self.sensor_model.landmarks.get(id,None)
+        for markerobj in seen_marker_objects:
+            lm_pose = self.sensor_model.landmarks.get(markerobj.id,None)
             if lm_pose is None: continue  # not a familiar landmark
+            marker = markerobj.marker
             sensor_dist = marker.camera_distance
             sensor_bearing = atan2(marker.camera_coords[0],
                                    marker.camera_coords[2])
@@ -1094,9 +1090,10 @@ class SLAMParticleFilter(ParticleFilter):
     def get_wall_landmark_specs(self, seen_marker_objects):
         lm_specs = []
         good_markers = []
-        for marker in seen_marker_objects.values():
-            if marker.id_string in self.robot.world.world_map.objects or \
-               self.sensor_model.candidate_arucos.get(marker.id_string,-1) > 10:
+        return []
+        for marker in seen_marker_objects:
+            if marker.id in self.robot.world_map.objects or \
+               self.sensor_model.candidate_arucos.get(marker.id,-1) > 10:
                 good_markers.append(marker.id)
         walls = self.sensor_model.generate_walls_from_markers(seen_marker_objects, good_markers)
         for wall in walls:
