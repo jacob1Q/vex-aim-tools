@@ -232,7 +232,8 @@ class WorldMap():
         if N_old == 0:
             return
         costs = np.zeros([N_new,N_old])
-        if self.robot.particle_filter.state == self.robot.particle_filter.LOST:
+        if self.robot.particle_filter.state in (self.robot.particle_filter.LOST,
+                                                self.robot.particle_filter.LOCALIZING):
             MAX_ACCEPTABLE_COST = np.inf
         elif otype is ArucoMarkerObj:
             MAX_ACCEPTABLE_COST = 5000  # should adjust based on pf undertainty
@@ -291,10 +292,14 @@ class WorldMap():
         unassociated = [c for c in self.candidates if c.matched is None]
         pending = list(self.pending_objects.keys())
         COST_THRESHOLD = 50
-        if self.robot.particle_filter and self.robot.particle_filter.state == self.robot.particle_filter.LOST:
+        if self.robot.particle_filter and \
+           self.robot.particle_filter.state in (self.robot.particle_filter.LOST,
+                                                self.robot.particle_filter.LOCALIZING):
             if unassociated:
-                print("Not localized: can't add", unassociated)
+                pass # print("Not localized: can't add", unassociated)
             return
+        if self.robot.particle_filter:
+            pass # print('robot.particle_filter.state=', self.robot.particle_filter.state)
         for candidate in unassociated:
             matches = [p for p in pending if self.association_cost(candidate,p) < COST_THRESHOLD]
             if matches:

@@ -40,9 +40,10 @@ class StateMachineProgram(StateNode):
                  viewer_crosshairs = False,  # set to True to draw viewer crosshairs
                  speech = True,
 
-                 landmark_test = SLAMSensorModel.is_solo_aruco_landmark,
                  particle_filter = None,
                  num_particles = 500,
+                 sensor_model = "default",
+                 landmark_test = SLAMSensorModel.is_solo_aruco_landmark,
                  landmarks = None,
                  launch_particle_viewer = False,
                  particle_viewer_scale = 1.0,
@@ -77,6 +78,7 @@ class StateMachineProgram(StateNode):
         self.speech = speech
         self.num_particles = num_particles
         self.landmarks = landmarks
+        self.sensor_model = sensor_model
         #self.landmark_test = landmark_test
         self.launch_particle_viewer = launch_particle_viewer
         self.particle_viewer_scale = particle_viewer_scale
@@ -189,11 +191,11 @@ class StateMachineProgram(StateNode):
                 self.robot.was_picked_up = True
                 #self.stop_children()
         elif self.robot.was_picked_up:
+            self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 50)
             self.robot.was_picked_up = False
-            self.robot.set_pose(0,0,0,0)
+            self.robot.set_pose(0,0,0,0,reset_particles=False)
             self.robot.particle_filter.delocalize()
             self.robot.world_map.update()
-            self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 50)
             #if self.start_node:
             #    self.start_node.start()
 

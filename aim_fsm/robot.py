@@ -87,11 +87,11 @@ class Robot():
                                      self.status['touch_flags'])
             self.erouter.post(touch_event)
 
-    def set_pose(self, x, y, z, theta):
+    def set_pose(self, x, y, z, theta, reset_particles=True):
         self.pose = PoseEstimate(x, y, z, theta)
         x0, y0, heading0 = -y, x, (360 - theta * 180/pi)  # convert to VEX frame
         self.robot0.set_pose(x0, y0, heading0)
-        if self.particle_filter:
+        if self.particle_filter and reset_particles:
             self.particle_filter.set_pose(x,y,theta)
 
     def update_actuators(self):

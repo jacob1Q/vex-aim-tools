@@ -1,6 +1,8 @@
 """
 Particle filter localization.
 """
+import inspect
+
 from .utils import *
 import math
 import random
@@ -292,13 +294,18 @@ class ParticleFilter():
         self.motion_model.pf = self
 
         if sensor_model == "default":
-            sensor_model = ArucoCombinedSensorModel(robot)
-        elif isinstance(sensor_model, type):
-            sensor_model = sensor_model(robot)
-        if sensor_model:
-            sensor_model.set_landmarks(landmarks)
-        self.sensor_model = sensor_model
-        self.sensor_model.pf = self
+            self.sensor_model = ArucoCombinedSensorModel(robot)
+        elif isinstance(sensor_model, SensorModel):
+            self.sensor_model = sensor_model
+        elif callable(sensor_model):
+            self.sensor_model = sensor_model(robot)
+        elif inspect.isclass(sensor_model) and issubclass(sensor_model, SensorModel):
+            self.sensor_model = sensor_model(robot)
+        else:
+            self.sensor_model = None
+        if self.sensor_model:
+            self.sensor_model.set_landmarks(landmarks)
+            self.sensor_model.pf = self
 
         self.particle_factory = particle_factory
         self.particles = [particle_factory(i) for i in range(num_particles)]
@@ -378,7 +385,13 @@ class ParticleFilter():
         theta_var = max(0, 1 - Rav)
         self.variance = (xy_var, theta_var)
         #print('update_variance_estimate:', pose, self.variance)
+        rough_var = max(abs(var_xx), abs(var_yy))
+        #print('rough_var=', rough_var, 'state=', self.state)
         return self.variance
+        if rough_var > 1000:
+            self.state = ParticleFilter.LOST
+        elif rough_var > 100:
+            self.state = ParticleFilter.LOCALIZING
 
     def update_weights(self):
         # Clip the log_weight values and calculate the new weights.
@@ -870,7 +883,7 @@ class SLAMSensorModel(SensorModel):
             for p in particles:
                 wmax = max(wmax, p.log_weight)
             if wmax > -5.0 and self.pf.state != ParticleFilter.LOCALIZED:
-                print('::: LOCALIZED :::')
+                #print('::: LOCALIZED :::')
                 self.pf.state = ParticleFilter.LOCALIZED
             elif self.pf.state != ParticleFilter.LOCALIZED:
                 print('not localized because wmax =', wmax)
@@ -1072,6 +1085,7 @@ class SLAMParticleFilter(ParticleFilter):
                 print('    lm_pose[1]=',lm_pose[1]*180/pi, '  sensor_orient=',sensor_orient*180/pi,
                       '  phi=',phi*180/pi)
                 print('lm_pose = ', lm_pose)
+        self.state = ParticleFilter.LOCALIZING
         return True
 
     def get_aruco_landmark_specs(self, seen_marker_objects):
