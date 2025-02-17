@@ -79,12 +79,15 @@ def cli_loop(_robot):
     cli_globals = globals()
     cli_globals['ans'] = None
 
-    running_fsm = aim_fsm.program.running_fsm = StateMachineProgram()
+    running_fsm = aim_fsm.program.running_fsm = None
     cli_globals['running_fsm'] = running_fsm
-    robot.loop.call_soon_threadsafe(running_fsm.start)
     if file_to_run:
         time.sleep(0.25)
         runfsm(file_to_run)
+    else:
+        running_fsm = aim_fsm.program.running_fsm = StateMachineProgram()
+        cli_globals['running_fsm'] = running_fsm
+        robot.loop.call_soon_threadsafe(running_fsm.start)
 
     cli_loop._console = code.InteractiveConsole()
     time.sleep(0.5) # give time for Windows to pop up before prompting

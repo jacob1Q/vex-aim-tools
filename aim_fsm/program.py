@@ -227,11 +227,13 @@ class StateMachineProgram(StateNode):
 
     def process_image(self,image):
         # Aruco image processing
+        gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
         if self.aruco:
-            gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
             self.robot.aruco_detector.process_image(gray)
         # Other image processors can run here if the user supplies them.
         self.user_image(image,gray)
+        annotated_im = self.user_annotate(image)
+
         # Done with image processing
 
         """

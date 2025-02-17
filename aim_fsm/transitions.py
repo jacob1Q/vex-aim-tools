@@ -113,7 +113,7 @@ class TimerTrans(Transition):
         if not isinstance(duration, (int, float)) or duration < 0:
             raise ValueError("TimerTrans requires a positive number for duration, not %s" % duration)
         super().__init__()
-        self.set_polling_interval(duration)
+        self.polling_interval = duration
 
     def poll(self):
         if not self.running: return
