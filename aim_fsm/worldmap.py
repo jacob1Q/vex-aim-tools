@@ -232,7 +232,8 @@ class WorldMap():
         if N_old == 0:
             return
         costs = np.zeros([N_new,N_old])
-        if self.robot.particle_filter.state in (self.robot.particle_filter.LOST,
+        if self.robot.particle_filter and \
+           self.robot.particle_filter.state in (self.robot.particle_filter.LOST,
                                                 self.robot.particle_filter.LOCALIZING):
             MAX_ACCEPTABLE_COST = np.inf
         elif otype is ArucoMarkerObj:
