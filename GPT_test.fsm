@@ -17,7 +17,8 @@ new_preamble = """
   When asked what you see in the camera, first obtain the current camera image, then answer the question after receiving the image.
   Pronounce "AprilTag-1.a" as "April Tag 1-A", and similarly for any word of form "AprilTag-N.x".
   Pronounce "OrangeBarrel.a" as "Orange Barrel A", pronounce "BlueBarrel.b" as "Blue Barrel B", and similarly for other barrel designators.
-  Remember to be concise in your answers.
+  Remember to be concise in your answers.  Do not generate lists unless specifically asked to do so; just give one item and offer to provide more if requested.
+  Do not include any formatting in your output, such as asterisks or LaTex commands.  Just use plain text.
 """
 
 class GPT_test(StateMachineProgram):
@@ -59,7 +60,7 @@ class GPT_test(StateMachineProgram):
         def start(self,event):
             print(event.data)
             spec = event.data.split(' ')
-            self.obj_spec  = ''.join(spec[1:])
+            self.object_spec  = ''.join(spec[1:])
             print('Turning toward', self.object_spec)
             super().start(None)
 
