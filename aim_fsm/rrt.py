@@ -28,7 +28,7 @@ class RRTNode():
         return RRTNode(self.parent, self.x, self.y, self.q, self.radius)
 
     def __repr__(self):
-        if isnan(self.q):
+        if not self.q or isnan(self.q):
             return '<RRTNode (%.1f,%.1f)>' % (self.x, self.y)
         elif not self.parent:
             return '<RRTNode (%.1f,%.1f)@%d deg>' % \
@@ -119,16 +119,16 @@ class RRT():
         dy = target.y - node.y
         distsq = dx*dx + dy*dy
         q = atan2(dy,dx)
-        dq = wrap_angle(q - node.q)
+        dq = wrap_angle(q - (node.q or 0))
         if abs(dq) > self.max_turn:
             dq = self.max_turn if dq > 0 else -self.max_turn
-            q = wrap_angle(node.q + dq)
+            q = wrap_angle((node.q or 0) + dq)
         if abs(dq) >= self.q_tol:
             # Must be able to turn to the new heading without colliding
             turn_dir = +1 if dq >= 0 else -1
             q_inc = turn_dir * self.q_tol
             while abs(q_inc - dq) > self.q_tol:
-                if self.collides(RRTNode(x=node.x, y=node.y, q=node.q+q_inc)):
+                if self.collides(RRTNode(x=node.x, y=node.y, q=(node.q or 0)+q_inc)):
                     return (self.COLLISION, None)
                 q_inc += turn_dir * self.q_tol
         if distsq < self.xy_tolsq:
@@ -170,13 +170,13 @@ class RRT():
     def plan_push_chip(self, start, goal, max_turn=20*(pi/180), arc_radius=40.):
         return self.plan_path(start, goal, max_turn, arc_radius)
 
-    def plan_path(self, start, goal, max_turn=pi, arc_radius=40):
+    def plan_path(self, start, goal, goal_object=None, max_turn=pi, arc_radius=40):
         self.max_turn = max_turn
         self.arc_radius = arc_radius
         if self.auto_obstacles:
             obstacle_inflation = 5
             doorway_adjustment = 20  # widen doorways for RRT
-            self.generate_obstacles(obstacle_inflation, doorway_adjustment)
+            self.generate_obstacles(goal_object, obstacle_inflation, doorway_adjustment)
         self.start = start
         self.goal = goal
         self.target_heading = goal.q
@@ -192,32 +192,27 @@ class RRT():
         self.treeA = treeA
 
         # Set up treeB with goal node(s)
-        if not isnan(self.target_heading):
+        if self.target_heading and  not isnan(self.target_heading):
             offset_x = goal.x + center_of_rotation_offset * cos(goal.q)
             offset_y = goal.y + center_of_rotation_offset * sin(goal.q)
-            offset_goal = RRTNode(x=offset_x, y=offset_y, q=goal.q)
+            offset_goal = RRTNode(x=offset_x, y=offset_y, q=goal.q or 0)
             collider = self.collides(offset_goal)
             if collider:
                 raise GoalCollides(goal,collider,collider.obstacle_id)
             treeB = [offset_goal]
             self.treeB = treeB
-        else:  # target_heading is nan
+        else:  # target_heading is None or nan
             treeB = [goal.copy()]
             self.treeB = treeB
             temp_goal = goal.copy()
             offset_goal = goal.copy()
             for theta in range(0,360,10):
                 q = theta/180*pi
-                step = max(self.step_size, abs(center_of_rotation_offset))
+                step = self.step_size
                 temp_goal.x = goal.x + step*cos(q)
                 temp_goal.y = goal.y + step*sin(q)
                 temp_goal.q = wrap_angle(q+pi)
                 collider = self.collides(temp_goal)
-                if collider: continue
-                offset_goal.x = temp_goal.x + center_of_rotation_offset * cos(q)
-                offset_goal.y = temp_goal.y + center_of_rotation_offset * sin(q)
-                offset_goal.q = temp_goal.q
-                collider = self.collides(offset_goal)
                 if not collider:
                     treeB.append(RRTNode(parent=treeB[0], x=temp_goal.x, y=temp_goal.y, q=temp_goal.q))
             if len(treeB) == 1:
@@ -284,13 +279,13 @@ class RRT():
             pathB = []
             while nodeB.parent is not None:
                 nodeB = nodeB.parent
-                (nodeB.q, prev_heading) = (prev_heading, wrap_angle(nodeB.q+pi))
+                (nodeB.q, prev_heading) = (prev_heading, wrap_angle((nodeB.q or 0) + pi))
                 pathB.append(nodeB.copy())
         (pathA,pathB) = self.join_paths(pathA,pathB)
         self.path = pathA + pathB
         self.smooth_path()
         target_q = self.target_heading
-        if not isnan(target_q):
+        if target_q and not isnan(target_q):
             # Last nodes turn to desired final heading
             last = self.path[-1]
             goal = RRTNode(parent=last, x=self.goal.x, y=self.goal.y,

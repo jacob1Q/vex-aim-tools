@@ -72,15 +72,19 @@ class PilotBase(StateNode):
 
             self.robot.rrt.draw_path = navplan.extract_path()
             #print('ReceivePlan: draw_path=', self.robot.world.rrt.draw_path)
-            self.robot.world.rrt.grid_display = grid_display
+            self.robot.rrt.grid_display = grid_display
             self.post_event(DataEvent(navplan))
 
     class PilotExecutePlan(StateNode):
         def start(self, event=None):
             if not isinstance(event, DataEvent) and isinstance(event.data, NavPlan):
                 raise ValueError(event)
-            self.navplan = event.data
             self.index = 0
+            if self.parent.execute:
+                self.navplan = event.data
+            else:
+                self.parent.parent.post_completion()
+                return
             super().start(event)
 
         class DispatchStep(StateNode):
@@ -199,27 +203,35 @@ class PilotToObject(PilotBase):
 
 class PilotToPose(PilotBase):
     "Use the rrt path planner for short-range navigation to a specific pose."
-    def __init__(self, target_pose=None, verbose=False, max_iter=RRT.DEFAULT_MAX_ITER):
+    def __init__(self, target_pose=None, verbose=False, max_iter=RRT.DEFAULT_MAX_ITER, execute=True):
         super().__init__()
         self.target_pose = target_pose
         self.verbose = verbose
         self.max_iter = max_iter
+        self.execute = execute
 
     def start(self, event=None):
-        if isinstance(event, DataEvent) and isinstance(event.data, Pose):
-            self.target_pose = event.data
-        self.robot.rrt.max_iter = self.max_iter
-        super().start(self)
+        print('event=',event, event.data)
+        if isinstance(event, DataEvent):
+            if isinstance(event.data, WorldObject):
+                self.target_object = event.data
+                self.target_pose = event.data.pose
+            elif isinstance(event.data, Pose):
+                self.target_object = None
+                self.target_pose = event.data
+            else:
+                raise ValueError(event.data)
+            self.robot.rrt.max_iter = self.max_iter
+        super().start(event)
 
     class PilotRRTPlanner(StateNode):
         def planner(self,start_node,goal_node):
-            return self.robot.rrt.plan_path(start_node,goal_node)
+            return self.robot.rrt.plan_path(start_node,goal_node, goal_object=self.parent.target_object)
 
         def start(self,event=None):
             super().start(event)
             tpose = self.parent.target_pose
-            if tpose is None or (tpose.position.x == 0 and tpose.position.y == 0 and
-                                 tpose.rotation.angle_z.radians == 0 and not tpose.is_valid):
+            if tpose is None or (tpose.x == 0 and tpose.y == 0 and tpose.theta == 0):
                 print("Pilot: target pose is invalid: %s" % tpose)
                 self.parent.post_event(PilotEvent(InvalidPose, pose=tpose))
                 self.parent.post_failure()
@@ -249,7 +261,7 @@ class PilotToPose(PilotBase):
                                         y=start_node.y + d*sin(new_q),
                                         q=new_q)
                     # print('trying start escape', new_start)
-                    if not self.robot.world.rrt.collides(new_start):
+                    if not self.robot.rrt.collides(new_start):
                         start_escape_move = (phi, start_node, new_start)
                         start_node = new_start
                         break
@@ -285,16 +297,16 @@ class PilotToPose(PilotBase):
 
             if self.parent.verbose:
                 print('Path planner generated',len(treeA)+len(treeB),'nodes.')
-            if self.parent.robot.world.path_viewer:
-                self.parent.robot.world.path_viewer.add_tree(path, (1,0,0,0.75))
+            if self.parent.robot.path_viewer:
+                self.parent.robot.path_viewer.add_tree(path, (1,0,0,0.75))
 
-            self.robot.world.rrt.draw_path = path
+            self.robot.rrt.draw_path = path
 
             # Construct the nav plan
             if self.parent.verbose:
                 [print(' ',x) for x in path]
 
-            doors = self.robot.world.world_map.generate_doorway_list()
+            doors = [] # self.robot.world_map.generate_doorway_list()
             navplan = PathPlanner.from_path(path, doors)
             print('navplan=',navplan, '   steps=',navplan.steps)
 
@@ -341,10 +353,8 @@ class PilotToPose(PilotBase):
     class CheckArrival(StateNode):
         def start(self, event=None):
             super().start(event)
-            pf_pose = self.robot.world.particle_filter.pose
-            current_pose = Pose(pf_pose[0], pf_pose[1], 0, angle_z=radians(pf_pose[2]))
-            pose_diff = current_pose - self.parent.target_pose
-            distance = (pose_diff.position.x**2 + pose_diff.position.y**2) ** 0.5
+            pose_diff = self.robot.pose - self.parent.target_pose
+            distance = (pose_diff.x**2 + pose_diff.y**2) ** 0.5
             MAX_TARGET_DISTANCE = 50.0 # mm
             if distance <= MAX_TARGET_DISTANCE:
                 self.post_success()
@@ -378,8 +388,8 @@ class PilotPushToPose(PilotToPose):
         self.max_turn = 20*(pi/180)
 
     def planner(self,start_node,goal_node):
-        self.robot.world.rrt.step_size=20
-        return self.robot.world.rrt.plan_push_chip(start_node,goal_node)
+        self.robot.rrt.step_size=20
+        return self.robot.rrt.plan_push_chip(start_node,goal_node)
 
 
 class PilotFrustration(StateNode):
@@ -407,7 +417,7 @@ class PilotFrustration(StateNode):
                 self.text = 'Can\'t reach %s' % object_name
             else:
                 self.text = 'stuck'
-            self.robot.world.rrt.text = self.text
+            self.robot.rrt.text = self.text
             super().start(event)
 
 
