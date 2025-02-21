@@ -205,6 +205,23 @@ class Turn(ActionNode):
         self.robot.actuators['drive'].unlock_if_held(self)
 
 
+class DrivePath(ActionNode):
+    def __init__(self, path = []):
+        super().__init__()
+        self.path = path
+
+    def start(self,event=None):
+        super().start(event)
+        if isinstance(event, DataEvent) and isinstance(event.data,(list,tuple)):
+            self.path = event.data
+        if len(self.path) == 0:
+            raise ValueError('Node %s has a null path' % repr(self))
+        print('DrivePath: path=', path)
+        self.path_index = 0
+        self.cur = self.path[self.path_index]
+        self.prev = None
+
+
 class ObjectSpecNode():
     "Supply a get_object_from_spec method for subclasses to use"
     def get_object_from_spec(self,spec):

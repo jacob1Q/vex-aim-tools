@@ -15,6 +15,8 @@ from .thesaurus import Thesaurus
 from .openai_client import OpenAIClient
 from .aruco import *
 from .worldmap import *
+from .rrt import RRT
+from .path_planner import PathPlanner
 from .utils import Pose, PoseEstimate
 from . import program
 
@@ -31,12 +33,15 @@ class Robot():
         self.kine = AIMKinematics(self)
         self.world_map = WorldMap(self)
         self.worldmap_viewer = None
+        self.rrt = RRT(self)
+        self.path_planner= PathPlanner()
         self.aruco_detector = None
         acts = [DriveActuator(self), SoundActuator(self), KickActuator(self), LEDsActuator(self)]
         self.actuators = {act.name : act for act in acts}
         self.erouter = EventRouter(self)
         self.particle_filter = None
         self.particle_viewer = None
+        self.path_viewer = None
         self.cam_viewer = None
         self.touch = '0x00'
         self.flask_thread = None

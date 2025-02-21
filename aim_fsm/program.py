@@ -21,8 +21,8 @@ from .worldmap import WorldMap
 from .particle import *
 from .utils import Pose
 from .particle_viewer import ParticleViewer
-#from .rrt import RRT
-#from .path_viewer import PathViewer
+from .rrt import RRT
+from .path_viewer import PathViewer
 from . import opengl
 #from . import custom_objs
 #from .perched import *
@@ -47,6 +47,7 @@ class StateMachineProgram(StateNode):
                  landmarks = None,
                  launch_particle_viewer = False,
                  particle_viewer_scale = 1.0,
+                 launch_path_viewer = False,
                  aruco = True,
                  dictionary_name = cv2.aruco.DICT_4X4_100,
                  aruco_disabled_ids = (17, 37),
@@ -55,7 +56,6 @@ class StateMachineProgram(StateNode):
                  perched_cameras = False,
 
                  rrt = None,
-                 path_viewer = False,
                  ):
         super().__init__()
         self.name = self.__class__.__name__.lower()
@@ -82,6 +82,7 @@ class StateMachineProgram(StateNode):
         #self.landmark_test = landmark_test
         self.launch_particle_viewer = launch_particle_viewer
         self.particle_viewer_scale = particle_viewer_scale
+        self.launch_path_viewer = launch_path_viewer
         #self.picked_up_callback = self.robot_picked_up
         self.put_down_handler = self.robot_put_down
 
@@ -107,9 +108,6 @@ class StateMachineProgram(StateNode):
         #self.robot.world_map.is_server = True # Writes directly into perched.camera_pool
 
         self.launch_worldmap_viewer = launch_worldmap_viewer
-
-        self.rrt = rrt
-        self.path_viewer = path_viewer
 
     def start(self):
         global running_fsm
@@ -153,13 +151,10 @@ class StateMachineProgram(StateNode):
                     ParticleViewer(self.robot, scale=self.particle_viewer_scale)
                 self.robot.particle_viewer.start()
 
-        if self.path_viewer:
-            if self.path_viewer is True:
-                self.path_viewer = PathViewer(self.robot, self.robot.world.rrt)
-            else:
-                self.path_viewer.set_rrt(self.robot.world.rrt)
-            self.path_viewer.start()
-        self.robot.path_viewer = self.path_viewer
+        if self.launch_path_viewer:
+            if not self.robot.path_viewer:
+                self.robot.path_viewer = PathViewer(self.robot, self.robot.rrt)
+            self.robot.path_viewer.start()
 
         if self.speech:
             self.robot.speech_listener.enable()

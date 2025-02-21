@@ -3,7 +3,7 @@ from math import pi, tan
 from .kine import *
 from . import geometry
 from .geometry import tprint, point, translation_part, rotation_part
-#from .rrt_shapes import *
+from .rrt_shapes import *
 
 # ================ Constants ================
 
@@ -11,7 +11,7 @@ body_diameter = 57 # mm
 robot_height = 72 # mm
 kicker_extension = 15 # mm
 camera_angle = 18 # degrees (design spec)
-camera_angle = 25 # degrees (measured)
+camera_angle = 23 # degrees (measured)
 camera_height = 43.47 # mm
 camera_from_origin = 27 # mm (approx)
 
@@ -20,7 +20,10 @@ camera_from_origin = 27 # mm (approx)
 class AIMKinematics(Kinematics):
     def __init__(self,robot):
         base_frame = Joint('base',
-                           description='Base frame: the root of the kinematic tree')
+                           description='Base frame: the root of the kinematic tree',
+                           collision_model = Circle(geometry.point(),
+                                                    radius=body_diameter/2,
+                                                    obstacle_id = 'robot'))
 
         # Use link instead of joint for world_frame
         world_frame = Joint('world', parent=base_frame, type='world', getter=self.get_world,

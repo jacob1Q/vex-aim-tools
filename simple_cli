@@ -228,10 +228,10 @@ def show_stuff(args):
         if not robot.particle_viewer:
             robot.particle_viewer = ParticleViewer(robot)
             robot.particle_viewer.start()
-#    elif spec == "path_viewer":
-#        if not robot.path_viewer:
-#            robot.path_viewer = PathViewer(robot,world.rrt)
-#            robot.path_viewer.start()
+    elif spec == "path_viewer":
+        if not robot.path_viewer:
+            robot.path_viewer = PathViewer(robot, robot.rrt)
+            robot.path_viewer.start()
     elif spec == "worldmap_viewer":
         if not robot.worldmap_viewer:
             robot.worldmap_viewer = WorldMapViewer(robot)

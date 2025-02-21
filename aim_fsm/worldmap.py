@@ -69,7 +69,8 @@ class AprilTagObj(WorldObject):
         self.spec = spec
         self.name = spec['name']
         self.tag_id = spec['id']
-        self.diameter = 22 # mm
+        self.base_diameter = 22 # mm
+        self.width = 38 # mm
 
     def __repr__(self):
         vis = "visible" if self.is_visible else "unseen"
