@@ -37,7 +37,7 @@ class PathPlanner():
     # itself is treated as a point.  Since the robot is longer than it is wide,
     # an inflation value less than the length (95 mm) could miss a collision if
     # the robot turns.
-    fat_obstacle_inflation = 50  # must be << pilot's escape_distance
+    fat_obstacle_inflation = 10  # must be << pilot's escape_distance
     fat_wall_inflation = 35
     fat_doorway_adjustment = -62
 
