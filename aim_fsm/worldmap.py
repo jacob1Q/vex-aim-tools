@@ -15,6 +15,7 @@ class WorldObject():
         self.is_fixed = False   # True for walls and markers in predefined maps
         self.is_obstacle = True
         self.is_visible = is_visible
+        self.is_missing = False
         self.is_valid = True
         self.is_foreign = False
         if is_visible:
@@ -23,7 +24,12 @@ class WorldObject():
             self.pose_confidence = -1
 
     def __repr__(self):
-        vis = "visible" if self.is_visible else "unseen"
+        if self.is_visible:
+            vis = "visible"
+        elif self.is_missing:
+            vis = "missing"
+        else:
+            vis = "unseen"
         return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f})>'
 
     def update_matched_object(self):
@@ -35,6 +41,7 @@ class WorldObject():
         if hasattr(self, 'marker'):
             self.matched.marker = self.marker
         self.matched.is_visible = True
+        self.matched.is_missing = False
 
 class BarrelObj(WorldObject):
     def __init__(self, spec):
@@ -259,6 +266,7 @@ class WorldMap():
             if candidate.matched:
                 candidate.update_matched_object()
                 self.updated_objects.append(candidate.matched)
+                candidate.matched.is_missing = False
                 if candidate.matched in self.missing_objects:
                     self.missing_objects.remove(candidate.matched)
 
@@ -282,6 +290,7 @@ class WorldMap():
             if obj not in self.updated_objects and self.should_be_visible(obj):
                 if obj not in self.missing_objects:
                     obj.is_visible = False
+                    obj.is_missing = True
                     self.missing_objects.append(obj)
                     #print('missing object:', obj)
 

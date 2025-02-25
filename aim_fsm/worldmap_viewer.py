@@ -860,6 +860,8 @@ class WorldMapViewer():
         else:
             items = tuple(self.robot.world_map.objects.items())
         for (key,obj) in items:
+            if obj.is_missing:
+                continue
             if isinstance(obj, (worldmap.OrangeBarrelObj, worldmap.BlueBarrelObj)):
                 self.make_barrel(obj)
             elif isinstance(obj, worldmap.BallObj):
