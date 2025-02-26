@@ -392,6 +392,13 @@ class WorldMap():
         prompt += f'Your heading is {round(self.robot.pose.theta*180/pi)} degrees\n'
         prompt += f'Your battery level is {self.robot.battery_percentage} percent.\n'
         for (id,obj) in self.objects.items():
-            prompt += f'{id} is located at ({round(obj.pose.x)}, {round(obj.pose.y)}) ' + \
-                f'and is {"visible" if obj.is_visible else "not visible"}\n'
+            if not obj.is_missing:
+                if obj.is_visible:
+                    vis = "visible"
+                else:
+                    vis = "not vislbie"
+                prompt += f'{id} is located at ({round(obj.pose.x)}, {round(obj.pose.y)}) ' + \
+                    f'and is {vis}\n'
+            else:
+                prompt += f'{id} is missing\n'
         return prompt
