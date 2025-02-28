@@ -12,6 +12,7 @@ from .particle_viewer import ParticleViewer
 from .path_viewer import PathViewer
 from .robot import Robot
 from .worldmap import *
+from . import wall_defs
 from .worldmap_viewer import WorldMapViewer
 from .rrt import *
 from .wavefront import WaveFront

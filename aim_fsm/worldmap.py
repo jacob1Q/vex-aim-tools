@@ -1,4 +1,6 @@
+import math
 import numpy as np
+import cv2
 
 from .geometry import *
 from .utils import *
@@ -102,6 +104,35 @@ class ArucoMarkerObj(WorldObject):
             return f'<ArucoMarkerObj {self.id[12:]}: position unknown>'
         
 
+class WallObj(WorldObject):
+    def __init__(self, wall_spec, x=0, y=0, z=0, theta=0):
+        super().__init__(x=x, y=y, z=z, theta=theta)
+        self.wall_spec = wall_spec
+        self.name = wall_spec.label
+        self.length = wall_spec.length
+        self.height = wall_spec.height
+        self.is_fixed = True
+
+    def __repr__(self):
+        vis = 'visible' if self.is_visible else 'unseen'
+        return f'<WallObj {self.name} ({self.pose.x:.1f}, {self.pose.y:.1f}) @ {self.pose.theta*180/pi:.1f} deg. {vis}>'
+
+wall_marker_dict = dict()
+
+class WallSpec():
+    def __init__(self, label=None, length=100, height=210, marker_specs=dict(), doorways=dict()):
+        self.length = length
+        self.height = height
+        self.marker_specs = marker_specs
+        self.doorways = doorways
+        marker_id_numbers = list(marker_specs.keys())
+        self.label = label or f'Wall-{min(marker_id_numbers)}'
+        global wall_marker_dict
+        for id in marker_id_numbers:
+            wall_marker_dict[id] = self
+        wall_marker_dict[self.label] = self
+
+
 ################################################################
 
 class WorldMap():
@@ -140,6 +171,7 @@ class WorldMap():
         self.candidates = list()
         self.make_new_aiv_objects()
         if self.robot.aruco_detector:
+            self.make_new_wall_objects()
             self.make_new_aruco_objects()
 
     def make_object(self, spec):
@@ -205,8 +237,79 @@ class WorldMap():
             obj.pose = Pose(x, y, 0, theta)
             self.candidates.append(obj)
 
+    def make_new_wall_objects(self):
+        seen = self.robot.aruco_detector.seen_marker_objects.copy()
+        wall_markers = dict()
+        for (id,marker) in seen.items():
+            if id in wall_marker_dict:
+                spec = wall_marker_dict[id]
+                if spec.label not in wall_markers:
+                    wall_markers[spec.label] = list()
+                wall_markers[spec.label].append((id,marker))
+        for (wall_id,markers) in wall_markers.items():
+            wall = self.infer_wall_from_corners_lists(wall_id, markers)
+            self.candidates.append(wall)
+
+    def infer_wall_from_corners_lists(self, wall_id, markers):
+        # All these markers have the same wall_spec, so just grab the first one.
+        wall_spec = wall_marker_dict[wall_id]
+        marker_size = self.robot.aruco_detector.marker_size
+        world_points = []
+        image_points = []
+        for (id, marker) in markers:
+            s = wall_spec.marker_specs[id]['side']
+            cx = wall_spec.marker_specs[id]['x']
+            cy = wall_spec.marker_specs[id]['y']
+            world_points.append((cx-s*marker_size/2, cy+marker_size/2, s))
+            world_points.append((cx+s*marker_size/2, cy+marker_size/2, s))
+            world_points.append((cx+s*marker_size/2, cy-marker_size/2, s))
+            world_points.append((cx-s*marker_size/2, cy-marker_size/2, s))
+
+            corners = marker.bbox[0]
+            image_points.append(corners[0])
+            image_points.append(corners[1])
+            image_points.append(corners[2])
+            image_points.append(corners[3])
+
+        # Find rotation and translation vector from camera frame using SolvePnP
+        (success, rvecs, tvecs) = cv2.solvePnP(np.array(world_points),
+                                               np.array(image_points),
+                                               self.robot.aruco_detector.camera_matrix,
+                                               self.robot.aruco_detector.distortion_array)
+        rotationm, jcob = cv2.Rodrigues(rvecs)
+        # Change to marker frame.
+        # Arucos seen head-on have orientation 0, so work with that for now.
+        # Later we will flip the orientation to pi for the worldmap.
+        transformed = np.matrix(rotationm).T*(-np.matrix(tvecs))
+        angles_xyz = rotation_matrix_to_euler_angles(rotationm)
+        # euler angle flip when back of wall is seen
+        if angles_xyz[2] > pi/2:
+            wall_orient = wrap_angle(-(angles_xyz[1]-pi))
+        elif angles_xyz[2] >= -pi/2 and angles_xyz[2] <= pi/2:
+            wall_orient = wrap_angle((angles_xyz[1]))
+        else:
+            wall_orient = wrap_angle(-(angles_xyz[1]+pi))
+
+        wall_x = -transformed[2]*cos(wall_orient) + (transformed[0]-wall_spec.length/2)*sin(wall_orient)
+        wall_y = (transformed[0]-wall_spec.length/2)*cos(wall_orient) - -transformed[2]*sin(wall_orient)
+        #print('# markers=', len(markers), '   wall_x=', wall_x, '  wall_y=', wall_y)
+        #import pdb
+        #breakpoint()
+        # Flip wall orientation to match ArUcos for worldmap
+        wm_wall_orient = wrap_angle(pi - wall_orient)
+        rel_coords = aboutZ(self.robot.pose.theta).dot(point(wall_x[0,0], wall_y[0,0]))
+        x = self.robot.pose.x + rel_coords[0,0]
+        y = self.robot.pose.y + rel_coords[1,0]
+        wall = WallObj(wall_spec, x=x, y=y, theta=wrap_angle(self.robot.pose.theta + wm_wall_orient))
+        wall.sensor_distance = math.sqrt(wall_x[0,0]**2 + wall_y[0,0]**2)
+        return wall
+
+
+
     def make_new_aruco_objects(self):
         for (id,marker) in self.robot.aruco_detector.seen_marker_objects.items():
+            #if id in wall_marker_dict:
+            #   continue
             name = f'ArucoMarker-{id}'
             spec = {'name': name, 'id': id, 'marker': marker}
             sensor_dist = marker.camera_distance
@@ -230,7 +333,8 @@ class WorldMap():
             self.associate_objects_of_type(otype)
 
     def association_cost(self, obj1, obj2):
-        return ((obj1.pose.x-obj2.pose.x)**2 + (obj1.pose.y-obj2.pose.y)**2)
+        cost = ((obj1.pose.x-obj2.pose.x)**2 + (obj1.pose.y-obj2.pose.y)**2)
+        return cost
 
     def associate_objects_of_type(self, otype):
         new = [c for c in self.candidates if type(c) is otype]
@@ -244,7 +348,7 @@ class WorldMap():
            self.robot.particle_filter.state in (self.robot.particle_filter.LOST,
                                                 self.robot.particle_filter.LOCALIZING):
             MAX_ACCEPTABLE_COST = np.inf
-        elif otype is ArucoMarkerObj:
+        elif otype in (ArucoMarkerObj, WallObj):
             MAX_ACCEPTABLE_COST = 5000  # should adjust based on pf undertainty
         else:
             MAX_ACCEPTABLE_COST = 200  # should adjust based on pf undertainty

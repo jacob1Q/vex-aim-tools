@@ -125,6 +125,7 @@ color_light_green  = (0., 0.5, 0.)
 color_blue   = (0.28, 0.44, 0.95)
 color_cyan   = (0., 1.0, 1.0)
 color_yellow = (0.8, 0.8, 0.)
+color_dark_yellow = (0.6, 0.6, 0.)
 color_orange = (1., 0.5, .063)
 color_gray =   (0.5, 0.5, 0.5)
 color_light_gray =   (0.65, 0.65, 0.65)
@@ -360,46 +361,51 @@ class WorldMapViewer():
 
     def make_wall(self,wall_obj):
         global gl_lists
-        wall_spec = worldmap.wall_marker_dict[wall_obj.id]
+        wall_spec = worldmap.wall_marker_dict[wall_obj.name]
         half_length = wall_obj.length / 2
         half_height = wall_obj.height / 2
-        door_height = wall_obj.door_height
+        door_height = 115 # wall_obj.door_height
         wall_thickness = 4.0
         widths = []
         last_x = -half_length
         edges = [ [0, -half_length, door_height/2, 1.] ]
-        for (center,width) in wall_spec.doorways:
+        for door_spec in wall_spec.doorways.values():
+            center = door_spec['x']
+            width = door_spec['width']
+            height = door_spec['height']
             left_edge = center - width/2 - half_length
-            edges.append([0., left_edge, door_height/2, 1.])
+            edges.append([0., left_edge, height/2, 1.])
             widths.append(left_edge - last_x)
             right_edge = center + width/2 - half_length
-            edges.append([0., right_edge, door_height/2, 1.])
+            edges.append([0., right_edge, height/2, 1.])
             last_x = right_edge
         edges.append([0., half_length, door_height/2, 1.])
         widths.append(half_length-last_x)
         edges = np.array(edges).T
-        edges = geometry.aboutZ(wall_obj.theta).dot(edges)
-        edges = geometry.translate(wall_obj.x,wall_obj.y).dot(edges)
+        edges = geometry.aboutZ(wall_obj.pose.theta).dot(edges)
+        edges = geometry.translate(wall_obj.pose.x,wall_obj.pose.y).dot(edges)
         c = glGenLists(1)
         glNewList(c, GL_COMPILE)
         if wall_obj.is_foreign:
             color = color_white
-        else:
+        elif wall_obj.is_visible:
             color = color_yellow
-        for i in range(0,len(widths)):
+        else:
+            color = color_dark_yellow
+        for i in range(0, len(widths)):
             center = edges[:, 2*i : 2*i+2].mean(1).reshape(4,1)
-            dimensions=(wall_thickness, widths[i], wall_obj.door_height)
+            dimensions=(wall_thickness, widths[i], door_height)
             glPushMatrix()
             glTranslatef(*center.flatten()[0:3])
-            glRotatef(wall_obj.theta*180/pi, 0, 0, 1)
+            glRotatef(wall_obj.pose.theta*180/pi, 0, 0, 1)
             self.make_cube(size=dimensions, color=color, highlight=True)
             glPopMatrix()
         # Make the transom
         glPushMatrix()
-        transom_height = wall_obj.height - wall_obj.door_height
-        z = wall_obj.door_height + transom_height/2
-        glTranslatef(wall_obj.x, wall_obj.y, z)
-        glRotatef(wall_obj.theta*180/pi, 0, 0, 1)
+        transom_height = wall_obj.height - door_height
+        z = door_height + transom_height/2
+        glTranslatef(wall_obj.pose.x, wall_obj.pose.y, z)
+        glRotatef(wall_obj.pose.theta*180/pi, 0, 0, 1)
         self.make_cube(size=(wall_thickness, wall_obj.length, transom_height),
                        edges=False, color=color, highlight=True)
         glPopMatrix()
@@ -860,7 +866,7 @@ class WorldMapViewer():
         else:
             items = tuple(self.robot.world_map.objects.items())
         for (key,obj) in items:
-            if obj.is_missing:
+            if obj.is_missing and not obj.is_fixed:
                 continue
             if isinstance(obj, (worldmap.OrangeBarrelObj, worldmap.BlueBarrelObj)):
                 self.make_barrel(obj)
@@ -870,13 +876,13 @@ class WorldMapViewer():
                 self.make_apriltag(obj)
             elif isinstance(obj, worldmap.ArucoMarkerObj):
                 self.make_aruco_marker(obj)
+            elif isinstance(obj, worldmap.WallObj):
+                self.make_wall(obj)
             continue
             if isinstance(obj, worldmap.LightCubeObj):
                 self.make_light_cube(obj)
             elif isinstance(obj, worldmap.CustomCubeObj):
                 self.make_custom_cube(key,obj)
-            elif isinstance(obj, worldmap.WallObj):
-                self.make_wall(obj)
             elif isinstance(obj, worldmap.DoorwayObj):
                 pass  # doorways must come last, due to transparency
             elif isinstance(obj, worldmap.ChipObj):
