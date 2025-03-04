@@ -365,9 +365,90 @@ class Glow(ActionNode):
 
     def start(self, event=None):
         super().start(event)
-        self.robot.actuators['leds'].set_light_color(self, *self.args)
+        try:
+            self.robot.actuators['leds'].set_light_color(self, *self.args)
+        except Exception as e:
+            self.robot.actuators['leds'].unlock(self)
+            raise
         self.robot.actuators['leds'].unlock(self)
         self.post_completion()
+
+
+class Flash(ActionNode):
+    def valid_color(self, color_spec):
+        if isinstance(color_spec, (vex.Color,vex.Color.DefinedColor)): return True
+        if not isinstance(color_spec, (list,tuple)): return False
+        if len(color_spec) != 3: return False
+        for c in color_spec:
+            if not (isinstance(c, int) and c >= 0): return False
+        return True
+
+    def valid_pattern(self, pat):
+        if self.valid_color(pat): return True
+        if not (isinstance(pat,(list,tuple)) and len(pat) == 6): return False
+        for color_spec in pat:
+            if not self.valid_color(color_spec): return False
+            return True
+
+    def valid_program_step(self, step):
+        return isinstance(step,(list,tuple)) and \
+            len(step) == 2 and \
+            self.valid_pattern(step[0]) and \
+            isinstance(step[1], (int,float))
+    
+    def valid_program(self, prog):
+        for step in prog:
+            if not self.valid_program_step(step): return False
+            return True
+
+    def __init__(self, led_program, num_cycles=None, duration=None):
+        super().__init__()
+        if self.valid_color(led_program):
+            led_program = [(led_program, 2)]
+        if not self.valid_program(led_program):
+            raise ValueError(led_program)
+        self.led_program = led_program
+        program_duration = sum(step[1] for step in led_program)
+        if num_cycles is not None and duration is not None:
+            raise ValueError('Cannot specify both num_cycles and duration')
+        if num_cycles:
+            self.total_duration = num_cycles * program_duration
+        elif duration:
+            self.total_duration = duration
+        else:
+            self.total_duration = np.inf
+
+    def start(self,event=None):
+        self.current_step = -1
+        self.time_remaining = self.total_duration
+        super().start(event)
+        self.poll()
+
+    def stop(self):
+        self.robot.actuators['leds'].unlock(self)
+        super().stop()
+
+    def poll(self):
+        if self.time_remaining <= 0:
+            self.post_completion()
+            self.stop()
+            return
+        self.current_step = (1 + self.current_step) % len(self.led_program)
+        (step_pattern, step_dur) = self.led_program[self.current_step]
+        if self.time_remaining < step_dur:
+            step_dur = self.time_remaining
+        self.set_polling_interval(step_dur)
+        leds_actuator = self.robot.actuators['leds']
+        if isinstance(step_pattern, (vex.Color,vex.Color.DefinedColor)) or \
+           len(step_pattern) == 3:
+            leds_actuator.set_light_color(self, vex.LightType.ALL, step_pattern)
+        else:
+            lights = (vex.LightType.LIGHT1, vex.LightType.LIGHT2,
+                      vex.LightType.LIGHT3, vex.LightType.LIGHT4,
+                      vex.LightType.LIGHT5, vex.LightType.LIGHT6)
+            for (light, color) in zip(lights, step_pattern):
+                leds_actuator.set_light_color(self, light, color)
+        self.time_remaining -= step_dur
 
 
 class AbortAllActions(StateNode):
