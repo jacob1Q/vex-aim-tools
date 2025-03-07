@@ -55,7 +55,7 @@ class ws_thread(threading.Thread):
         self.host = host
         self.ws_name = ws_name
         self.uri = "ws://%s/%s" %(self.host, self.ws_name)
-        self.ws = self.connect_websocket(timeout=4)
+        self.ws = self.connect_websocket(timeout=10)
         self.callback = None
         self.running = True
         self._ws_needs_reset = False #set equal to true of connection needs to be reset (disconnect, reconnect)
