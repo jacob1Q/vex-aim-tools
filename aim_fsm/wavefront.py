@@ -14,7 +14,7 @@ from . import aim_kin
 class WaveFront():
     goal_marker = 2**31 - 1
 
-    def __init__(self, square_size=5, bbox=None, grid_shape=(150,150), inflate_size=50):
+    def __init__(self, square_size=5, bbox=None, grid_shape=(150,150), inflate_size=40):
         self.square_size = square_size  # in mm
         self.bbox = bbox  # in mm
         self.inflate_size = inflate_size  # in mm
@@ -57,7 +57,8 @@ class WaveFront():
         self.obstacles[obstacle_id] = obstacle
         if isinstance(obstacle, Rectangle):
             centerX, centerY = obstacle.center[0,0], obstacle.center[1,0]
-            width, height = obstacle.dimensions[0], obstacle.dimensions[1]
+            width = obstacle.dimensions[0]
+            height = obstacle.dimensions[1]
             theta = wrap_angle(obstacle.orient)
             for x in range(floor(centerX-width/2),
                            ceil(centerX+width/2),

@@ -495,21 +495,25 @@ class RRT():
     def generate_obstacles(self, goal_object,
                            obstacle_inflation=0, wall_inflation=0, doorway_adjustment=0):
         #self.robot.world.world_map.update_map()
+        self.goal_obstacle = None
         obstacles = []
         for obj in self.robot.world_map.objects.values():
-            if obj is goal_object or not obj.is_obstacle or self.robot.carrying is obj:
+            if (not obj.is_obstacle) or self.robot.carrying is obj:
                 continue
             #if obj.pose_confidence < 0: continue
             #if isinstance(obj, WallObj):
             #   obstacles = obstacles + \
             #               self.generate_wall_obstacles(obj, wall_inflation, doorway_adjustment)
             if isinstance(obj, BarrelObj):
-                obstacles.append(self.generate_barrel_obstacle(obj, obstacle_inflation))
+                obst = self.generate_barrel_obstacle(obj, obstacle_inflation)
             elif isinstance(obj, BallObj):
-                obstacles.append(self.generate_ball_obstacle(obj, obstacle_inflation))
+                obst = self.generate_ball_obstacle(obj, obstacle_inflation)
             elif isinstance(obj, AprilTagObj):
-                obstacles.append(self.generate_apriltag_obstacle(obj, obstacle_inflation))
-            """
+                obst = self.generate_apriltag_obstacle(obj, obstacle_inflation)
+            else:
+                print("*** Can't generate obstacle for", obj)
+                obst = None
+                """
             elif isinstance(obj, CustomMarkerObj):
                 obstacles.append(self.generate_marker_obstacle(obj,obstacle_inflation))
             elif isinstance(obj, ChipObj):
@@ -517,6 +521,10 @@ class RRT():
             elif isinstance(obj, RobotForeignObj):
                 obstacles.append(self.generate_foreign_obstacle(obj))
             """
+            if obj is goal_object:
+                self.goal_obstacle = obst
+            elif obst is not None:
+                obstacles.append(obst)
         self.obstacles = obstacles
 
     @staticmethod
@@ -629,9 +637,7 @@ class RRT():
         # Rooms aren't obstacles, so include them separately.
         rooms = [] # [obj for obj in objs if isinstance(obj,RoomObj)]
         # Cubes and markers may not be obstacles if they are goal locations, so include them again.
-        goals = [] #[ obj for obj in objs if 
-                 #(isinstance(obj,(LightCubeObj,CustomMarkerObj)) and obj.pose_confidence >= 0) or
-                 #isinstance(obj,MapFaceObj) ]
+        goals = [self.goal_obstacle] if self.goal_obstacle else []
         for obj in self.obstacles + rooms + goals:
             ((x0,y0),(x1,y1)) = obj.get_bounding_box()
             xmin = min(xmin, x0)
