@@ -120,7 +120,7 @@ class CamViewer():
             self.robot.aruco_detector.annotate(image,scale)
         self.robot.annotated_image = image.copy()
         # Done with annotation
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, self.width, self.height, 0, GL_BGR, GL_UNSIGNED_BYTE, image)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, self.width, self.height, 0, GL_RGB, GL_UNSIGNED_BYTE, image)
         glutPostRedisplay()
 
     # ================ Window Setup ================

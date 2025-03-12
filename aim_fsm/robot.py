@@ -107,7 +107,7 @@ class Robot():
         ws = self.robot0._ws_img_thread
         image_bytes = ws.image_list[ws._next_image_index]
         image_array = np.frombuffer(image_bytes, dtype='uint8')
-        self.camera_image = cv2.imdecode(image_array, cv2.IMREAD_UNCHANGED)
+        self.camera_image = cv2.cvtColor(cv2.imdecode(image_array, cv2.IMREAD_UNCHANGED), cv2.COLOR_BGR2RGB)
         if program.running_fsm:
             program.running_fsm.process_image(self.camera_image)
 
