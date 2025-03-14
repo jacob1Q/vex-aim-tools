@@ -166,6 +166,9 @@ class Robot():
     def ask_gpt_camera(self, query_text):
         self.openai_client.camera_query(query_text)
 
+    def gpt_oneshot(self, query_text, image=None):
+        self.openai_client.oneshot_query(query_text, image)
+
     def show_pose(self):
         def neaten(x):
             return round(x*10)/10

@@ -81,3 +81,33 @@ class OpenAIClient():
         cleaned_answer = re.sub(r'\\[\[\]\(\)]', '', answer)
         event = OpenAIEvent(cleaned_answer)
         self.robot.erouter.post(event)
+
+    # One-shot version doesn't use preamble or maintain message history
+
+    def oneshot_query(self, query_text, image=None):
+        self.robot.loop.call_soon_threadsafe(self.launch_openai_oneshot_query, query_text, image)
+
+
+    def launch_openai_oneshot_query(self, query_text, image=None):
+        self.robot.loop.create_task(self.openai_oneshot_query(query_text, image))
+
+    async def openai_oneshot_query(self, query_text, image=None):
+        if self.client is None:
+            return
+        content = [ {'type': 'text', 'text': query_text } ]
+        if image is not None:
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+            result, encimg = cv2.imencode('.jpg', image, encode_param)
+            base64_image = base64.b64encode(encimg).decode('utf-8')
+            content.append({'type': 'image_url',
+                            'image_url': {'url': f'data:image/jpeg;base64,{base64_image}'}})
+        messages = [ {'role': 'user',
+                      'content': content } ]
+        response = self.client.chat.completions.create(
+            model = self.model,
+            messages = messages
+        )
+        answer = response.choices[0].message.content
+        cleaned_answer = re.sub(r'\\[\[\]\(\)]', '', answer)
+        event = OpenAIEvent(cleaned_answer)
+        self.robot.erouter.post(event)

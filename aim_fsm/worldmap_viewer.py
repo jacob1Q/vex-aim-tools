@@ -791,13 +791,13 @@ class WorldMapViewer():
         c = glGenLists(1)
         glNewList(c, GL_COMPILE)
         glPushMatrix()
-        glTranslatef(obj.pose.x, obj.pose.y, obj.pose.z)
+        radius = obj.diameter / 2.0
+        glTranslatef(obj.pose.x, obj.pose.y, obj.pose.z + radius)
         color = (0.9, 0.7, 0.1)
         glColor4f(*color,1.0)
         quadric = gluNewQuadric()
         gluQuadricOrientation(quadric, GLU_OUTSIDE)
         glScalef(1.0, 1.0, 1.0)
-        radius = obj.diameter / 2.0
         gluSphere(quadric, radius, 20, 20)
         glPopMatrix()
         glEndList()

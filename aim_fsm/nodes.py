@@ -153,6 +153,17 @@ class AskGPTCamera(StateNode):
         self.robot.ask_gpt_camera(self.query_text)
 
 
+class GPTOneShot(StateNode):
+    def __init__(self, query_text=None):
+        super().__init__()
+        self.query_text = query_text
+        self.image = None
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.gpt_oneshot(self.query_text, self.image)
+
+
 #________________ Actions ________________
 
 class ActionNode(StateNode):
