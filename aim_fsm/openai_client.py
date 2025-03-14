@@ -40,7 +40,8 @@ class OpenAIClient():
 
     def camera_query(self, query_text):
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
-        result, encimg = cv2.imencode('.jpg', self.robot.camera_image, encode_param)
+        swapped_colors = cv2.cvtColor(self.robot.camera_image, cv2.COLOR_RGB2BGR)
+        result, encimg = cv2.imencode('.jpg', swapped_colors, encode_param)
         base64_image = base64.b64encode(encimg).decode('utf-8')
         self.messages.append(
             {'role' : 'user',
@@ -54,7 +55,8 @@ class OpenAIClient():
     def send_camera_image(self, instruction=None):
         default_instruction = 'Here is the current camera image. Please go ahead and reply to the last request.' 
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
-        result, encimg = cv2.imencode('.jpg', self.robot.camera_image, encode_param)
+        swapped_colors = cv2.cvtColor(self.robot.camera_image, cv2.COLOR_RGB2BGR)
+        result, encimg = cv2.imencode('.jpg', swapped_colors, encode_param)
         base64_image = base64.b64encode(encimg).decode('utf-8')
         self.messages.append(
             {'role' : 'user',
@@ -97,7 +99,8 @@ class OpenAIClient():
         content = [ {'type': 'text', 'text': query_text } ]
         if image is not None:
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
-            result, encimg = cv2.imencode('.jpg', image, encode_param)
+            swapped_colors = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            result, encimg = cv2.imencode('.jpg', swapped_colors, encode_param)
             base64_image = base64.b64encode(encimg).decode('utf-8')
             content.append({'type': 'image_url',
                             'image_url': {'url': f'data:image/jpeg;base64,{base64_image}'}})

@@ -179,7 +179,7 @@ class Forward(ActionNode):
         self.drive_speed = drive_speed
     
     def start(self, event=None):
-        if event and isinstance(event.data, (int,float)):
+        if event and isinstance(event,DataEvent) and  isinstance(event.data, (int,float)):
             self.distance_mm = event.data
         super().start(event)
         self.robot.actuators['drive'].forward(self, self.distance_mm, self.drive_speed)
