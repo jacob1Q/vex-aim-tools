@@ -61,7 +61,7 @@ class PilotBase(StateNode):
           #   self.parent.post_event(PilotEvent(NotLocalized,object=object))
           #   self.parent.post_failure()
           #   return
-          self.post_event(DataEvent(self.parent.object))
+          self.post_data(self.parent.object)
 
     class ReceivePlan(StateNode):
         def start(self, event=None):
@@ -73,13 +73,13 @@ class PilotBase(StateNode):
             self.robot.rrt.draw_path = navplan.extract_path()
             #print('ReceivePlan: draw_path=', self.robot.world.rrt.draw_path)
             self.robot.rrt.grid_display = grid_display
-            self.post_event(DataEvent(navplan))
+            self.post_data(navplan)
 
     class PilotExecutePlan(StateNode):
         def start(self, event=None):
             if not isinstance(event, DataEvent) and isinstance(event.data, NavPlan):
                 raise ValueError(event)
-            self.index = 0
+            self.index = 0  # skip initial node which should match our pose
             if self.parent.execute:
                 self.navplan = event.data
             else:
@@ -91,14 +91,57 @@ class PilotBase(StateNode):
             def start(self, event=None):
                 super().start(event)
                 step = self.parent.navplan.steps[self.parent.index]
-                print('nav step', step)
-                self.post_event(DataEvent(step.type))
+                self.post_data(step.type)
 
-        class ExecuteDrive(Forward):
+        class ExecuteDrive(StateNode):
+            class TurnStep(ActionNode):
+                def start(self,event=None):
+                    super().start(event)
+                    pose = self.robot.pose
+                    dest = self.parent.drive_steps[self.parent.index]
+                    dx = dest.x - pose.x
+                    dy = dest.y - pose.y
+                    angle_rads = wrap_angle(atan2(dy,dx) - pose.theta)
+                    self.robot.actuators['drive'].turn(self, angle_rads)
+                    
+            class ForwardStep(ActionNode):
+                def start(self,event=None):
+                    super().start(event)
+                    pose = self.robot.pose
+                    dest = self.parent.drive_steps[self.parent.index]
+                    dx = dest.x - pose.x
+                    dy = dest.y - pose.y
+                    distance_mm = (dx**2 + dy**2) ** 0.5
+                    self.robot.actuators['drive'].forward(self,distance_mm)
+                    
+            class NextStep(StateNode):
+                def start(self,event=None):
+                    super().start(event)
+                    self.parent.index += 1
+                    if self.parent.index >= len(self.parent.drive_steps):
+                        self.post_completion()
+                    else:
+                        self.post_success()
+
             def start(self, event=None):
                 step = self.parent.navplan.steps[self.parent.index]
-                print('step=',step)
+                self.drive_steps = step.param
+                self.index = 1  # skip the first entry, which should be current pose
+                print('ExecuteDrive steps=', self.drive_steps)
                 super().start(event)
+
+            $setup{
+                # PilotExecutePlan.ExecuteDrive machine
+                # We need separate turn and forward steps because turning
+                # while driving is not yet supported in aim.py.
+
+                turn: self.TurnStep() =C=> forward
+                forward: self.ForwardStep() =C=> next
+
+                next: self.NextStep()
+                next =S=> turn
+                next =C=> ParentCompletes()
+            }
 
         class ExecuteDoorPass(DoorPass):
             def start(self, event=None):
@@ -158,9 +201,10 @@ class PilotBase(StateNode):
 
 class PilotToObject(PilotBase):
     "Use the wavefront planner to navigate to a distant object."
-    def __init__(self, object=None):
+    def __init__(self, object=None, execute=True):
         super().__init__()
-        self.object=object
+        self.object = object
+        self.execute = execute
 
     def start(self, event=None):
         if isinstance(event,DataEvent):
@@ -221,7 +265,7 @@ class PilotToPose(PilotBase):
                 self.target_pose = event.data
             else:
                 raise ValueError(event.data)
-            self.robot.rrt.max_iter = self.max_iter
+        self.robot.rrt.max_iter = self.max_iter
         super().start(event)
 
     class PilotRRTPlanner(StateNode):

@@ -76,6 +76,7 @@ class RRT():
         self.treeB = []
         self.start = None
         self.goal = None
+        self.goal_obstacle = None
         self.bbox = bbox
         self.path = []
         self.draw_path = []

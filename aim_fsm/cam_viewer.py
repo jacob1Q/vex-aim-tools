@@ -86,11 +86,11 @@ class CamViewer():
         for obj in self.robot.robot0.status['aivision']['objects']['items']:
             name = obj.get('name', None)
             if name == 'Ball':
-                color = (0, 255, 255)
+                color = (255, 255, 0)
             elif name == 'OrangeBarrel':
-                color = (50, 100, 255)
-            elif name == 'BlueBarrel':
                 color = (255, 50, 50)
+            elif name == 'BlueBarrel':
+                color = (50, 100, 255)
             elif name == 'Robot':
                 color = (255, 255, 255)
             else:

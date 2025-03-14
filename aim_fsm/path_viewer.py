@@ -326,10 +326,18 @@ class PathViewer():
         for obst in the_rrt.obstacles:
             self.draw_obstacle(obst)
 
-        #if the_rrt.start:
-        #    self.draw_robot(the_rrt.start)
-        pose = self.robot.pose
-        self.draw_robot(RRTNode(x=pose.x, y=pose.x, q=pose.theta))
+        if the_rrt.goal_obstacle:
+            obst = the_rrt.goal_obstacle
+            self.draw_circle(center=(obst.center[0,0],obst.center[1,0]),
+                             radius=obst.radius,
+                             color=(0,1,0,0.5),
+                             fill=True)
+
+        if the_rrt.start:
+            self.draw_robot(the_rrt.start)
+        else:
+            pose = self.robot.pose
+            self.draw_robot(RRTNode(x=pose.x, y=pose.y, q=pose.theta))
 
         glutSwapBuffers()
 

@@ -186,8 +186,9 @@ class StateMachineProgram(StateNode):
                 self.robot.was_picked_up = True
                 #self.stop_children()
         elif self.robot.was_picked_up:
-            self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 50)
             self.robot.was_picked_up = False
+            self.robot.robot0.inertial.calibrate()
+            self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 50)
             self.robot.set_pose(0,0,0,0,reset_particles=False)
             self.robot.particle_filter.delocalize()
             self.robot.world_map.update()

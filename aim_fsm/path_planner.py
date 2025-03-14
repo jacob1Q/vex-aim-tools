@@ -296,7 +296,6 @@ class PathPlanner():
 class PathPlannerNode(StateNode):
     def start(self,event=None):
         super().start(event)
-        print('PathPlannerNode', event)
         if isinstance(event, DataEvent):
             if isinstance(event.data, Pose):
                 self.target_pose = event.data
@@ -305,7 +304,7 @@ class PathPlannerNode(StateNode):
             else:
                 raise ValuError(event.data)
         result = self.robot.path_planner.plan_path_this_process(self.robot, event.data)
-        self.post_data(result)
+        self.post_event(result)
 
 #----------------------------------------------------------------
 

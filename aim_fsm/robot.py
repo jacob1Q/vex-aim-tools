@@ -126,6 +126,10 @@ class Robot():
         angle_leftward = -90
         self.robot0.move_for(distance_mm, angle_leftward, drive_speed=drive_speed, wait=False)
 
+    def move(self, distance_mm, angle_rads, drive_speed=None, turn_speed=None):
+        self.robot0.move_for(distance_mm, angle_rads*180/pi,
+                             drive_speed=drive_speed, turn_speed=turn_speed, wait=False)
+
     def is_picked_up(self):
         """
         This function could be smarter about deciding when the robot has been
