@@ -102,6 +102,7 @@ class PilotBase(StateNode):
                     dx = dest.x - pose.x
                     dy = dest.y - pose.y
                     angle_rads = wrap_angle(atan2(dy,dx) - pose.theta)
+                    print('TurnStep:', angle_rads, 'radians')
                     self.robot.actuators['drive'].turn(self, angle_rads)
                     
             class ForwardStep(ActionNode):
@@ -260,6 +261,7 @@ class PilotToPose(PilotBase):
             if isinstance(event.data, WorldObject):
                 self.target_object = event.data
                 self.target_pose = event.data.pose
+                self.target_pose.theta = math.nan
             elif isinstance(event.data, Pose):
                 self.target_object = None
                 self.target_pose = event.data

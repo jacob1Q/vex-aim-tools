@@ -47,6 +47,8 @@ class Robot():
         self.flask_thread = None
         self.openai_client = OpenAIClient(self)
         self.camera_image = None
+        self.frame_count = 0    # camera images received so far
+        self.moving_frame = 0   # last camera image when robot was moving
         self.status = self.robot0._ws_status_thread.current_status['robot']
         robot0._ws_status_thread.callback = self.status_callback
         robot0._ws_img_thread.callback = self.image_callback
@@ -80,8 +82,11 @@ class Robot():
 
         self.battery_percentage = self.status['battery']
         self.update_actuators()
-        if self.robot0.is_stopped():
-            self.world_map.update()
+        if not self.robot0.is_stopped():
+            self.moving_frame = self.frame_count
+        else:
+            if self.frame_count > self.moving_frame + 1:
+                self.world_map.update()
         t = self.status['touch_flags']
         if self.touch != t:
             #print(f"status_update in {threading.current_thread().native_id}")
@@ -108,6 +113,7 @@ class Robot():
         image_bytes = ws.image_list[ws._next_image_index]
         image_array = np.frombuffer(image_bytes, dtype='uint8')
         self.camera_image = cv2.cvtColor(cv2.imdecode(image_array, cv2.IMREAD_UNCHANGED), cv2.COLOR_BGR2RGB)
+        self.frame_count += 1
         if program.running_fsm:
             program.running_fsm.process_image(self.camera_image)
 

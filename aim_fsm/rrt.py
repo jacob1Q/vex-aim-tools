@@ -193,7 +193,7 @@ class RRT():
         self.treeA = treeA
 
         # Set up treeB with goal node(s)
-        if self.target_heading and  not isnan(self.target_heading):
+        if self.target_heading and not isnan(self.target_heading):
             offset_x = goal.x + center_of_rotation_offset * cos(goal.q)
             offset_y = goal.y + center_of_rotation_offset * sin(goal.q)
             offset_goal = RRTNode(x=offset_x, y=offset_y, q=goal.q or 0)

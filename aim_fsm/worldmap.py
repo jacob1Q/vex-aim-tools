@@ -157,6 +157,7 @@ class WorldMap():
         
 
     def update(self):
+        #print('worldmap update')
         self.updated_objects = []
         self.make_new_objects_from_vision()
         self.associate_objects()
