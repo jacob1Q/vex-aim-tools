@@ -1,4 +1,4 @@
-from math import pi, sin, cos, inf, asin, atan2, nan, isnan, ceil
+from math import pi, sin, cos, inf, asin, atan2, ceil
 import numpy as np
 import random
 import time
@@ -28,7 +28,7 @@ class RRTNode():
         return RRTNode(self.parent, self.x, self.y, self.q, self.radius)
 
     def __repr__(self):
-        if not self.q or isnan(self.q):
+        if self.q is None:
             return '<RRTNode (%.1f,%.1f)>' % (self.x, self.y)
         elif not self.parent:
             return '<RRTNode (%.1f,%.1f)@%d deg>' % \
@@ -193,16 +193,16 @@ class RRT():
         self.treeA = treeA
 
         # Set up treeB with goal node(s)
-        if self.target_heading and not isnan(self.target_heading):
-            offset_x = goal.x + center_of_rotation_offset * cos(goal.q)
-            offset_y = goal.y + center_of_rotation_offset * sin(goal.q)
+        if self.target_heading is not None:
+            offset_x = goal.x
+            offset_y = goal.y
             offset_goal = RRTNode(x=offset_x, y=offset_y, q=goal.q or 0)
             collider = self.collides(offset_goal)
             if collider:
                 raise GoalCollides(goal,collider,collider.obstacle_id)
             treeB = [offset_goal]
             self.treeB = treeB
-        else:  # target_heading is None or nan
+        else:  # target_heading is None
             treeB = [goal.copy()]
             self.treeB = treeB
             temp_goal = goal.copy()
@@ -286,7 +286,7 @@ class RRT():
         self.path = pathA + pathB
         self.smooth_path()
         target_q = self.target_heading
-        if target_q and not isnan(target_q):
+        if target_q is not None:
             # Last nodes turn to desired final heading
             last = self.path[-1]
             goal = RRTNode(parent=last, x=self.goal.x, y=self.goal.y,
@@ -483,7 +483,7 @@ class RRT():
         """
         path = []
         for (x,y) in coords_pairs:
-            node = RRTNode(x=x, y=y, q=math.nan)
+            node = RRTNode(x=x, y=y, q=None)
             if path:
                 node.parent = path[-1]
                 path[-1].q = atan2(y - path[-1].y, x - path[-1].x)
@@ -499,7 +499,7 @@ class RRT():
         self.goal_obstacle = None
         obstacles = []
         for obj in self.robot.world_map.objects.values():
-            if (not obj.is_obstacle) or self.robot.carrying is obj:
+            if (not obj.is_obstacle) or obj.is_missing or self.robot.carrying is obj:
                 continue
             #if obj.pose_confidence < 0: continue
             #if isinstance(obj, WallObj):

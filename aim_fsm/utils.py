@@ -31,18 +31,19 @@ class KalmanFilter:
 
     def update_circular(self, measurement):
         predicted_estimate = self.estimate
+        z_estimate = np.array([np.sin(predicted_estimate), np.cos(predicted_estimate)])
+        z_measure = np.array([np.sin(measurement), np.cos(measurement)])
         predicted_uncertainty = self.uncertainty + self.process_noise
 
         # Normalize measurement residual
-        residual = measurement - predicted_estimate
-        residual = np.arctan2(np.sin(residual), np.cos(residual))
+        residual = z_measure - z_estimate
 
         # Kalman gain
         kalman_gain = predicted_uncertainty / (predicted_uncertainty + self.measurement_noise)
 
         # Update step
         self.estimate = predicted_estimate + kalman_gain * residual
-        self.estimate = np.arctan2(np.sin(self.estimate), np.cos(self.estimate))
+        self.estimate = np.arctan2(self.estimate[0], self.estimate[1])
 
         self.uncertainty = (1 - kalman_gain) * predicted_uncertainty
 

@@ -251,12 +251,12 @@ class PilotToPose(PilotBase):
     def __init__(self, target_pose=None, verbose=False, max_iter=RRT.DEFAULT_MAX_ITER, execute=True):
         super().__init__()
         self.target_pose = target_pose
+        self.target_object = None
         self.verbose = verbose
         self.max_iter = max_iter
         self.execute = execute
 
     def start(self, event=None):
-        print('event=',event, event.data)
         if isinstance(event, DataEvent):
             if isinstance(event.data, WorldObject):
                 self.target_object = event.data
