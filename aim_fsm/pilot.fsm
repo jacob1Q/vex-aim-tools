@@ -102,7 +102,6 @@ class PilotBase(StateNode):
                     dx = dest.x - pose.x
                     dy = dest.y - pose.y
                     angle_rads = wrap_angle(atan2(dy,dx) - pose.theta)
-                    print('TurnStep:', angle_rads, 'radians')
                     self.robot.actuators['drive'].turn(self, angle_rads)
                     
             class ForwardStep(ActionNode):
@@ -215,10 +214,15 @@ class PilotToObject(PilotBase):
                 raise ValueError('DataEvent to PilotToObject must be a WorldObject', event.data)
         super().start(event)
 
+    class OrientToObject(TurnToward):
+        def start(self,event=None):
+            self.object_spec = self.parent.object
+            super().start(event)
+
     class CheckArrival(StateNode):
         def start(self, event=None):
             super().start(event)
-            pf_pose = self.robot.pose
+            pose = self.robot.pose
             if True: # *** TODO: check if we've arrived at the target shape
                 self.post_success()
             else:
@@ -236,12 +240,12 @@ class PilotToObject(PilotBase):
         recv: self.ReceivePlan() =D=> exec
 
         exec: self.PilotExecutePlan()
-        exec =C=> check
+        exec =C=> StateNode() =T(1)=> check
         exec =F=> ParentFails()
 
         check: self.CheckArrival()
-        check =S=> ParentCompletes()
-        check =F=> planner
+        check =S=> self.OrientToObject() =C=> ParentCompletes()
+        check =F=> Print("NavPlan failed to reach goal: trying again") =N=> planner
     }
 
 #---------------- PilotToPose ----------------

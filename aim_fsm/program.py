@@ -127,6 +127,7 @@ class StateMachineProgram(StateNode):
         self.robot.carrying = None
         self.robot.fetching = None
         self.robot.robot0.set_light_color(vex.LightType.ALL, vex.Color.TRANSPARENT)
+        self.robot.clear_actuators()
 
         # World map and path planner
         #self.robot.world.rrt = self.rrt or RRT(self.robot)

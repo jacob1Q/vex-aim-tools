@@ -40,6 +40,10 @@ class Actuator():
         if self.holder is node:
             self.holder = None
 
+    def clear(self):
+        self.holder = None
+        self.started = False
+
     def status_update(self): pass
 
     def complete(self):

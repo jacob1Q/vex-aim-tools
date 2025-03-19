@@ -14,7 +14,7 @@ class PilotCheckStart(StateNode):
 
     def start(self, event=None):
         super().start(event)
-        pose = self.robot.particle_filter.pose
+        pose = self.robot.pose
         start_node = RRTNode(x=pose.x, y=pose.y, q=pose.theta)
         try:
             self.robot.rrt.plan_path(start_node,start_node)

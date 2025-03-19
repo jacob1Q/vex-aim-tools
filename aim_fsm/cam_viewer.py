@@ -80,8 +80,8 @@ class CamViewer():
             image = cv2.resize(raw, dsize)
 
         if self.crosshairs:
-            cv2.line(image, (int(self.width/2), 0), (int(self.width/2), self.height), (0,255,255), 1)
-            cv2.line(image, (0, int(self.height/2)), (self.width, int(self.height/2)), (0,255,255), 1)
+            cv2.line(image, (int(self.width/2), 0), (int(self.width/2), self.height), (255,255,0), 1)
+            cv2.line(image, (0, int(self.height/2)), (self.width, int(self.height/2)), (255,255,0), 1)
 
         for obj in self.robot.robot0.status['aivision']['objects']['items']:
             name = obj.get('name', None)
@@ -244,7 +244,8 @@ class CamViewer():
         if not os.path.exists(path):
                 os.makedirs(path)
         filename = f"{path}{name}{snapno}.png"
-        res = cv2.imwrite(filename, image)
+        swapped_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        res = cv2.imwrite(filename, swapped_image)
         print(f"Wrote {filename} with result {res}")
         snapno +=1
 

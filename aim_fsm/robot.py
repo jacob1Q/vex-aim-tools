@@ -108,6 +108,10 @@ class Robot():
         for act in self.actuators.values():
             act.status_update()
 
+    def clear_actuators(self):
+        for act in self.actuators.values():
+            act.clear()
+
     def image_callback(self):
         ws = self.robot0._ws_img_thread
         image_bytes = ws.image_list[ws._next_image_index]
