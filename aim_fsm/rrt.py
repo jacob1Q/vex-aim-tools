@@ -7,7 +7,7 @@ import math
 from .geometry import wrap_angle
 
 from .rrt_shapes import *
-from .worldmap import BarrelObj, BallObj, AprilTagObj
+from .worldmap import BarrelObj, BallObj, AprilTagObj, ArucoMarkerObj, WallObj, DoorwayObj
 #from .worldmap import WallObj, wall_marker_dict, RoomObj, LightCubeObj, MapFaceObj
 #from .worldmap import CustomCubeObj, ChargerObj, CustomMarkerObj, ChipObj, RobotForeignObj
 
@@ -502,16 +502,18 @@ class RRT():
         for obj in self.robot.world_map.objects.values():
             if (not obj.is_obstacle) or obj.is_missing or self.robot.carrying is obj:
                 continue
-            #if obj.pose_confidence < 0: continue
-            #if isinstance(obj, WallObj):
-            #   obstacles = obstacles + \
-            #               self.generate_wall_obstacles(obj, wall_inflation, doorway_adjustment)
             if isinstance(obj, BarrelObj):
                 obst = self.generate_barrel_obstacle(obj, obstacle_inflation)
             elif isinstance(obj, BallObj):
                 obst = self.generate_ball_obstacle(obj, obstacle_inflation)
             elif isinstance(obj, AprilTagObj):
                 obst = self.generate_apriltag_obstacle(obj, obstacle_inflation)
+            elif isinstance(obj, WallObj):
+                obsts = self.generate_wall_obstacles(obj, obstacle_inflation, doorway_adjustment)
+                obstacles += obsts
+                obst = None
+            elif isinstance(obj, (ArucoMarkerObj,DoorwayObj)):
+                obst = None
             else:
                 print("*** Can't generate obstacle for", obj)
                 obst = None
@@ -531,13 +533,14 @@ class RRT():
 
     @staticmethod
     def generate_wall_obstacles(wall, wall_inflation, doorway_adjustment):
-        wall_spec = wall_marker_dict[wall.spec_id]
-        wall_half_length = wall.length / 2
+        wall_spec = wall.wall_spec
+        wall_half_length = wall_spec.length / 2
         widths = []
         edges = [ [0, -wall_half_length - wall_inflation, 0., 1.] ]
         last_x = -wall_half_length - wall_inflation
-        for (door_center, door_width) in wall_spec.doorways:
-            door_width += doorway_adjustment  # widen doorways for RRT, narrow for WaveFront
+        for door_spec in wall_spec.doorways.values():
+            door_center = door_spec['x']
+            door_width = door_spec['width'] + doorway_adjustment  # widen doorways for RRT, narrow for WaveFront
             left_edge = door_center - door_width/2 - wall_half_length
             edges.append([0., left_edge, 0., 1.])
             widths.append(left_edge - last_x)
@@ -547,15 +550,15 @@ class RRT():
         edges.append([0., wall_half_length + wall_inflation, 0., 1.])
         widths.append(wall_half_length + wall_inflation - last_x)
         edges = np.array(edges).T
-        edges = geometry.aboutZ(wall.theta).dot(edges)
-        edges = geometry.translate(wall.x,wall.y).dot(edges)
+        edges = geometry.aboutZ(wall.pose.theta).dot(edges)
+        edges = geometry.translate(wall.pose.x, wall.pose.y).dot(edges)
         obst = []
         for i in range(0,len(widths)):
             center = edges[:,2*i:2*i+2].mean(1).reshape(4,1)
             dimensions=(4.0+2*wall_inflation, widths[i])
             r = Rectangle(center=center,
                           dimensions=dimensions,
-                          orient=wall.theta )
+                          orient=wall.pose.theta )
             r.obstacle_id = wall.id
             obst.append(r)
         return obst

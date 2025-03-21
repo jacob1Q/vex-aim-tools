@@ -13,7 +13,7 @@ kicker_extension = 15 # mm
 camera_angle = 18 # degrees (design spec)
 camera_angle = 23 # degrees (measured)
 camera_height = 43.47 # mm
-camera_from_origin = 27 # mm (approx)
+camera_from_origin = 27 # mm (approx distance from robot's center)
 
 # ================================================================
 

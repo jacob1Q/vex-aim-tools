@@ -30,6 +30,10 @@ class KalmanFilter:
         return self.estimate, self.uncertainty
 
     def update_circular(self, measurement):
+        return self.update(measurement)
+
+        # *** THIS CODE IS BROKEN ***
+
         predicted_estimate = self.estimate
         z_estimate = np.array([np.sin(predicted_estimate), np.cos(predicted_estimate)])
         z_measure = np.array([np.sin(measurement), np.cos(measurement)])

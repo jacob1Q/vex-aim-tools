@@ -17,7 +17,7 @@ def make_walls():
                                    4 : {'side': -1, 'x': 222, 'y': 20},
                                    5 : {'side': -1, 'x':  75, 'y': 20},
                                   10 : {'side': -1, 'x':  25, 'y': 20}, },
-                  doorways = { 'd1' : {'x': 150, 'width': 75, 'height': 115} }
+                  doorways = { 0 : {'x': 150, 'width': 75, 'height': 115} }
                   )
 
 

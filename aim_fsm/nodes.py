@@ -293,7 +293,7 @@ class TurnToward(Turn, ObjectSpecNode):
         super().start(event)
 
 
-class Drop(ActionNode):
+class SoftKick(ActionNode):
     def __init__(self):
         super().__init__()
 

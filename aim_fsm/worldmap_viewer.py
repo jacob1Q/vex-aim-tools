@@ -398,7 +398,7 @@ class WorldMapViewer():
             glPushMatrix()
             glTranslatef(*center.flatten()[0:3])
             glRotatef(wall_obj.pose.theta*180/pi, 0, 0, 1)
-            self.make_cube(size=dimensions, color=color, highlight=True)
+            self.make_cube(size=dimensions, edges=False, color=color, highlight=True)
             glPopMatrix()
         # Make the transom
         glPushMatrix()
@@ -771,26 +771,30 @@ class WorldMapViewer():
 
     def make_barrel(self, obj):
         global gl_lists
-        c = glGenLists(1)
-        glNewList(c, GL_COMPILE)
-        glPushMatrix()
-        glTranslatef(obj.pose.x, obj.pose.y, obj.pose.z)
+        if obj.held_by is None:
+            c = glGenLists(1)
+            glNewList(c, GL_COMPILE)
+            glPushMatrix()
+            glTranslatef(obj.pose.x, obj.pose.y, obj.pose.z)
         if isinstance(obj, worldmap.OrangeBarrelObj):
             color = color_orange
         else:
             color = color_blue
         if not obj.is_visible:
             color = [c*0.65 for c in color]
-        self.make_cylinder(radius=10, height=25, color=color)
-        glPopMatrix()
-        glEndList()
-        gl_lists.append(c)
+        radius = obj.diameter / 2.0
+        self.make_cylinder(radius=radius, height=obj.height, color=color)
+        if obj.held_by is None:
+            glPopMatrix()
+            glEndList()
+            gl_lists.append(c)
 
     def make_ball(self, obj):
         global gl_lists
-        c = glGenLists(1)
-        glNewList(c, GL_COMPILE)
-        glPushMatrix()
+        if obj.held_by is None:
+            c = glGenLists(1)
+            glNewList(c, GL_COMPILE)
+            glPushMatrix()
         radius = obj.diameter / 2.0
         glTranslatef(obj.pose.x, obj.pose.y, obj.pose.z + radius)
         color = (0.9, 0.7, 0.1)
@@ -799,9 +803,10 @@ class WorldMapViewer():
         gluQuadricOrientation(quadric, GLU_OUTSIDE)
         glScalef(1.0, 1.0, 1.0)
         gluSphere(quadric, radius, 20, 20)
-        glPopMatrix()
-        glEndList()
-        gl_lists.append(c)
+        if obj.held_by is None:
+            glPopMatrix()
+            glEndList()
+            gl_lists.append(c)
 
     def make_vex_robot(self):
         global gl_lists
@@ -812,6 +817,7 @@ class WorldMapViewer():
         color = color_light_gray
         self.make_cylinder(radius=32, height=72, color=color)
         glRotatef(self.robot.pose.theta*180/pi, 0, 0, 1)
+        glPushMatrix()
         glTranslatef(30.0, 0.0, 42.0)
         glColor4f(*color_black, 1)
         quadric = gluNewQuadric()
@@ -819,6 +825,10 @@ class WorldMapViewer():
         glScalef(1.0, 1.0, 1.0)
         radius = 12.0
         gluSphere(quadric, radius, 60, 60)
+        glPopMatrix()
+        if self.robot.holding is not None:
+            glTranslatef(40.0, 0.0, 0.0)
+            self.make_object(self.robot.holding)
         glPopMatrix()
         glEndList()
         gl_lists.append(c)
@@ -866,40 +876,45 @@ class WorldMapViewer():
         else:
             items = tuple(self.robot.world_map.objects.items())
         for (key,obj) in items:
-            if obj.is_missing and not obj.is_fixed:
-                continue
-            if isinstance(obj, (worldmap.OrangeBarrelObj, worldmap.BlueBarrelObj)):
-                self.make_barrel(obj)
-            elif isinstance(obj, worldmap.BallObj):
-                self.make_ball(obj)
-            elif isinstance(obj, worldmap.AprilTagObj):
-                self.make_apriltag(obj)
-            elif isinstance(obj, worldmap.ArucoMarkerObj):
-                self.make_aruco_marker(obj)
-            elif isinstance(obj, worldmap.WallObj):
-                self.make_wall(obj)
-            continue
-            if isinstance(obj, worldmap.LightCubeObj):
-                self.make_light_cube(obj)
-            elif isinstance(obj, worldmap.CustomCubeObj):
-                self.make_custom_cube(key,obj)
-            elif isinstance(obj, worldmap.DoorwayObj):
-                pass  # doorways must come last, due to transparency
-            elif isinstance(obj, worldmap.ChipObj):
-                self.make_chip(obj)
-            elif isinstance(obj, worldmap.FaceObj):
-                self.make_face(obj)
-            elif isinstance(obj, worldmap.CameraObj):
-                self.make_camera(obj)
-            elif isinstance(obj, worldmap.RobotForeignObj):
-                self.make_foreign_robot(obj)
-            elif isinstance(obj, worldmap.LightCubeForeignObj):
-                self.make_foreign_cube(obj)
-        # Make the doorways last, so transparency works correctly
+            if obj.held_by is None:
+                self.make_object(obj)
         return
         for (key,obj) in items:
             if isinstance(obj, worldmap.DoorwayObj):
                 self.make_doorway(obj)
+
+    def make_object(self,obj):
+        if obj.is_missing and (not obj.is_fixed) and not obj.held_by:
+            return
+        if isinstance(obj, (worldmap.OrangeBarrelObj, worldmap.BlueBarrelObj)):
+            self.make_barrel(obj)
+        elif isinstance(obj, worldmap.BallObj):
+            self.make_ball(obj)
+        elif isinstance(obj, worldmap.AprilTagObj):
+            self.make_apriltag(obj)
+        elif isinstance(obj, worldmap.ArucoMarkerObj):
+            self.make_aruco_marker(obj)
+        elif isinstance(obj, worldmap.WallObj):
+            self.make_wall(obj)
+        return
+        if isinstance(obj, worldmap.LightCubeObj):
+            self.make_light_cube(obj)
+        elif isinstance(obj, worldmap.CustomCubeObj):
+            self.make_custom_cube(key,obj)
+        elif isinstance(obj, worldmap.DoorwayObj):
+            pass  # doorways must come last, due to transparency
+        elif isinstance(obj, worldmap.ChipObj):
+            self.make_chip(obj)
+        elif isinstance(obj, worldmap.FaceObj):
+            self.make_face(obj)
+        elif isinstance(obj, worldmap.CameraObj):
+            self.make_camera(obj)
+        elif isinstance(obj, worldmap.RobotForeignObj):
+            self.make_foreign_robot(obj)
+        elif isinstance(obj, worldmap.LightCubeForeignObj):
+            self.make_foreign_cube(obj)
+        # Make the doorways last, so transparency works correctly
+        return
 
 
     def make_shapes(self):
@@ -907,7 +922,6 @@ class WorldMapViewer():
         gl_lists = []
         self.make_axes()
         self.make_gazepoint()
-        #self.make_cozmo_robot()
         self.make_vex_robot()
         self.make_floor()
         self.make_objects()  # walls, light cubes, custom cubes, and chips

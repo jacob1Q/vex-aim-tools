@@ -12,10 +12,8 @@ from .transitions import *
 from .worldmap import WorldObject  #, DoorwayObj
 from .path_planner import PathPlanner, PathPlannerNode #, PathPlannerProcess
 from .geometry import segment_intersect_test
-#from .doorpass import DoorPass
+from .doorpass import DoorPass
 from .pilot0 import *
-
-class DoorPass(StateNode): pass   # dummy
 
 #---------------- Pilot Exceptions and Events ----------------
 
@@ -99,6 +97,7 @@ class PilotBase(StateNode):
                     super().start(event)
                     pose = self.robot.pose
                     dest = self.parent.drive_steps[self.parent.index]
+                    print(f'ExecuteDrive: dest={dest}  pose={pose}')
                     dx = dest.x - pose.x
                     dy = dest.y - pose.y
                     angle_rads = wrap_angle(atan2(dy,dx) - pose.theta)
@@ -123,11 +122,11 @@ class PilotBase(StateNode):
                     else:
                         self.post_success()
 
-            def start(self, event=None):
+            def start(self, event=None):  # method of ExecutePlan
                 step = self.parent.navplan.steps[self.parent.index]
                 self.drive_steps = step.param
                 self.index = 1  # skip the first entry, which should be current pose
-                print('ExecuteDrive steps=', self.drive_steps)
+                print('ExecutePlan steps=', self.drive_steps)
                 super().start(event)
 
             $setup{
@@ -356,7 +355,7 @@ class PilotToPose(PilotBase):
             if self.parent.verbose:
                 [print(' ',x) for x in path]
 
-            doors = [] # self.robot.world_map.generate_doorway_list()
+            doors = self.robot.world_map.generate_doorway_list()
             navplan = PathPlanner.from_path(path, doors)
             print('navplan=',navplan, '   steps=',navplan.steps)
 
@@ -393,8 +392,7 @@ class PilotToPose(PilotBase):
                 (_, _, path) = self.planner(start_node, goal_node)
             except Exception as e:
                 print('Pilot replanning for door gateway failed!', e.args)
-            cpath = [(node.x,node.y) for node in path]
-            navplan = PathPlanner.from_path(cpath, [])
+            navplan = PathPlanner.from_path(path, [])
             navplan.steps.append(last_step)  # Add the doorpass step
             self.post_data((navplan,grid_display))
 
@@ -486,6 +484,3 @@ class PilotFrustration(StateNode):
 
         done: ParentCompletes()
     }
-
-
-

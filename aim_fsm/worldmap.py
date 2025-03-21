@@ -2,6 +2,7 @@ import math
 import numpy as np
 import cv2
 
+from . import aim_kin
 from .geometry import *
 from .utils import *
 
@@ -19,6 +20,7 @@ class WorldObject():
         self.is_visible = is_visible
         self.is_missing = False
         self.is_valid = True
+        self.held_by = None
         self.is_foreign = False
         if is_visible:
             self.pose_confidence = +1
@@ -51,6 +53,7 @@ class BarrelObj(WorldObject):
         self.spec = spec
         self.name = spec['name']
         self.diameter = 22 # mm
+        self.height = 25
 
 class OrangeBarrelObj(BarrelObj):
     pass
@@ -132,6 +135,29 @@ class WallSpec():
             wall_marker_dict[id] = self
         wall_marker_dict[self.label] = self
 
+
+class DoorwayObj(WorldObject):
+    def __init__(self, wall, index):
+        name = f'DoorwayObj-{wall.name[5:]}:{index}'
+        super().__init__(name=name, is_visible=wall.is_visible)
+        door_spec = wall.wall_spec.doorways[index]
+        self.door_width = door_spec['width']
+        self.wall = wall
+        self.index = index  # which doorway is this?  0, 1, ...
+        self.is_obstacle = False
+        self.update()
+
+    def update(self):
+        door_spec = self.wall.wall_spec.doorways[self.index]
+        self.pose = copy.deepcopy(self.wall.pose)
+        self.sensor_distance = self.wall.sensor_distance
+
+    def __repr__(self):
+        if self.pose_confidence >= 0:
+            return '<DoorwayObj %s: (%.1f,%.1f) @ %d deg.>' % \
+                (self.id, self.pose.x, self.pose.y, self.pose.theta*180/pi)
+        else:
+            return '<DoorwayObj %s: position unknown>' % self.id
 
 ################################################################
 
@@ -250,6 +276,7 @@ class WorldMap():
         for (wall_id,markers) in wall_markers.items():
             wall = self.infer_wall_from_corners_lists(wall_id, markers)
             self.candidates.append(wall)
+            self.make_doorways_from_wall(wall)
 
     def infer_wall_from_corners_lists(self, wall_id, markers):
         # All these markers have the same wall_spec, so just grab the first one.
@@ -303,9 +330,27 @@ class WorldMap():
         y = self.robot.pose.y + rel_coords[1,0]
         wall = WallObj(wall_spec, x=x, y=y, theta=wrap_angle(self.robot.pose.theta + wm_wall_orient))
         wall.sensor_distance = math.sqrt(wall_x[0,0]**2 + wall_y[0,0]**2)
+        wall.is_visible = True
         return wall
 
+    def make_doorways_from_wall(self, wall):
+        for (index, door_spec) in wall.wall_spec.doorways.items():
+            door = DoorwayObj(wall, index)
+            self.candidates.append(door)
 
+    def generate_doorway_list(self):
+        "Used by path-planner.py"
+        doorways = []
+        for (key,obj) in self.objects.items():
+            if isinstance(obj,DoorwayObj):
+                w = obj.door_width / 2
+                doorway_threshold_theta = obj.pose.theta + pi/2
+                dx = w * cos(doorway_threshold_theta)
+                dy = w * sin(doorway_threshold_theta)
+                ox = obj.pose.x
+                oy = obj.pose.y
+                doorways.append((obj, ((ox-dx, oy-dy), (ox+dx, oy+dy))))
+        return doorways
 
     def make_new_aruco_objects(self):
         for (id,marker) in self.robot.aruco_detector.seen_marker_objects.items():
@@ -314,7 +359,8 @@ class WorldMap():
             name = f'ArucoMarker-{id}'
             spec = {'name': name, 'id': id, 'marker': marker}
             sensor_dist = marker.camera_distance
-            sensor_coords = marker.camera_coords
+            camera_offset = np.array([0, 0, aim_kin.camera_from_origin])
+            sensor_coords = marker.camera_coords + camera_offset
             sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
             sensor_orient = wrap_angle(pi - marker.euler_rotation[1] * (pi/180))
             theta = self.robot.pose.theta

@@ -1,5 +1,21 @@
 from .nodes import *
 from .transitions import *
+from .pilot import *
+from .rrt import StartCollides, GoalCollides
+
+class CheckHolding(StateNode):
+    def start(self,event=None):
+        super().start(event)
+        if self.robot.holding is not None:
+            self.post_success()
+        else:
+            self.post_failure()
+
+class ClearHolding(StateNode):
+    def start(self,event=None):
+        super().start(event)
+        self.robot.holding.held_by = None
+        self.robot.holding = None
 
 class PickUp(ActionNode,ObjectSpecNode):
     def __init__(self, object_spec=None):
@@ -16,6 +32,17 @@ class PickUp(ActionNode,ObjectSpecNode):
         if self.object is None:
             self.post_failure()
 
+    class SetHolding(StateNode):
+        def start(self,event=None):
+            super().start(event)
+            self.robot.holding = self.parent.object
+            self.parent.object.held_by = self.robot
+
+    class Pickup_PilotToObject(PilotToObject):
+        def start(self,event=None):
+            self.object = self.parent.object
+            super().start(event)
+
     class Pickup_TurnToward(TurnToward):
         def start(self, event=None):
             self.object_spec = self.parent.object
@@ -23,18 +50,54 @@ class PickUp(ActionNode,ObjectSpecNode):
 
     class Pickup_Forward(Forward):
         def start(self, event=None):
-            robot_radius = 15
+            robot_radius = 30
             dx = self.parent.object.pose.x - self.robot.pose.x
             dy = self.parent.object.pose.y - self.robot.pose.y
             self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius
             super().start(event)
 
     $setup{
+        # check StartCollides
+        # drop object if carrying
+        # path plan to object
+        # check object is visible; fail is not
+        # pick up
+        # verify object held
+
+        check_start: PilotCheckStart()
+        check_start =S=> check_holding
+        check_start =F=> Print("Start collides!") =N=> Forward(-50) =C=> check_holding
+
+        check_holding: CheckHolding()
+        check_holding =S=> Drop() =C=> plan
+        check_holding =F=> plan
+
+        plan: self.Pickup_PilotToObject()
+        plan =C=> forward
+        plan =PILOT(GoalCollides)=> ParentPilotEvent()
+
         turn: self.Pickup_TurnToward()
         turn =C=> forward
         turn =F=> ParentFails()
 
         forward: self.Pickup_Forward()
-        forward =C=> ParentCompletes()
+        forward =C=> self.SetHolding() =N=> ParentCompletes()
         forward =F=> ParentFails()
         }
+
+################ Drop ################
+
+class Drop(StateNode):
+    $setup{
+        check: CheckHolding()
+        check =F=> ParentFails()
+        check =S=> kick
+
+
+        kick: SoftKick() =C=> ClearHolding() =N=> look
+
+        # 1 second delay to give vision time to register the object
+        look: StateNode() =T(1)=> done
+
+        done: ParentCompletes()
+    }

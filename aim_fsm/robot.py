@@ -54,6 +54,7 @@ class Robot():
         robot0._ws_img_thread.callback = self.image_callback
         robot0.get_camera_image()  # start the image stream
         robot0.aiv.tag_detection(True)
+        self.holding = None   # object being held
         self.thesaurus = Thesaurus()
         self.speech_listener = SpeechListener(self, self.thesaurus, debug=False)
         self.loop.call_soon_threadsafe(self.speech_listener.start)

@@ -207,7 +207,8 @@ class ArucoBearingSensorModel(SensorModel):
         # Process each seen marker:
         for (id, marker) in seen_marker_objects.items():
             if marker.id_string in self.landmarks:
-                sensor_coords = marker.camera_coords
+                camera_offset = np.array([0, 0, aim_kin.camera_from_origin])
+                sensor_coords = marker.camera_coords + camera_offset
                 sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
                 landmark_spec = self.landmarks[marker.id_string] 
                 lm_x = landmark_spec.x
@@ -247,7 +248,8 @@ class ArucoCombinedSensorModel(SensorModel):
         for (id, marker) in seen_marker_objects.items():
             if marker.id_string in self.landmarks:
                 sensor_dist = marker.camera_distance
-                sensor_coords = marker.camera_coords
+                camera_offset = np.array([0, 0, aim_kin.camera_from_origin])
+                sensor_coords = marker.camera_coords + camera_offset
                 sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
                 landmark_spec = self.landmarks[marker.id_string]
                 lm_x = landmark_spec.x

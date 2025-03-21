@@ -14,7 +14,7 @@ from .worldmap import WorldObject, BarrelObj, BallObj, AprilTagObj
 from .rrt import RRT, RRTNode, StartCollides, GoalCollides, GoalUnreachable
 from .wavefront import WaveFront
 from .geometry import wrap_angle, segment_intersect_test
-#from .doorpass import DoorPass
+from .doorpass import DoorPass
 
 from . import rrt
 
@@ -49,7 +49,7 @@ class PathPlanner():
         self.wf = None
 
     @staticmethod
-    def plan_path_this_process(robot, goal_object, use_doorways=False):
+    def plan_path_this_process(robot, goal_object, use_doorways=True):
         # Get pickle-able data structures
         (start_node, goal_shape, robot_parts, bbox,
          fat_obstacles, skinny_obstacles, doorway_list, need_grid_display) = \
@@ -274,7 +274,7 @@ class PathPlanner():
         start_point = (pt1.x, pt1.y)
         DELTA = 15 # mm
         gate = DoorPass.calculate_gate(start_point, door, DoorPass.OUTER_GATE_DISTANCE + DELTA)
-        (dx,dy) = (door.x, door.y)
+        (dx,dy) = (door.pose.x, door.pose.y)
         (gx,gy) = (gate[0],gate[1])
         gate_node = RRTNode(x=gx, y=gy)
         print('door=', door, 'gate_node=', gate_node)
