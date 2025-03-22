@@ -53,7 +53,7 @@ class PickUp(ActionNode,ObjectSpecNode):
             robot_radius = 30
             dx = self.parent.object.pose.x - self.robot.pose.x
             dy = self.parent.object.pose.y - self.robot.pose.y
-            self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius
+            self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius + 10
             super().start(event)
 
     $setup{

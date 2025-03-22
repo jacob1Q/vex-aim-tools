@@ -400,7 +400,7 @@ class WorldMap():
         elif otype in (ArucoMarkerObj, WallObj):
             MAX_ACCEPTABLE_COST = 5000  # should adjust based on pf undertainty
         else:
-            MAX_ACCEPTABLE_COST = 200  # should adjust based on pf undertainty
+            MAX_ACCEPTABLE_COST = 500  # should adjust based on pf undertainty
         for i in range(N_new):
             for j in range(N_old):
                 if otype is ArucoMarkerObj and new[i].marker_id != old[j].marker_id:
