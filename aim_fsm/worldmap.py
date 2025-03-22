@@ -238,7 +238,9 @@ class WorldMap():
             obj.is_visible = True
             # Calculate midpoint of bottom edge, which we assume is on the floor
             cx = (spec['originx'] + spec['width']/2) * AIVISION_RESOLUTION_SCALE
-            cy = (spec['originy'] + spec['height']) * AIVISION_RESOLUTION_SCALE
+            # correct height for possible occlusion by foreground object
+            corr_height = max(spec['height'], spec['width']*1.10)
+            cy = (spec['originy'] + corr_height) * AIVISION_RESOLUTION_SCALE
             if isinstance(obj, AprilTagObj):
                 cy += spec['height'] * 2 * AIVISION_RESOLUTION_SCALE
             hit = self.robot.kine.project_to_ground(cx, cy)
@@ -431,7 +433,7 @@ class WorldMap():
         dy = obj.pose.y - self.robot.pose.y
         bearing = wrap_angle(atan2(dy,dx) - self.robot.pose.theta)
         distance = (dx**2 + dy**2) ** 0.5
-        DISTANCE_THRESHOLD = 200 # mm
+        DISTANCE_THRESHOLD = 400 # mm
         BEARING_THRESHOLD = 30 # degrees
         result = abs(bearing)*180/pi < BEARING_THRESHOLD and distance < DISTANCE_THRESHOLD
         return result
