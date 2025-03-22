@@ -392,6 +392,18 @@ class Glow(ActionNode):
 
 
 class Flash(ActionNode):
+    """
+    Flash(led_program, duration=None, num_cycles=None)
+    where led_program can be any of:
+       a color -- sets all LEDs to that color
+       a list of steps of form (pattern, duration)
+    A pattern can be:
+       a color -- applied to all LEDs
+       a list of six colors for the six LEDs
+    A color can be:
+       a vex.Color or vex.DefinedColor
+       a triple of (r, g, b) values
+    """
     def valid_color(self, color_spec):
         if isinstance(color_spec, (vex.Color,vex.Color.DefinedColor)): return True
         if not isinstance(color_spec, (list,tuple)): return False
@@ -401,11 +413,14 @@ class Flash(ActionNode):
         return True
 
     def valid_pattern(self, pat):
-        if self.valid_color(pat): return True
-        if not (isinstance(pat,(list,tuple)) and len(pat) == 6): return False
-        for color_spec in pat:
-            if not self.valid_color(color_spec): return False
+        if self.valid_color(pat):
             return True
+        if not (isinstance(pat,(list,tuple)) and len(pat) == 6):
+            return False
+        for color_spec in pat:
+            if not self.valid_color(color_spec):
+                return False
+        return True
 
     def valid_program_step(self, step):
         return isinstance(step,(list,tuple)) and \
@@ -415,10 +430,11 @@ class Flash(ActionNode):
     
     def valid_program(self, prog):
         for step in prog:
-            if not self.valid_program_step(step): return False
-            return True
+            if not self.valid_program_step(step):
+                return False
+        return True
 
-    def __init__(self, led_program, num_cycles=None, duration=None):
+    def __init__(self, led_program=list(), num_cycles=None, duration=None):
         super().__init__()
         if self.valid_color(led_program):
             led_program = [(led_program, 2)]
@@ -439,6 +455,9 @@ class Flash(ActionNode):
         self.current_step = -1
         self.time_remaining = self.total_duration
         super().start(event)
+        if len(self.led_program) == 0:
+            self.post_completion()
+            return
         self.poll()
 
     def stop(self):
