@@ -17,7 +17,7 @@ import numpy as np
 import platform
 
 from . import opengl
-from .worldmap import ArucoMarkerObj
+from .worldmap import ArucoMarkerObj, WallObj
 from .utils import Pose
 
 REDISPLAY = True   # toggle this to suspend constant redisplay
@@ -201,7 +201,8 @@ class ParticleViewer():
                   for marker in objs.values()
                   if isinstance(marker, ArucoMarkerObj)]
         all_specs = list(landmarks.items()) + \
-            [marker for marker in arucos if marker[0] not in landmarks]
+            [marker for marker in arucos if marker[0] not in landmarks] + \
+            [wall for wall in objs if isinstance(wall[1],WallObj) and wall[0] not in landmarks]
         for (id,specs) in all_specs:
             if not isinstance(id,str):
                 raise TypeError("Landmark names must be strings: %r" % id)
@@ -216,10 +217,7 @@ class ParticleViewer():
                 seen = obj.is_visible
             elif id.startswith('Wall-'):
                 label = 'W' + id[id.find('-')+1:]
-                try:
-                    seen = self.robot.world.world_map.objects[id].is_visible
-                except:
-                    seen = False
+                seen = self.robot.world_map.objects[id].is_visible
                 if seen:
                     color = (1, 0.5, 0.3, 0.75)
                 else:
@@ -330,6 +328,7 @@ class ParticleViewer():
                                color=color, fill=True)
 
         # Draw the robot at the best particle location
+        self.robot.particle_filter.update_pose_estimate()
         rx = self.robot.particle_filter.pose.x
         ry = self.robot.particle_filter.pose.y
         theta = self.robot.particle_filter.pose.theta
@@ -379,7 +378,7 @@ class ParticleViewer():
             print('Pose = (%5.1f, %5.1f) @ %3d deg.' % (x, y, hdg))
 
     def forward(self,distance):
-        self.robot.forward(distance)
+        self.robot.actuators['drive'].forward(None,distance)
         while not self.robot.robot0.is_move_active():
             time.sleep(0.1)
         while self.robot.robot0.is_move_active():
@@ -389,7 +388,7 @@ class ParticleViewer():
         self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
 
     def turn(self,angle_deg):
-        self.robot.turn(angle_deg/180*pi)
+        self.robot.actuators['drive'].turn(None,angle_deg/180*pi)
         while not self.robot.robot0.is_turn_active():
             time.sleep(0.1)
         while self.robot.robot0.is_turn_active():
@@ -399,7 +398,7 @@ class ParticleViewer():
         self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
 
     def sideways(self,distance):
-        self.robot.sideways(distance)
+        self.robot.actuators['drive'].sideways(None,distance)
         while not self.robot.robot0.is_move_active():
             time.sleep(0.1)
         while self.robot.robot0.is_move_active():

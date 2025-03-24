@@ -57,12 +57,12 @@ Path viewer commands:
 
 
 class PathViewer():
-    def __init__(self, robot, rrt,
+    def __init__(self, robot,
                  width=512, height=512,
                  windowName = "path viewer",
                  bgcolor = (0,0,0)):
         global the_rrt, the_items
-        the_rrt = rrt
+        the_rrt = robot.rrt
         the_items = []
         self.robot = robot
         self.width = width

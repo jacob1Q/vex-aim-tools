@@ -85,6 +85,14 @@ def wrap_angle(angle_rads):
         angle_rads -= 2*pi
     return angle_rads
 
+def wrap_angle_deg(angle_deg):
+    "Keep angle between -180 and 180."
+    while angle_deg <= -180:
+        angle_deg += 360
+    while angle_deg > 180:
+        angle_deg -= 360
+    return angle_deg
+
 def wrap_selected_angles(angle_rads, index):
     """Keep angle between -pi and pi for column vector of angles"""
     for i in index:

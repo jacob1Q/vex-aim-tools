@@ -276,7 +276,27 @@ class WorldMap():
                     wall_markers[spec.label] = list()
                 wall_markers[spec.label].append((id,marker))
         for (wall_id,markers) in wall_markers.items():
+            orients = [marker[1].euler_rotation[1] for marker in markers]
+            # TODO: check orients for outliers and remove them before proceeding
+            outlier_threshold = 20 # degrees
+            if len(orients) == 1:
+                pass
+            elif len(orients) == 2:
+                if abs(wrap_angle_deg(orients[0] - orients[1])) > outlier_threshold:
+                    #print('marker outlier:', orients)
+                    continue
+            else:
+                n = len(orients)
+                for i in range(n):
+                    outs = [abs(wrap_angle_deg(orients[i] - orients[(i+j+1)%n])) > outlier_threshold
+                            for j in range(n-1)]
+                    if all(outs):
+                        #print('marker',i,' outlier:', orients)
+                        del orients[i]
+                        del markers[i]
+                        break
             wall = self.infer_wall_from_corners_lists(wall_id, markers)
+            #print(f'theta={wall.pose.theta*180/pi}  marker orients = {orients}')
             self.candidates.append(wall)
             self.make_doorways_from_wall(wall)
 
@@ -355,7 +375,7 @@ class WorldMap():
         return doorways
 
     def make_new_aruco_objects(self):
-        for (id,marker) in self.robot.aruco_detector.seen_marker_objects.items():
+        for (id,marker) in self.robot.aruco_detector.seen_marker_objects.copy().items():
             #if id in wall_marker_dict:
             #   continue
             name = f'ArucoMarker-{id}'

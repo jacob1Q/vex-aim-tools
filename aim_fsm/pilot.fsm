@@ -280,7 +280,7 @@ class PilotToPose(PilotBase):
         def start(self,event=None):
             super().start(event)
             tpose = self.parent.target_pose
-            if tpose is None or (tpose.x == 0 and tpose.y == 0 and tpose.theta == 0):
+            if not isinstance(tpose,Pose) or (tpose.x == 0 and tpose.y == 0 and tpose.theta == 0):
                 print("Pilot: target pose is invalid: %s" % tpose)
                 self.parent.post_event(PilotEvent(InvalidPose, pose=tpose))
                 self.parent.post_failure()

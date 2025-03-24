@@ -122,25 +122,6 @@ class Robot():
         if program.running_fsm:
             program.running_fsm.process_image(self.camera_image)
 
-    def turn(self, angle_rads, turn_speed=None):
-        if angle_rads > 0:
-            turntype = vex.TurnType.LEFT
-        else:
-            turntype = vex.TurnType.RIGHT
-        self.robot0.turn_for(turntype, abs(angle_rads)*180/pi, turn_speed=turn_speed, wait=False)
-
-    def forward(self, distance_mm, drive_speed=None):
-        angle_forward = 0
-        self.robot0.move_for(distance_mm, angle_forward, drive_speed=drive_speed, wait=False)
-
-    def sideways(self, distance_mm, drive_speed=None):
-        angle_leftward = -90
-        self.robot0.move_for(distance_mm, angle_leftward, drive_speed=drive_speed, wait=False)
-
-    def move(self, distance_mm, angle_rads, drive_speed=None, turn_speed=None):
-        self.robot0.move_for(distance_mm, angle_rads*180/pi,
-                             drive_speed=drive_speed, turn_speed=turn_speed, wait=False)
-
     def is_picked_up(self):
         """
         This function could be smarter about deciding when the robot has been

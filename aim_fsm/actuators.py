@@ -1,10 +1,12 @@
 import asyncio
 import os
+from math import pi
 
 from gtts import gTTS
 from google.cloud import texttospeech
 
 from . import aim
+from . import vex
 
 class Actuator():
     class ActuatorLocked(Exception): pass
@@ -71,22 +73,29 @@ class DriveActuator(Actuator):
     def turn(self, node, angle_rads, turn_speed=None):
         self.lock(node)
         self.started = False
-        self.robot.turn(angle_rads, turn_speed=turn_speed)
+        if angle_rads > 0:
+            turntype = vex.TurnType.LEFT
+        else:
+            turntype = vex.TurnType.RIGHT
+        self.robot.robot0.turn_for(turntype, abs(angle_rads)*180/pi, turn_speed=turn_speed, wait=False)
 
     def forward(self, node, distance_mm, drive_speed=None):
         self.lock(node)
         self.started = False
-        self.robot.forward(distance_mm, drive_speed=drive_speed)
+        angle_forward = 0
+        self.robot.robot0.move_for(distance_mm, angle_forward, drive_speed=drive_speed, wait=False)
 
     def sideways(self, node, distance_mm, drive_speed=None):
         self.lock(node)
         self.started = False
-        self.robot.sideways(distance_mm, drive_speed=drive_speed)
+        angle_leftward = -90
+        self.robot.robot0.move_for(distance_mm, angle_leftward, drive_speed=drive_speed, wait=False)
 
     def move(self, node, distance_mm, angle_rads, drive_speed=None, turn_speed=None):
         self.lock(node)
         self.started = False
-        self.robot.move(distance_mm, angle_rads, drive_speed=drive_speed, turn_speed=turn_speed)
+        self.robot.robot0.move_for(distance_mm, angle_rads*180/pi,
+                                   drive_speed=drive_speed, turn_speed=turn_speed, wait=False)
 
 class SoundActuator(Actuator):
     def __init__(self, robot):
