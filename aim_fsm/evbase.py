@@ -189,6 +189,7 @@ class EventListener:
         self.running = False
         if self.poll_handle: self.poll_handle.cancel()
         self.robot.erouter.remove_all_listener_entries(self)
+        self.polling_interval = None
 
     def handle_event(self, event):
         pass

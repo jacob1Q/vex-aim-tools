@@ -461,7 +461,7 @@ class Flash(ActionNode):
         self.poll()
 
     def stop(self):
-        self.robot.actuators['leds'].unlock(self)
+        self.robot.actuators['leds'].unlock_if_held(self)
         super().stop()
 
     def poll(self):
