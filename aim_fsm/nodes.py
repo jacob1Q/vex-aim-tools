@@ -466,7 +466,7 @@ class Flash(ActionNode):
     def poll(self):
         if self.time_remaining <= 0:
             self.complete(self.robot.actuators['leds'])
-            self.robot.loop.call_soon(self.stop)
+            self.set_polling_interval(None)
             return
         self.current_step = (1 + self.current_step) % len(self.led_program)
         (step_pattern, step_dur) = self.led_program[self.current_step]

@@ -195,14 +195,17 @@ class EventListener:
         pass
 
     def set_polling_interval(self,interval):
-        if isinstance(interval, (int,float)):
+        if interval is None or isinstance(interval, (int,float)):
             self.polling_interval = interval
         else:
             raise TypeError('interval must be a number')
         if self.poll_handle:
             self.poll_handle.cancel()
-        self.poll_handle = \
-            self.robot.loop.call_later(self.polling_interval, self._next_poll)
+        if interval is None:
+            self.poll_handle = None
+        else:
+            self.poll_handle = \
+                self.robot.loop.call_later(self.polling_interval, self._next_poll)
 
     def _next_poll(self):
         """Called to schedule the next polling interval and then poll the node."""
