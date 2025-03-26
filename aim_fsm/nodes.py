@@ -168,7 +168,7 @@ class GPTOneShot(StateNode):
 
 class ActionNode(StateNode):
     def complete(self,actuator):
-        actuator.unlock(self)
+        actuator.unlock_if_held(self)
         self.post_completion()
 
 
@@ -387,8 +387,7 @@ class Glow(ActionNode):
         except Exception as e:
             self.robot.actuators['leds'].unlock(self)
             raise
-        self.robot.actuators['leds'].unlock(self)
-        self.post_completion()
+        self.complete(self.robot.actuators['leds'])
 
 
 class Flash(ActionNode):
@@ -456,7 +455,7 @@ class Flash(ActionNode):
         self.time_remaining = self.total_duration
         super().start(event)
         if len(self.led_program) == 0:
-            self.post_completion()
+            self.complete(self.robot.actuators['leds'])
             return
         self.poll()
 
@@ -466,8 +465,8 @@ class Flash(ActionNode):
 
     def poll(self):
         if self.time_remaining <= 0:
-            self.post_completion()
-            self.stop()
+            self.complete(self.robot.actuators['leds'])
+            self.robot.loop.call_soon(self.stop)
             return
         self.current_step = (1 + self.current_step) % len(self.led_program)
         (step_pattern, step_dur) = self.led_program[self.current_step]
