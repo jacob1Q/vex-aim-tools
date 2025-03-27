@@ -10,7 +10,7 @@ import numpy as np
 from math import pi, sqrt, sin, cos, atan2, exp
 from .geometry import wrap_angle, wrap_selected_angles
 from .aruco import ArucoMarker
-from .worldmap import WorldObject, ArucoMarkerObj
+from .worldmap import WorldObject, ArucoMarkerObj, WallObj
 
 wall_marker_dict = dict()
 
@@ -719,94 +719,21 @@ class SLAMSensorModel(SensorModel):
         "True for independent Aruco landmarks not associated with any wall."
         return isinstance(x, ArucoMarkerObj) and x.marker_id not in wall_marker_dict
 
+    @staticmethod
+    def is_wall_landmark(x):
+        return isinstance(x, WallObj)
+
     def __init__(self, robot, landmark_test=None, landmarks=None,
                  distance_variance=200):
         if landmarks is None:
             landmarks = dict()
         if landmark_test is None:
-            landmark_test = self.is_solo_aruco_landmark
+            landmark_test = self.is_wall_landmark # self.is_solo_aruco_landmark
         self.landmark_test = landmark_test
         self.distance_variance = distance_variance
         self.candidate_arucos = dict()
         self.use_perched_cameras = False
         super().__init__(robot,landmarks)
-
-    def infer_wall_from_corners_lists(self, id, markers):
-        # Called by generate_walls_from_markers below.
-        # All these markers have the same wall_spec, so just grab the first one.
-        wall_spec = wall_marker_dict.get(markers[0][0], None)
-        world_points = []
-        image_points = []
-        for (id, corners) in markers:
-            (s, (cx, cy)) = wall_spec.marker_specs[id]
-
-            if cy < 100:
-                marker_size = self.robot.aruco_detector.marker_size
-            else:
-                # Compensate for lintel marker foreshortening.
-                # TODO: This could be smarter; make it distance-dependent.
-                marker_size = 0.85 * self.robot.aruco_detector.marker_size
-
-            world_points.append((cx-s*marker_size/2, cy+marker_size/2, s))
-            world_points.append((cx+s*marker_size/2, cy+marker_size/2, s))
-            world_points.append((cx+s*marker_size/2, cy-marker_size/2, s))
-            world_points.append((cx-s*marker_size/2, cy-marker_size/2, s))
-
-            image_points.append(corners[0])
-            image_points.append(corners[1])
-            image_points.append(corners[2])
-            image_points.append(corners[3])
-
-        # Find rotation and translation vector from camera frame using SolvePnP
-        (success, rvec, tvec) = cv2.solvePnP(np.array(world_points),
-                                               np.array(image_points),
-                                               self.robot.aruco_detector.camera_matrix,
-                                               self.robot.aruco_detector.distortion_array)
-        rotationm, jcob = cv2.Rodrigues(rvec)
-        # Change to marker frame.
-        # Arucos seen head-on have orientation 0, so work with that for now.
-        # Later we will flip the orientation to pi for the worldmap.
-        transformed = np.matrix(rotationm).T*(-np.matrix(tvec))
-        angles_xyz = rotation_matrix_to_euler_angles(rotationm)
-        # euler angle flip when back of wall is seen
-        if angles_xyz[2] > pi/2:
-            wall_orient = wrap_angle(-(angles_xyz[1]-pi))
-        elif angles_xyz[2] >= -pi/2 and angles_xyz[2] <= pi/2:
-            wall_orient = wrap_angle((angles_xyz[1]))
-        else:
-            wall_orient = wrap_angle(-(angles_xyz[1]+pi))
-
-        wall_x = -transformed[2]*cos(wall_orient) + (transformed[0]-wall_spec.length/2)*sin(wall_orient)
-        wall_y = (transformed[0]-wall_spec.length/2)*cos(wall_orient) - -transformed[2]*sin(wall_orient)
-        # Flip wall orientation to match ArUcos for worldmap
-        wm_wall_orient = wrap_angle(pi - wall_orient)
-        wall = WallObj(id=wall_spec.spec_id, x=wall_x, y=wall_y, theta=wm_wall_orient,
-                       length=wall_spec.length)
-        return wall
-
-    def generate_walls_from_markers(self, seen_marker_objects, good_markers):
-        return []
-        if self.robot.is_moving():
-            return []
-        walls = []
-        wall_markers = dict()  # key is wall id
-        for num in good_markers:
-            marker = seen_marker_objects[num]
-            wall_spec = wall_marker_dict.get(marker.id_string,None)
-            if wall_spec is None: continue  # marker not part of a known wall
-            wall_id = wall_spec.spec_id
-            markers = wall_markers.get(wall_id, list())
-            markers.append((marker.id_string, marker.bbox[0]))
-            wall_markers[wall_id] = markers
-        # Now infer the walls from the markers
-        for (wall_id,markers) in wall_markers.items():
-            # Must see at least two markers to create a wall, but once it's
-            # in the world map we only require one marker to recognize it.
-            # Necessary to avoid spurious wall creation.
-            # NOTE: switched to only requiring 1 marker for wall creation.
-            if len(markers) >= 1 or wall_id in self.robot.world_map.objects:
-                walls.append(self.infer_wall_from_corners_lists(wall_id,markers))
-        return walls
 
     def evaluate(self, particles, force=False, just_looking=False):
         # Returns true if particles were evaluated.
@@ -864,7 +791,8 @@ class SLAMSensorModel(SensorModel):
             if markerobj.id in self.robot.world_map.objects or \
                self.candidate_arucos.get(markerobj.id,-1) > 2:
                 good_markers.append(markerobj.id)
-        walls = self.generate_walls_from_markers(seen_marker_objects, good_markers)
+        walls = [obj for obj in self.robot.world_map.objects.values()
+                 if isinstance(obj,WallObj) and obj.is_visible]
         for wall in walls:
             evaluated = self.process_landmark(wall.id, wall, just_looking, seen_marker_objects) \
                         or evaluated
@@ -917,9 +845,9 @@ class SLAMSensorModel(SensorModel):
             sensor_orient = wrap_angle(pi - marker.euler_rotation[1] * (pi/180))
         elif id.startswith('Wall-'):
             # Turning to polar coordinates
-            sensor_dist = sqrt(data.x**2 + data.y**2)
-            sensor_bearing = atan2(data.y, data.x)
-            sensor_orient = wrap_angle(data.theta)
+            sensor_dist = sqrt(data.pose.x**2 + data.pose.y**2)
+            sensor_bearing = atan2(data.pose.y, data.pose.x)
+            sensor_orient = wrap_angle(data.pose.theta)
         elif id.startswith('Cam'):
             # Converting to cylindrical coordinates
             sensor_dist = sqrt(landmark.x**2 + landmark.y**2)
@@ -1008,7 +936,7 @@ class SLAMSensorModel(SensorModel):
         return evaluated
 
 class SLAMParticleFilter(ParticleFilter):
-    def __init__(self, robot, landmark_test=SLAMSensorModel.is_solo_aruco_landmark, **kwargs):
+    def __init__(self, robot, landmark_test=SLAMSensorModel.is_wall_landmark, **kwargs):
         if 'sensor_model' not in kwargs or kwargs['sensor_model'] == 'default':
             kwargs['sensor_model'] = SLAMSensorModel(robot, landmark_test=landmark_test)
         if 'particle_factory' not in kwargs:

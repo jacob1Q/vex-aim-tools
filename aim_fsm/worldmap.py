@@ -114,7 +114,7 @@ class WallObj(WorldObject):
         self.name = wall_spec.label
         self.length = wall_spec.length
         self.height = wall_spec.height
-        self.is_fixed = True
+        self.is_fixed = False
 
     def __repr__(self):
         vis = 'visible' if self.is_visible else 'unseen'
@@ -138,7 +138,7 @@ class WallSpec():
 
 class DoorwayObj(WorldObject):
     def __init__(self, wall, index):
-        name = f'DoorwayObj-{wall.name[5:]}:{index}'
+        name = f'Doorway-{wall.name[5:]}:{index}'
         super().__init__(name=name, is_visible=wall.is_visible)
         door_spec = wall.wall_spec.doorways[index]
         self.door_width = door_spec['width']
@@ -279,24 +279,32 @@ class WorldMap():
             orients = [marker[1].euler_rotation[1] for marker in markers]
             # TODO: check orients for outliers and remove them before proceeding
             outlier_threshold = 20 # degrees
+            orig_orients = copy.copy(orients)
             if len(orients) == 1:
-                pass
+                continue
             elif len(orients) == 2:
                 if abs(wrap_angle_deg(orients[0] - orients[1])) > outlier_threshold:
                     #print('marker outlier:', orients)
                     continue
             else:
-                n = len(orients)
-                for i in range(n):
-                    outs = [abs(wrap_angle_deg(orients[i] - orients[(i+j+1)%n])) > outlier_threshold
-                            for j in range(n-1)]
-                    if all(outs):
-                        #print('marker',i,' outlier:', orients)
-                        del orients[i]
-                        del markers[i]
-                        break
+                orients_consistent = False
+                while not orients_consistent:
+                    n = len(orients)
+                    orients_consistent = True
+                    for i in range(n):
+                        outs = [abs(wrap_angle_deg(orients[i] - orients[(i+j+1)%n])) > outlier_threshold
+                                for j in range(n-1)]
+                        if all(outs):
+                            #print('marker',i,' outlier:', orients)
+                            del orients[i]
+                            del markers[i]
+                            orients_consistent = False
+                            break
+                if len(orients) < 2:
+                    continue
             wall = self.infer_wall_from_corners_lists(wall_id, markers)
-            #print(f'theta={wall.pose.theta*180/pi}  marker orients = {orients}')
+            if len(orients) < len(orig_orients):
+                pass # print(wall.pose.theta*180/pi, orients, orig_orients)
             self.candidates.append(wall)
             self.make_doorways_from_wall(wall)
 

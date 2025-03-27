@@ -43,7 +43,7 @@ class StateMachineProgram(StateNode):
                  particle_filter = None,
                  num_particles = 500,
                  sensor_model = "default",
-                 landmark_test = SLAMSensorModel.is_solo_aruco_landmark,
+                 landmark_test = SLAMSensorModel.is_wall_landmark,
                  landmarks = None,
                  launch_particle_viewer = False,
                  particle_viewer_scale = 1.0,

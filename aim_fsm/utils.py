@@ -1,76 +1,193 @@
 from .geometry import wrap_angle
 import numpy as np
 
-class KalmanFilter:
-    def __init__(self, initial_estimate, initial_uncertainty, base_measurement_noise, process_noise):
-        # Initialize state
-        self.estimate = initial_estimate
+class LinearKalmanFilter:
+    def __init__(self, initial_state, initial_uncertainty, process_noise, measurement_noise):
+        """
+        Initialize the Linear Kalman Filter
+        
+        Parameters:
+        - initial_state: Starting state estimate
+        - initial_uncertainty: Initial uncertainty in the state estimate
+        - process_noise: Standard deviation of the process noise
+        - measurement_noise: Standard deviation of the measurement noise
+        """
+        # State estimate 
+        self.state = initial_state
+        
+        # Estimate uncertainty
         self.uncertainty = initial_uncertainty
-
-        # Kalman filter parameters
-        self.base_measurement_noise = base_measurement_noise
-        self.measurement_noise = base_measurement_noise  # R
-        self.process_noise = process_noise          # Q
-
-        self.angle_history = []
-
-    def update(self, measurement, noise=0):
-        # Prediction step (no process dynamics, so state remains the same)
-        predicted_estimate = self.estimate
-        predicted_uncertainty = self.uncertainty + self.process_noise
-        self.measurement_noise = self.base_measurement_noise + noise 
-
-        # Kalman gain
-        kalman_gain = predicted_uncertainty / (predicted_uncertainty + self.measurement_noise)
-
-        # Update step
-        self.estimate = predicted_estimate + kalman_gain * (measurement - predicted_estimate)
-        self.uncertainty = (1 - kalman_gain) * predicted_uncertainty
-
-        return self.estimate, self.uncertainty
-
-    def update_circular(self, measurement):
-        return self.update(measurement)
-
-        # *** THIS CODE IS BROKEN ***
-
-        predicted_estimate = self.estimate
-        z_estimate = np.array([np.sin(predicted_estimate), np.cos(predicted_estimate)])
-        z_measure = np.array([np.sin(measurement), np.cos(measurement)])
-        predicted_uncertainty = self.uncertainty + self.process_noise
-
-        # Normalize measurement residual
-        residual = z_measure - z_estimate
-
-        # Kalman gain
-        kalman_gain = predicted_uncertainty / (predicted_uncertainty + self.measurement_noise)
-
-        # Update step
-        self.estimate = predicted_estimate + kalman_gain * residual
-        self.estimate = np.arctan2(self.estimate[0], self.estimate[1])
-
-        self.uncertainty = (1 - kalman_gain) * predicted_uncertainty
-
-        # Store estimate in history
-        self.angle_history.append(self.estimate)
-
-        # Compute circular variance
-        circ_var = self.circular_variance()
-
-        return self.estimate, self.uncertainty
+        
+        # Process noise covariance
+        self.Q = process_noise**2
+        
+        # Measurement noise covariance
+        self.R = measurement_noise**2
     
-    def circular_variance(self):
-        if len(self.angle_history) == 0:
-            return 0
+    def set_measurement_noise(self, measurement_noise):
+        self.R = measurement_noise**2
 
-        angles = np.array(self.angle_history)
-        # Compute mean angle
-        mean_angle = np.arctan2(np.mean(np.sin(angles)), np.mean(np.cos(angles)))
+    def predict(self, control_input=0):
+        """
+        Prediction step of the Kalman filter
+        
+        Parameters:
+        - control_input: Optional control input affecting the state (default 0)
+        
+        Returns:
+        - Predicted state
+        """
+        # Predict state (with optional control input)
+        self.state += control_input
+        
+        # Increase uncertainty
+        self.uncertainty += self.Q
+        
+        return self.state
+    
+    def update(self, measurement):
+        """
+        Update step of the Kalman filter
+        
+        Parameters:
+        - measurement: New measurement value
+        
+        Returns:
+        - Updated state estimate
+        """
+        # Calculate innovation (measurement residual)
+        innovation = measurement - self.state
+        
+        # Calculate innovation covariance
+        S = self.uncertainty + self.R
+        
+        # Calculate Kalman gain
+        K = self.uncertainty / S
+        
+        # Update state estimate
+        self.state += K * innovation
+        
+        # Update uncertainty
+        self.uncertainty *= (1 - K)
+        
+        return self.state
+    
+    def get_state(self):
+        """
+        Get the current state estimate
+        
+        Returns:
+        - Current state estimate
+        """
+        return self.state
 
-        # Compute circular variance
-        circ_var = 1 - (np.sqrt(np.mean(np.sin(angles - mean_angle)**2) + np.mean(np.cos(angles - mean_angle)**2)) / 2)
 
-        return circ_var
+class CircularKalmanFilter:
+    def __init__(self, initial_angle, initial_uncertainty, process_noise, measurement_noise):
+        """
+        Initialize the Circular Kalman Filter
+        
+        Parameters:
+        - initial_angle: Starting angle (in radians)
+        - initial_uncertainty: Initial uncertainty in the angle estimate
+        - process_noise: Standard deviation of the process noise
+        - measurement_noise: Standard deviation of the measurement noise
+        """
+        # State estimate (angle)
+        self.state = initial_angle
+        
+        # Estimate uncertainty
+        self.uncertainty = initial_uncertainty
+        
+        # Process noise covariance
+        self.Q = process_noise**2
+        
+        # Measurement noise covariance
+        self.R = measurement_noise**2
+    
+    def normalize_angle(self, angle):
+        """
+        Normalize angle to be within [-π, π]
+        
+        Parameters:
+        - angle: Input angle in radians
+        
+        Returns:
+        - Normalized angle
+        """
+        return np.arctan2(np.sin(angle), np.cos(angle))
+    
+    def angular_difference(self, a, b):
+        """
+        Calculate the shortest angular difference between two angles
+        
+        Parameters:
+        - a: First angle in radians
+        - b: Second angle in radians
+        
+        Returns:
+        - Shortest angular difference
+        """
+        diff = a - b
+        return self.normalize_angle(diff)
+    
+    def predict(self, control_input=0):
+        """
+        Prediction step of the Kalman filter
+        
+        Parameters:
+        - control_input: Optional control input affecting the state (default 0)
+        
+        Returns:
+        - Predicted state
+        """
+        # Predict state (with optional control input)
+        self.state = self.normalize_angle(self.state + control_input)
+        
+        # Increase uncertainty
+        self.uncertainty += self.Q
+        
+        return self.state
+    
+    def update(self, measurement):
+        """
+        Update step of the Kalman filter
+        
+        Parameters:
+        - measurement: New angle measurement in radians
+        
+        Returns:
+        - Updated state estimate
+        """
+        # Normalize measurement and current state
+        normalized_measurement = self.normalize_angle(measurement)
+        normalized_state = self.normalize_angle(self.state)
+        
+        # Calculate innovation (measurement residual)
+        innovation = self.angular_difference(normalized_measurement, normalized_state)
+        
+        # Calculate innovation covariance
+        S = self.uncertainty + self.R
+        
+        # Calculate Kalman gain
+        K = self.uncertainty / S
+        
+        # Update state estimate
+        self.state = self.normalize_angle(normalized_state + K * innovation)
+        
+        # Update uncertainty
+        self.uncertainty *= (1 - K)
+        
+        return self.state
+    
+    def get_state(self):
+        """
+        Get the current state estimate
+        
+        Returns:
+        - Current angle estimate in radians
+        """
+        return self.state
 
 
 def neaten(x):
@@ -111,26 +228,35 @@ class PoseEstimate(Pose):
             theta = p.theta
         super().__init__(x, y, z, theta)
         initial_uncertainty = 200
-        base_measurement_noise = 0.1
         process_noise = 0.01
-        self.kf_x = KalmanFilter(x, initial_uncertainty, base_measurement_noise, process_noise)
-        self.kf_y = KalmanFilter(y, initial_uncertainty, base_measurement_noise, process_noise)
-        self.kf_z = KalmanFilter(z, initial_uncertainty, base_measurement_noise, process_noise)
+        base_measurement_noise = 0.1
+        self.kf_x = LinearKalmanFilter(x, initial_uncertainty, process_noise, base_measurement_noise)
+        self.kf_y = LinearKalmanFilter(y, initial_uncertainty, process_noise, base_measurement_noise)
+        self.kf_z = LinearKalmanFilter(z, initial_uncertainty, process_noise, base_measurement_noise)
         theta_initial_uncertainty = 200
-        theta_base_measurement_noise = 0.5
         theta_process_noise = 0.05
+        theta_base_measurement_noise = 0.5
         if theta is not None:
-            self.kf_theta = KalmanFilter(theta,
-                                         theta_initial_uncertainty,
-                                         theta_base_measurement_noise,
-                                         theta_process_noise)
+            self.kf_theta = CircularKalmanFilter(theta,
+                                                 theta_initial_uncertainty,
+                                                 theta_process_noise,
+                                                 theta_base_measurement_noise)
 
-    def update(self, new_pose, measurement_noise):
-        self.x, _ = self.kf_x.update(new_pose.x, measurement_noise)
-        self.y, _ = self.kf_y.update(new_pose.y, measurement_noise)
-        self.z, _ = self.kf_z.update(new_pose.z, measurement_noise)
+    def update(self, new_pose, measurement_noise=None):
+        if measurement_noise is not None:
+            self.kf_x.set_measurement_noise(measurement_noise)
+            self.kf_y.set_measurement_noise(measurement_noise)
+            self.kf_z.set_measurement_noise(measurement_noise)
+        self.kf_x.predict()
+        self.x = self.kf_x.update(new_pose.x)
+        self.kf_y.predict()
+        self.y = self.kf_y.update(new_pose.y)
+        self.kf_z.predict()
+        self.z = self.kf_z.update(new_pose.z)
         if self.theta is not None:
-            self.theta, _ = self.kf_theta.update_circular(new_pose.theta)
+            self.kf_theta.predict()
+            self.kf_theta.update(new_pose.theta)
+            self.theta = self.kf_theta.get_state()
 
     def __repr__(self):
         return f'<PoseEstimate x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta)} origin_id={self.origin_id}>'
