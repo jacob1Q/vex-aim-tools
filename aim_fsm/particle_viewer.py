@@ -193,7 +193,6 @@ class ParticleViewer():
 
     def draw_landmarks(self):
         landmarks = self.robot.particle_filter.sensor_model.landmarks.copy()
-        if not landmarks: return
         # Copy landmarks as quickly as we can because
         # dictionary can change while we're iterating.
         objs = self.robot.world_map.objects.copy()

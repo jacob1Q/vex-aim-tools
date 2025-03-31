@@ -21,7 +21,8 @@ from .utils import Pose, PoseEstimate
 from . import program
 
 class Robot():
-    def __init__(self, robot0=None, loop=None, host="192.168.4.1"):
+    def __init__(self, robot0=None, loop=None, host="192.168.4.1",
+                 launch_speech_listener=True):
         if robot0 is None:
             robot0 = aim.Robot(host=host)
         robot0.inertial.calibrate()
@@ -57,7 +58,8 @@ class Robot():
         self.holding = None   # object being held
         self.thesaurus = Thesaurus()
         self.speech_listener = SpeechListener(self, self.thesaurus, debug=False)
-        self.loop.call_soon_threadsafe(self.speech_listener.start)
+        if launch_speech_listener:
+            self.loop.call_soon_threadsafe(self.speech_listener.start)
 
     def status_callback(self):
         self.loop.call_soon_threadsafe(self.status_update)
@@ -76,10 +78,7 @@ class Robot():
         if heading > 180:
             heading = heading - 360
         theta = heading / 180 * pi
-        self.pose = PoseEstimate(self.robot0.get_y(),
-                                 -self.robot0.get_x(),
-                                 0,
-                                 theta)
+        # self.pose = PoseEstimate(self.robot0.get_y(), -self.robot0.get_x(), 0, theta)
 
         self.battery_percentage = self.status['battery']
         self.update_actuators()
@@ -164,9 +163,9 @@ class Robot():
     def show_pose(self):
         def neaten(x):
             return round(x*10)/10
-        print(f'Odometry:  {neaten(self.pose.x)}, ' +
-              f'{neaten(self.pose.y)} ' +
-              f'heading {neaten(self.pose.theta*180/pi)} deg.', end='')
+        print(f'Odometry:  {neaten(self.robot0.get_x())}, ' +
+              f'{neaten(self.robot0.get_y())} ' +
+              f'heading {neaten(180-self.robot0.get_heading())} deg.', end='')
         print(f'   [ Roll: {neaten(self.robot0.get_roll())}  ' +
               f'Pitch: {neaten(self.robot0.get_pitch())}  ' +
               f'Yaw: {neaten(self.robot0.get_yaw())} ]')

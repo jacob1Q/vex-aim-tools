@@ -441,11 +441,14 @@ else:
     robot_address = "192.168.4.1"
 print(f'Connecting to {robot_address} ...')
 
-robot = Robot(loop=loop, host=robot_address)
+launch_speech_listener = 'ROBOT_NO_SPEECH' not in os.environ
+
+robot = Robot(loop=loop, host=robot_address,
+              launch_speech_listener=launch_speech_listener)
 evbase.robot_for_loading = robot
 
-################ Launch
 
+################ Launch
 
 file_to_run = sys.argv[1] if len(sys.argv) > 1 else None
 cli_loop(robot)

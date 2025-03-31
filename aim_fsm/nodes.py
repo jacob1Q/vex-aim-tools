@@ -167,9 +167,17 @@ class GPTOneShot(StateNode):
 #________________ Actions ________________
 
 class ActionNode(StateNode):
-    def complete(self,actuator):
-        actuator.unlock_if_held(self)
+    def unlock_held_actuators(self):
+        for actuator in self.robot.actuators.values():
+            actuator.unlock_if_held(self)
+
+    def complete(self):
+        self.unlock_held_actuators()
         self.post_completion()
+
+    def stop(self):
+        self.unlock_held_actuators()
+        super().stop()
 
 
 class Forward(ActionNode):
@@ -184,10 +192,6 @@ class Forward(ActionNode):
         super().start(event)
         self.robot.actuators['drive'].forward(self, self.distance_mm, self.drive_speed)
 
-    def stop(self):
-        super().stop()
-        self.robot.actuators['drive'].unlock_if_held(self)
-
 
 class Sideways(ActionNode):
     def __init__(self, distance_mm=0, drive_speed=None):
@@ -201,9 +205,6 @@ class Sideways(ActionNode):
         super().start(event)
         self.robot.actuators['drive'].sideways(self, self.distance_mm, self.drive_speed)
 
-    def stop(self):
-        super().stop()
-        self.robot.actuators['drive'].unlock_if_held(self)
 
 class Turn(ActionNode):
     def __init__(self, angle_deg=0, turn_speed=None):
@@ -216,10 +217,6 @@ class Turn(ActionNode):
             self.angle_deg = event.data
         super().start(event)
         self.robot.actuators['drive'].turn(self, self.angle_deg*pi/180, self.turn_speed)
-
-    def stop(self):
-        super().stop()
-        self.robot.actuators['drive'].unlock_if_held(self)
 
 
 class DrivePath(ActionNode):
@@ -301,10 +298,6 @@ class SoftKick(ActionNode):
         super().start(event)
         self.robot.actuators['kick'].kick(self, vex.KickType.SOFT)
 
-    def stop(self):
-        super().stop()
-        self.robot.actuators['kick'].unlock_if_held(self)
-
 
 class Kick(ActionNode):
     def __init__(self, kicktype=vex.KickType.MEDIUM):
@@ -314,10 +307,6 @@ class Kick(ActionNode):
     def start(self, event=None):
         super().start(event)
         self.robot.actuators['kick'].kick(self, self.kicktype)
-
-    def stop(self):
-        super().stop()
-        self.robot.actuators['kick'].unlock_if_held(self)
 
 
 class Say(ActionNode):
@@ -348,10 +337,6 @@ class Say(ActionNode):
             self.post_completion()
             return
         self.robot.actuators['sound'].say_text(self, self.utterance)
-
-    def stop(self):
-        super().stop()
-        self.robot.actuators['sound'].unlock_if_held(self)
 
 
 class PlaySound(ActionNode):
@@ -387,7 +372,7 @@ class Glow(ActionNode):
         except Exception as e:
             self.robot.actuators['leds'].unlock(self)
             raise
-        self.complete(self.robot.actuators['leds'])
+        self.complete()
 
 
 class Flash(ActionNode):
@@ -455,18 +440,18 @@ class Flash(ActionNode):
         self.time_remaining = self.total_duration
         super().start(event)
         if len(self.led_program) == 0:
-            self.complete(self.robot.actuators['leds'])
+            self.complete()
             return
         self.poll()
 
-    def stop(self):
-        self.robot.actuators['leds'].unlock_if_held(self)
-        super().stop()
+    def complete(self):
+        self.robot.actuators['leds'].set_light_color(self, vex.LightType.ALL, vex.Color.TRANSPARENT)
+        super().complete()
 
     def poll(self):
         if self.time_remaining <= 0:
-            self.complete(self.robot.actuators['leds'])
             self.set_polling_interval(None)
+            self.complete()
             return
         self.current_step = (1 + self.current_step) % len(self.led_program)
         (step_pattern, step_dur) = self.led_program[self.current_step]

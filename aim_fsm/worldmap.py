@@ -36,7 +36,10 @@ class WorldObject():
             vis = "unseen"
         return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f})>'
 
-    def update_matched_object(self):
+    def update_matched_object(self,robot):
+        self.matched.is_visible = True
+        if self.matched.is_fixed or robot.particle_filter.state != robot.particle_filter.LOCALIZED:
+            return
         MIN_SENSOR_NOISE = 5
         sensor_noise = max(MIN_SENSOR_NOISE, self.sensor_distance * 0.1)
         self.matched.pose.update(self.pose, sensor_noise)
@@ -44,8 +47,12 @@ class WorldObject():
             self.matched.spec = self.spec
         if hasattr(self, 'marker'):
             self.matched.marker = self.marker
-        self.matched.is_visible = True
-        self.matched.is_missing = False
+        if hasattr(self, 'sensor_distance'):
+            self.matched.sensor_distance = self.sensor_distance
+        if hasattr(self, 'sensor_bearing'):
+            self.matched.sensor_bearing = self.sensor_bearing
+        if hasattr(self, 'sensor_orient'):
+            self.matched.sensor_orient = self.sensor_orient
 
 class BarrelObj(WorldObject):
     def __init__(self, spec):
@@ -175,6 +182,7 @@ class WorldMap():
         return f'<WorldMap with {len(self.objects)} objects>'
 
     def clear(self):
+        self.robot.particle_filter.clear_landmarks()
         self.objects.clear()
         self.pending_objects.clear()
         self.missing_objects = []
@@ -183,7 +191,6 @@ class WorldMap():
         
 
     def update(self):
-        #print('worldmap update')
         self.updated_objects = []
         self.make_new_objects_from_vision()
         self.associate_objects()
@@ -266,6 +273,28 @@ class WorldMap():
             obj.pose = Pose(x, y, 0, theta)
             self.candidates.append(obj)
 
+    def make_new_aruco_objects(self):
+        camera_offset = np.array([0, 0, aim_kin.camera_from_origin])
+        for (id,marker) in self.robot.aruco_detector.seen_marker_objects.copy().items():
+            name = f'ArucoMarker-{id}'
+            spec = {'name': name, 'id': id, 'marker': marker}
+            sensor_coords = marker.camera_coords + camera_offset
+            sensor_distance = math.sqrt(sensor_coords[0]**2 + sensor_coords[2]**2)
+            sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
+            sensor_orient = wrap_angle(pi + marker.euler_rotation[1] * (pi/180))
+            theta = self.robot.pose.theta
+            #print(f'sdist={sensor_dist} scoords={sensor_coords} sbearing={sensor_bearing*180/pi} sorient={sensor_orient*180/pi} theta={theta*180/pi}')
+            obj = self.make_object(spec)
+            obj.pose = Pose(self.robot.pose.x + sensor_distance * cos(theta + sensor_bearing),
+                            self.robot.pose.y + sensor_distance * sin(theta + sensor_bearing),
+                            marker.aruco_parent.marker_size / 2,  # *** TEMPORARY HACK ***
+                            wrap_angle(self.robot.pose.theta + sensor_orient))
+            obj.sensor_distance = sensor_distance
+            obj.sensor_orient = sensor_orient
+            obj.sensor_bearing = sensor_bearing
+            obj.is_visible = True
+            self.candidates.append(obj)
+
     def make_new_wall_objects(self):
         seen = self.robot.aruco_detector.seen_marker_objects.copy()
         wall_markers = dict()
@@ -309,7 +338,6 @@ class WorldMap():
             self.make_doorways_from_wall(wall)
 
     def infer_wall_from_corners_lists(self, wall_id, markers):
-        # All these markers have the same wall_spec, so just grab the first one.
         wall_spec = wall_marker_dict[wall_id]
         marker_size = self.robot.aruco_detector.marker_size
         world_points = []
@@ -323,43 +351,48 @@ class WorldMap():
             world_points.append((cx+s*marker_size/2, cy-marker_size/2, s))
             world_points.append((cx-s*marker_size/2, cy-marker_size/2, s))
 
-            corners = marker.bbox[0]
+            corners = marker.corners[0]
             image_points.append(corners[0])
             image_points.append(corners[1])
             image_points.append(corners[2])
             image_points.append(corners[3])
 
         # Find rotation and translation vector from camera frame using SolvePnP
-        (success, rvecs, tvecs) = cv2.solvePnP(np.array(world_points),
-                                               np.array(image_points),
-                                               self.robot.aruco_detector.camera_matrix,
-                                               self.robot.aruco_detector.distortion_array)
-        rotationm, jcob = cv2.Rodrigues(rvecs)
-        # Change to marker frame.
+        (success, rvec, tvec) = cv2.solvePnP(np.array(world_points),
+                                             np.array(image_points),
+                                             self.robot.aruco_detector.camera_matrix,
+                                             self.robot.aruco_detector.distortion_array)
+        rotationm, jcob = cv2.Rodrigues(rvec)
+        tvec[2] += aim_kin.camera_from_origin  # want distance from base frame not camera
         # Arucos seen head-on have orientation 0, so work with that for now.
         # Later we will flip the orientation to pi for the worldmap.
-        transformed = np.matrix(rotationm).T*(-np.matrix(tvecs))
-        angles_xyz = rotation_matrix_to_euler_angles(rotationm)
+        transformed = np.matrix(rotationm).T*(-np.matrix(tvec))
+        euler_angles_rad = rotation_matrix_to_euler_angles(rotationm)
         # euler angle flip when back of wall is seen
-        if angles_xyz[2] > pi/2:
-            wall_orient = wrap_angle(-(angles_xyz[1]-pi))
-        elif angles_xyz[2] >= -pi/2 and angles_xyz[2] <= pi/2:
-            wall_orient = wrap_angle((angles_xyz[1]))
+        if euler_angles_rad[2] > pi/2:
+            print(f'euler_angles_rad[2] {euler_angles_rad[2]*180/pi} > pi/2')
+            wall_orient = wrap_angle(-(euler_angles_rad[1]-pi))
+        elif euler_angles_rad[2] >= -pi/2 and euler_angles_rad[2] <= pi/2:
+            #print(f'euler_angles_rad[2] {euler_angles_rad[2]*180/pi} >= -pi/2 and euler_angles_rad[2] <= pi/2')
+            wall_orient = wrap_angle((euler_angles_rad[1]))
         else:
-            wall_orient = wrap_angle(-(angles_xyz[1]+pi))
-
+            print(f'euler_angles_rad[2] {euler_angles_rad[2]*180/pi}')
+            wall_orient = wrap_angle(-(euler_angles_rad[1]+pi))
         wall_x = -transformed[2]*cos(wall_orient) + (transformed[0]-wall_spec.length/2)*sin(wall_orient)
         wall_y = (transformed[0]-wall_spec.length/2)*cos(wall_orient) - -transformed[2]*sin(wall_orient)
-        #print('# markers=', len(markers), '   wall_x=', wall_x, '  wall_y=', wall_y)
-        #import pdb
-        #breakpoint()
         # Flip wall orientation to match ArUcos for worldmap
-        wm_wall_orient = wrap_angle(pi - wall_orient)
+        if s > 0:
+            wm_wall_orient = wrap_angle(pi - wall_orient)
+        else:
+            wm_wall_orient = wrap_angle(0 - wall_orient)
         rel_coords = aboutZ(self.robot.pose.theta).dot(point(wall_x[0,0], wall_y[0,0]))
         x = self.robot.pose.x + rel_coords[0,0]
         y = self.robot.pose.y + rel_coords[1,0]
         wall = WallObj(wall_spec, x=x, y=y, theta=wrap_angle(self.robot.pose.theta + wm_wall_orient))
-        wall.sensor_distance = math.sqrt(wall_x[0,0]**2 + wall_y[0,0]**2)
+        wall.sensor_distance = math.sqrt(wall_x[0,0]**2 + wall_y[0,0]**2) + aim_kin.camera_from_origin
+        wall.sensor_orient = wrap_angle(pi - euler_angles_rad[1])
+        abs_bearing = atan2(wall.pose.y-self.robot.pose.y, wall.pose.x-self.robot.pose.x)
+        wall.sensor_bearing = wrap_angle(abs_bearing - self.robot.pose.theta)
         wall.is_visible = True
         return wall
 
@@ -382,28 +415,6 @@ class WorldMap():
                 doorways.append((obj, ((ox-dx, oy-dy), (ox+dx, oy+dy))))
         return doorways
 
-    def make_new_aruco_objects(self):
-        for (id,marker) in self.robot.aruco_detector.seen_marker_objects.copy().items():
-            #if id in wall_marker_dict:
-            #   continue
-            name = f'ArucoMarker-{id}'
-            spec = {'name': name, 'id': id, 'marker': marker}
-            sensor_dist = marker.camera_distance
-            camera_offset = np.array([0, 0, aim_kin.camera_from_origin])
-            sensor_coords = marker.camera_coords + camera_offset
-            sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
-            sensor_orient = wrap_angle(pi - marker.euler_rotation[1] * (pi/180))
-            theta = self.robot.pose.theta
-            #print(f'sdist={sensor_dist} scoords={sensor_coords} sbearing={sensor_bearing*180/pi} sorient={sensor_orient*180/pi} theta={theta*180/pi}')
-            obj = self.make_object(spec)
-            obj.pose = Pose(self.robot.pose.x + sensor_dist * cos(theta + sensor_bearing),
-                            self.robot.pose.y + sensor_dist * sin(theta + sensor_bearing),
-                            marker.aruco_parent.marker_size / 2,  # *** TEMPORARY HACK ***
-                            wrap_angle(self.robot.pose.theta - sensor_orient))
-            obj.sensor_distance = sensor_dist
-            obj.is_visible = True
-            self.candidates.append(obj)
-
     def associate_objects(self):
         obj_types = list(set(type(obj) for obj in self.candidates))
         for otype in obj_types:
@@ -425,8 +436,8 @@ class WorldMap():
            self.robot.particle_filter.state in (self.robot.particle_filter.LOST,
                                                 self.robot.particle_filter.LOCALIZING):
             MAX_ACCEPTABLE_COST = np.inf
-        elif otype in (ArucoMarkerObj, WallObj):
-            MAX_ACCEPTABLE_COST = 5000  # should adjust based on pf undertainty
+        elif otype in (ArucoMarkerObj, WallObj, DoorwayObj):
+            MAX_ACCEPTABLE_COST = np.inf  # should adjust based on pf undertainty
         else:
             MAX_ACCEPTABLE_COST = 500  # should adjust based on pf undertainty
         for i in range(N_new):
@@ -445,7 +456,7 @@ class WorldMap():
     def update_associated_objects(self):
         for candidate in self.candidates:
             if candidate.matched:
-                candidate.update_matched_object()
+                candidate.update_matched_object(self.robot)
                 self.updated_objects.append(candidate.matched)
                 candidate.matched.is_missing = False
                 if candidate.matched in self.missing_objects:

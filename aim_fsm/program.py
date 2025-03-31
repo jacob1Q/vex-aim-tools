@@ -43,7 +43,7 @@ class StateMachineProgram(StateNode):
                  particle_filter = None,
                  num_particles = 500,
                  sensor_model = "default",
-                 landmark_test = SLAMSensorModel.is_wall_landmark,
+                 landmark_test = SLAMSensorModel.is_wall_landmark, # SLAMSensorModel.is_solo_aruco_landmark, #
                  landmarks = None,
                  launch_particle_viewer = False,
                  particle_viewer_scale = 1.0,
@@ -79,7 +79,7 @@ class StateMachineProgram(StateNode):
         self.num_particles = num_particles
         self.landmarks = landmarks
         self.sensor_model = sensor_model
-        #self.landmark_test = landmark_test
+        self.landmark_test = landmark_test
         self.launch_particle_viewer = launch_particle_viewer
         self.particle_viewer_scale = particle_viewer_scale
         self.launch_path_viewer = launch_path_viewer
@@ -95,7 +95,8 @@ class StateMachineProgram(StateNode):
         if particle_filter:
             self.particle_filter = particle_filter
         else:
-            self.particle_filter = SLAMParticleFilter(self.robot)
+            self.particle_filter = \
+                SLAMParticleFilter(self.robot, landmark_test=self.landmark_test)
 
         self.perched_cameras = perched_cameras
         if self.perched_cameras:

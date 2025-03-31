@@ -8,9 +8,9 @@ from numpy import sqrt, arctan2
 ARUCO_MARKER_SIZE = 25
 
 class ArucoMarker(object):
-    def __init__(self, aruco_parent, marker_id, bbox, translation, rotation):
+    def __init__(self, aruco_parent, marker_id, corners, translation, rotation):
         self.marker_id = marker_id
-        self.bbox = bbox
+        self.corners = corners
         self.aruco_parent = aruco_parent
 
         # OpenCV Pose information
@@ -96,11 +96,12 @@ class RobotArucoDetector(object):
             if id in self.disabled_ids: continue
             if rvec[2][0] > math.pi/2 or rvec[2][0] < -math.pi/2:
                 # can't see a marker facing away from us, so bogus
-                print('Marker rejected! id=', id, 'tvec=', tvec, 'rvec=', rvec)
+                print(f'Marker rejected! id={id}  tvec={tvec}  ' +
+                      f'rvec=({rvec[0][0]*180/pi},{rvec[1][0]*180/pi},{rvec[2][0]*180/pi})')
                 continue
             marker = ArucoMarker(self, id, marker_corners_2d, tvec, -rvec)
-            self.seen_marker_ids.append(marker.marker_id)
-            self.seen_marker_objects[marker.marker_id] = marker
+            self.seen_marker_ids.append(id)
+            self.seen_marker_objects[id] = marker
 
     def annotate(self, image, scale_factor):
         scaled_corners = [ np.multiply(corner, scale_factor) for corner in self.corners ]

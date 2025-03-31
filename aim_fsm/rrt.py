@@ -8,8 +8,6 @@ from .geometry import wrap_angle
 
 from .rrt_shapes import *
 from .worldmap import BarrelObj, BallObj, AprilTagObj, ArucoMarkerObj, WallObj, DoorwayObj
-#from .worldmap import WallObj, wall_marker_dict, RoomObj, LightCubeObj, MapFaceObj
-#from .worldmap import CustomCubeObj, ChargerObj, CustomMarkerObj, ChipObj, RobotForeignObj
 
 # *** TODO: Collision checking needs to use opposite headings
 # for treeB nodes because robot is asymmetric.

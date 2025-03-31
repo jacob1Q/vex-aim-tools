@@ -50,7 +50,7 @@ class Actuator():
 
     def complete(self):
         if self.holder:
-            self.holder.complete(self)
+            self.holder.complete()
 
 class DriveActuator(Actuator):
     def __init__(self, robot):
@@ -66,7 +66,7 @@ class DriveActuator(Actuator):
         if self.robot.robot0.is_move_active() or self.robot.robot0.is_turn_active():
             self.started = True
         elif self.holder and self.started:
-            self.holder.complete(self)
+            self.holder.complete()
             self.holder = None
             self.started = False
 
@@ -187,7 +187,7 @@ class KickActuator(Actuator):
     async def delayed_completion(self):
         await asyncio.sleep(self.KICK_DURATION)
         if self.holder:
-            self.holder.complete(self)
+            self.holder.complete()
 
 
 class LEDsActuator(Actuator):
