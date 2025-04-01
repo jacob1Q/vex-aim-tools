@@ -139,7 +139,8 @@ class StateMachineProgram(StateNode):
         # Launch viewers
         if self.launch_cam_viewer:
             if not self.robot.cam_viewer:
-                self.robot.cam_viewer = CamViewer(self.robot)
+                self.robot.cam_viewer = \
+                    CamViewer(self.robot, user_annotate_function=self.user_annotate)
                 self.robot.cam_viewer.start()
 
         if self.launch_worldmap_viewer:
@@ -184,39 +185,21 @@ class StateMachineProgram(StateNode):
             if not self.robot.was_picked_up:
                 self.robot.robot0.stop_all_movement()
                 self.robot.robot0.play_sound(vex.SoundType.HUAH, 50)
-                #self.robot.world_map.clear()
+                self.robot.particle_filter.delocalize()
                 self.robot.was_picked_up = True
-                #self.stop_children()
         elif self.robot.was_picked_up:
             self.robot.was_picked_up = False
             self.robot.robot0.inertial.calibrate()
             self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 50)
             self.robot.set_pose(0,0,0,0,reset_particles=False)
-            self.robot.particle_filter.delocalize()
             self.robot.world_map.update()
-            #if self.start_node:
-            #    self.start_node.start()
+            self.put_down_handler()
 
-        
-        # if self.robot.really_picked_up():
-        #     # robot is in the air
-        #     if self.robot.was_picked_up:
-        #         pass  # we already knew that
-        #     else:
-        #         self.picked_up_callback()
-        # else:  # robot is on the ground
-        pf = self.robot.particle_filter
-        if pf:
-            if self.robot.was_picked_up:
-                self.put_down_handler()
-            else:
-                pf.move()
-        # self.robot.was_picked_up = self.robot.really_picked_up()
+        if not self.robot.was_picked_up:
+            self.robot.particle_filter.move()
         
     def robot_put_down(self):
-        pose = self.robot.particle_filter.update_pose_estimate()
-        #print(f'Robot pose set to {pose}')
-        self.robot.set_pose(pose.x, pose.y, pose.z, pose.theta)
+        pass
 
     def user_image(self,image,gray): pass
 
@@ -230,41 +213,6 @@ class StateMachineProgram(StateNode):
             self.robot.aruco_detector.process_image(gray)
         # Other image processors can run here if the user supplies them.
         self.user_image(image,gray)
-        annotated_im = self.user_annotate(image)
-
-        # Done with image processing
-
-        """
-        # Annotate and display image if requested
-        if self.force_annotation or self.viewer is not None:
-            scale = self.annotated_scale_factor
-                # Apply Cozmo SDK annotations and rescale.
-                if self.annotate_sdk:
-                    coz_ann = event.image.annotate_image(scale=scale)
-                    annotated_im = numpy.array(coz_ann)
-                elif scale != 1:
-                    shape = curim.shape
-                    dsize = (scale*shape[1], scale*shape[0])
-                    annotated_im = cv2.resize(curim, dsize)
-                else:
-                    annotated_im = curim
-                # Aruco annotation
-                if self.aruco and \
-                       len(self.robot.aruco.seen_marker_ids) > 0:
-                    annotated_im = self.robot.world.aruco.annotate(annotated_im,scale)
-                # Other annotators can run here if the user supplies them.
-                annotated_im = self.user_annotate(annotated_im)
-                # Done with annotation
-                annotated_im = cv2.cvtColor(annotated_im,cv2.COLOR_RGB2BGR)
-
-        # Use this heartbeat signal to look for new landmarks
-        pf = self.robot.world.particle_filter
-        if pf and not self.robot.really_picked_up():
-            pf.look_for_new_landmarks()
-
-        # Finally update the world map
-        self.robot.world_map.update_map()
-        """
 
 ################
 

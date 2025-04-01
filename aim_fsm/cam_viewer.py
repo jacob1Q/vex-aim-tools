@@ -23,12 +23,13 @@ path = 'snapshots/'
 WINDOW = None
 
 class CamViewer():
-    def __init__(self, robot, width=640, height=480,
+    def __init__(self, robot, width=640, height=480, user_annotate_function=None,
                  windowName="Robot View"):
         self.robot = robot
         self.width = width
         self.height = height
         self.aspect = self.width/self.height
+        self.user_annotate_function = user_annotate_function
         self.windowName = windowName
         self.scale = 1
         self.show_axes = True
@@ -37,46 +38,11 @@ class CamViewer():
     def process_image(self):
         raw = self.robot.camera_image
 
-        """
-        # Aruco image processing
-        if running_fsm.aruco:
-            running_fsm.robot.world.aruco.process_image(gray)
-        # Other image processors can run here if the user supplies them.
-        running_fsm.user_image(curim,gray)
-        # Done with image processing
-
-        # Annotate and display image if requested
-        if running_fsm.force_annotation or running_fsm.cam_viewer is not None:
-            # Apply Cozmo SDK annotations and rescale.
-            if running_fsm.annotate_sdk:
-                coz_ann = self.robot.world.latest_image.annotate_image(scale=scale)
-                annotated_im = np.array(coz_ann)
-            elif scale != 1:
-                shape = curim.shape
-                dsize = (scale*shape[1], scale*shape[0])
-                annotated_im = cv2.resize(curim, dsize)
-            else:
-                annotated_im = curim
-            # Aruco annotation
-            if running_fsm.aruco and \
-                   len(running_fsm.robot.world.aruco.seen_marker_ids) > 0:
-                annotated_im = running_fsm.robot.world.aruco.annotate(annotated_im,scale)
-            # Other annotators can run here if the user supplies them.
-            annotated_im = running_fsm.user_annotate(annotated_im)
-            # Done with annotation
-            # Yellow viewer crosshairs
-            if running_fsm.viewer_crosshairs:
-                shape = annotated_im.shape
-                cv2.line(annotated_im, (int(shape[1]/2),0), (int(shape[1]/2),shape[0]), (0,255,255), 1)
-                cv2.line(annotated_im, (0,int(shape[0]/2)), (shape[1],int(shape[0]/2)), (0,255,255), 1)
-            image = annotated_im
-        """
-        scale = 1
-        if scale == 1:
+        if self.scale == 1:
             image = raw.copy()
         else:
             shape = raw.shape
-            dsize = (scale*shape[1], scale*shape[0])
+            dsize = (self.scale*shape[1], self.scale*shape[0])
             image = cv2.resize(raw, dsize)
 
         if self.crosshairs:
@@ -117,8 +83,10 @@ class CamViewer():
             else:
                 print('*** CamViewer:', obj)
         if self.robot.aruco_detector and len(self.robot.aruco_detector.seen_marker_ids) > 0:
-            self.robot.aruco_detector.annotate(image,scale)
-        self.robot.annotated_image = image.copy()
+            self.robot.aruco_detector.annotate(image, self.scale)
+        if self.user_annotate_function:
+            image = self.user_annotate_function(image)
+        self.robot.annotated_image = image
         # Done with annotation
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, self.width, self.height, 0, GL_RGB, GL_UNSIGNED_BYTE, image)
         glutPostRedisplay()

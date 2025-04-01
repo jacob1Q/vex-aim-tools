@@ -208,7 +208,7 @@ class WorldMap():
             self.make_new_wall_objects()
             self.make_new_aruco_objects()
 
-    def make_object(self, spec):
+    def make_vision_object(self, spec):
         if spec['name'] == 'OrangeBarrel':
             obj = OrangeBarrelObj(spec)
         elif spec['name'] == 'BlueBarrel':
@@ -219,8 +219,6 @@ class WorldMap():
             obj = RobotObj(spec)
         elif spec['name'].startswith('AprilTag'):
             obj = AprilTagObj(spec)
-        elif spec['name'].startswith('ArucoMarker'):
-            obj = ArucoMarkerObj(spec)
         else:
             print(f"ERROR **** spec = {spec}")
             obj = None
@@ -241,7 +239,7 @@ class WorldMap():
             else:
                 print(f'*** Unknown: spec={spec}')
                 continue
-            obj = self.make_object(spec)
+            obj = self.make_vision_object(spec)
             obj.is_visible = True
             # Calculate midpoint of bottom edge, which we assume is on the floor
             cx = (spec['originx'] + spec['width']/2) * AIVISION_RESOLUTION_SCALE
@@ -274,24 +272,23 @@ class WorldMap():
             self.candidates.append(obj)
 
     def make_new_aruco_objects(self):
-        camera_offset = np.array([0, 0, aim_kin.camera_from_origin])
+        camera_offset_vector = np.array([0, 0, aim_kin.camera_from_origin])
         for (id,marker) in self.robot.aruco_detector.seen_marker_objects.copy().items():
             name = f'ArucoMarker-{id}'
             spec = {'name': name, 'id': id, 'marker': marker}
-            sensor_coords = marker.camera_coords + camera_offset
+            sensor_coords = marker.camera_coords + camera_offset_vector
             sensor_distance = math.sqrt(sensor_coords[0]**2 + sensor_coords[2]**2)
             sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
-            sensor_orient = wrap_angle(pi + marker.euler_rotation[1] * (pi/180))
+            sensor_orient = wrap_angle(pi - marker.euler_angles[1])
             theta = self.robot.pose.theta
-            #print(f'sdist={sensor_dist} scoords={sensor_coords} sbearing={sensor_bearing*180/pi} sorient={sensor_orient*180/pi} theta={theta*180/pi}')
-            obj = self.make_object(spec)
+            obj = ArucoMarkerObj(spec)
             obj.pose = Pose(self.robot.pose.x + sensor_distance * cos(theta + sensor_bearing),
                             self.robot.pose.y + sensor_distance * sin(theta + sensor_bearing),
                             marker.aruco_parent.marker_size / 2,  # *** TEMPORARY HACK ***
                             wrap_angle(self.robot.pose.theta + sensor_orient))
             obj.sensor_distance = sensor_distance
-            obj.sensor_orient = sensor_orient
             obj.sensor_bearing = sensor_bearing
+            obj.sensor_orient = sensor_orient
             obj.is_visible = True
             self.candidates.append(obj)
 
@@ -304,16 +301,15 @@ class WorldMap():
                 if spec.label not in wall_markers:
                     wall_markers[spec.label] = list()
                 wall_markers[spec.label].append((id,marker))
-        for (wall_id,markers) in wall_markers.items():
-            orients = [marker[1].euler_rotation[1] for marker in markers]
-            # TODO: check orients for outliers and remove them before proceeding
-            outlier_threshold = 20 # degrees
+        for (wall_id, markers) in wall_markers.items():
+            orients = [marker[1].euler_angles[1] for marker in markers]
+            outlier_threshold = 20 * pi/180 # 20 degrees
             orig_orients = copy.copy(orients)
             if len(orients) == 1:
                 continue
             elif len(orients) == 2:
-                if abs(wrap_angle_deg(orients[0] - orients[1])) > outlier_threshold:
-                    #print('marker outlier:', orients)
+                if abs(wrap_angle(orients[0] - orients[1])) > outlier_threshold:
+                    print('marker outlier:', orients)
                     continue
             else:
                 orients_consistent = False
@@ -321,9 +317,9 @@ class WorldMap():
                     n = len(orients)
                     orients_consistent = True
                     for i in range(n):
-                        outs = [abs(wrap_angle_deg(orients[i] - orients[(i+j+1)%n])) > outlier_threshold
-                                for j in range(n-1)]
-                        if all(outs):
+                        exceeds = [abs(wrap_angle(orients[i] - orients[(i+j+1)%n])) > outlier_threshold
+                                   for j in range(n-1)]
+                        if all(exceeds):
                             #print('marker',i,' outlier:', orients)
                             del orients[i]
                             del markers[i]
@@ -332,8 +328,6 @@ class WorldMap():
                 if len(orients) < 2:
                     continue
             wall = self.infer_wall_from_corners_lists(wall_id, markers)
-            if len(orients) < len(orig_orients):
-                pass # print(wall.pose.theta*180/pi, orients, orig_orients)
             self.candidates.append(wall)
             self.make_doorways_from_wall(wall)
 
@@ -343,13 +337,14 @@ class WorldMap():
         world_points = []
         image_points = []
         for (id, marker) in markers:
-            s = wall_spec.marker_specs[id]['side']
+            length = wall_spec.length
+            side = wall_spec.marker_specs[id]['side']
             cx = wall_spec.marker_specs[id]['x']
             cy = wall_spec.marker_specs[id]['y']
-            world_points.append((cx-s*marker_size/2, cy+marker_size/2, s))
-            world_points.append((cx+s*marker_size/2, cy+marker_size/2, s))
-            world_points.append((cx+s*marker_size/2, cy-marker_size/2, s))
-            world_points.append((cx-s*marker_size/2, cy-marker_size/2, s))
+            world_points.append((cx-marker_size/2 - length/2, cy+marker_size/2, 0))
+            world_points.append((cx+marker_size/2 - length/2, cy+marker_size/2, 0))
+            world_points.append((cx+marker_size/2 - length/2, cy-marker_size/2, 0))
+            world_points.append((cx-marker_size/2 - length/2, cy-marker_size/2, 0))
 
             corners = marker.corners[0]
             image_points.append(corners[0])
@@ -360,39 +355,27 @@ class WorldMap():
         # Find rotation and translation vector from camera frame using SolvePnP
         (success, rvec, tvec) = cv2.solvePnP(np.array(world_points),
                                              np.array(image_points),
-                                             self.robot.aruco_detector.camera_matrix,
-                                             self.robot.aruco_detector.distortion_array)
-        rotationm, jcob = cv2.Rodrigues(rvec)
-        tvec[2] += aim_kin.camera_from_origin  # want distance from base frame not camera
-        # Arucos seen head-on have orientation 0, so work with that for now.
-        # Later we will flip the orientation to pi for the worldmap.
-        transformed = np.matrix(rotationm).T*(-np.matrix(tvec))
-        euler_angles_rad = rotation_matrix_to_euler_angles(rotationm)
-        # euler angle flip when back of wall is seen
-        if euler_angles_rad[2] > pi/2:
-            print(f'euler_angles_rad[2] {euler_angles_rad[2]*180/pi} > pi/2')
-            wall_orient = wrap_angle(-(euler_angles_rad[1]-pi))
-        elif euler_angles_rad[2] >= -pi/2 and euler_angles_rad[2] <= pi/2:
-            #print(f'euler_angles_rad[2] {euler_angles_rad[2]*180/pi} >= -pi/2 and euler_angles_rad[2] <= pi/2')
-            wall_orient = wrap_angle((euler_angles_rad[1]))
-        else:
-            print(f'euler_angles_rad[2] {euler_angles_rad[2]*180/pi}')
-            wall_orient = wrap_angle(-(euler_angles_rad[1]+pi))
-        wall_x = -transformed[2]*cos(wall_orient) + (transformed[0]-wall_spec.length/2)*sin(wall_orient)
-        wall_y = (transformed[0]-wall_spec.length/2)*cos(wall_orient) - -transformed[2]*sin(wall_orient)
+                                             self.robot.camera.camera_matrix,
+                                             self.robot.camera.distortion_array)
+        rotationm, jacob = cv2.Rodrigues(rvec)
+        euler_angles = rotation_matrix_to_euler_angles(rotationm)
+        wall_orient = -euler_angles[1]
+        tvec[2][0] += aim_kin.camera_from_origin  # want distance from base frame not camera
+
+        sensor_coords = (-tvec[0], -tvec[1], tvec[2])
+        sensor_distance = math.sqrt(sensor_coords[0]**2 + sensor_coords[2]**2)
+        sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
         # Flip wall orientation to match ArUcos for worldmap
-        if s > 0:
-            wm_wall_orient = wrap_angle(pi - wall_orient)
-        else:
-            wm_wall_orient = wrap_angle(0 - wall_orient)
-        rel_coords = aboutZ(self.robot.pose.theta).dot(point(wall_x[0,0], wall_y[0,0]))
-        x = self.robot.pose.x + rel_coords[0,0]
-        y = self.robot.pose.y + rel_coords[1,0]
-        wall = WallObj(wall_spec, x=x, y=y, theta=wrap_angle(self.robot.pose.theta + wm_wall_orient))
-        wall.sensor_distance = math.sqrt(wall_x[0,0]**2 + wall_y[0,0]**2) + aim_kin.camera_from_origin
-        wall.sensor_orient = wrap_angle(pi - euler_angles_rad[1])
-        abs_bearing = atan2(wall.pose.y-self.robot.pose.y, wall.pose.x-self.robot.pose.x)
-        wall.sensor_bearing = wrap_angle(abs_bearing - self.robot.pose.theta)
+        sensor_orient = wrap_angle(pi + wall_orient) if side > 0 else wall_orient
+        theta = self.robot.pose.theta
+        wall = WallObj(wall_spec)
+        wall.pose = Pose(self.robot.pose.x + sensor_distance * cos(theta + sensor_bearing),
+                         self.robot.pose.y + sensor_distance * sin(theta + sensor_bearing),
+                         0,
+                         wrap_angle(self.robot.pose.theta + sensor_orient))
+        wall.sensor_distance = sensor_distance
+        wall.sensor_bearing = sensor_bearing
+        wall.sensor_orient = sensor_orient
         wall.is_visible = True
         return wall
 
@@ -479,7 +462,8 @@ class WorldMap():
 
     def detect_missing_objects(self):
         for obj in self.objects.values():
-            if obj not in self.updated_objects and self.should_be_visible(obj):
+            if not isinstance(obj, (ArucoMarkerObj,WallObj)) and \
+               obj not in self.updated_objects and self.should_be_visible(obj):
                 if obj not in self.missing_objects:
                     obj.is_visible = False
                     obj.is_missing = True

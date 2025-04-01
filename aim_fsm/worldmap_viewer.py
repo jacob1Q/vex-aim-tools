@@ -121,7 +121,8 @@ color_black  = (0., 0., 0.)
 color_white  = (1., 1., 1.)
 color_red    = (1., 0., 0.)
 color_green  = (0., 1., 0.)
-color_light_green  = (0., 0.5, 0.)
+color_medium_green  = (0., 0.75, 0.)
+color_dark_green  = (0., 0.5, 0.)
 color_blue   = (0.28, 0.44, 0.95)
 color_cyan   = (0., 1.0, 1.0)
 color_yellow = (0.8, 0.8, 0.)
@@ -401,10 +402,21 @@ class WorldMapViewer():
             self.make_cube(size=dimensions, edges=False, color=color, highlight=True)
             glPopMatrix()
         # Make the transom
-        glPushMatrix()
         transom_height = wall_obj.height - door_height
         z = door_height + transom_height/2
-        glTranslatef(wall_obj.pose.x, wall_obj.pose.y, z)
+        s = +1 if abs(wall_obj.pose.theta) > pi/2 else -1
+        glPushMatrix()
+        glTranslatef(wall_obj.pose.x - s*wall_thickness/2, wall_obj.pose.y, z)
+        glRotatef(wall_obj.pose.theta*180/pi, 0, 0, 1)
+        self.make_cube(size=(wall_thickness/2, wall_obj.length, transom_height),
+                       edges=False, color=color, highlight=True)
+        glPopMatrix()
+        glPushMatrix()
+        if wall_obj.is_visible:
+            color = color_medium_green
+        else:
+            color= color_dark_green
+        glTranslatef(wall_obj.pose.x + s*wall_thickness/2, wall_obj.pose.y, z)
         glRotatef(wall_obj.pose.theta*180/pi, 0, 0, 1)
         self.make_cube(size=(wall_thickness, wall_obj.length, transom_height),
                        edges=False, color=color, highlight=True)

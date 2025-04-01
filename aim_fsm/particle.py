@@ -609,11 +609,12 @@ class SLAMParticle(Particle):
         lm_y = self.y + dy
 
         if lm_id.startswith('ArucoMarker-') or lm_id.startswith('Wall-'):
-            lm_orient = wrap_angle(sensor_orient)
+            lm_orient = wrap_angle(sensor_orient + self.theta)
         else:
             print('Unrecognized landmark type:',lm_id)
             lm_orient = sensor_orient
-
+        if self.index < 2:
+            print(f'theta={self.theta*180/pi} sensor_orient={sensor_orient*180/pi}  lm_orient={lm_orient*180/pi}')
         lm_mu =  np.array([[lm_x], [lm_y]])
         H = self.sensor_jacobian_H(dx, dy, sensor_dist)
         Hinv = np.linalg.inv(H)
@@ -629,7 +630,7 @@ class SLAMParticle(Particle):
         Ql =  H.dot(old_sigma.dot(H.T)) + self.landmark_sensor_variance_Qt
         Ql_inv = np.linalg.inv(Ql)
         K = old_sigma.dot((H.T).dot(Ql_inv))
-        z = np.array([[sensor_dist], [sensor_bearing], [sensor_orient]])
+        z = np.array([[sensor_dist], [sensor_bearing], [sensor_orient + self.theta]])
         # (ex,ey) is vector from particle to map position of lm
         ex = old_mu[0,0] - self.x
         ey = old_mu[1,0] - self.y
@@ -711,7 +712,7 @@ class SLAMSensorModel(SensorModel):
                     force = True
                     just_looking = False
             else: # no landmarks, so we can't be lost
-                return # *** DEBUG
+                print(';;; LOCALIZED ;;; DUE TO ZERO LANDMARKS')
                 self.pf.state = ParticleFilter.LOCALIZED
 
         # Unless forced, don't evaluate unless the robot moved enough
@@ -749,7 +750,7 @@ class SLAMSensorModel(SensorModel):
         rpose = self.robot.pose
         if not self.landmark_test(obj):
             return False
-        if isinstance(obj, ArucoMarkerObj) or isinstance(obj, WallObj):
+        if isinstance(obj, (ArucoMarkerObj, WallObj)):
             sensor_dist = obj.sensor_distance
             sensor_bearing = obj.sensor_bearing
             sensor_orient = obj.sensor_orient
@@ -874,14 +875,14 @@ class SLAMParticleFilter(ParticleFilter):
             lm_pose = self.sensor_model.landmarks[obj.id]
             lm_x,lm_y = lm_pose[0][0,0], lm_pose[0][1,0]
             lm_theta = lm_pose[1]
-            robot_theta = wrap_angle(sensor_orient - lm_theta)
+            robot_theta = wrap_angle(lm_theta - sensor_orient)
             # phi is our absolute bearing to the landmark, independent of our orientation
             phi = wrap_angle(robot_theta + sensor_bearing + phi_jitter[i])
             p = particles[i]
             p.x = lm_x - sensor_distance * cos(phi) + x_jitter[i]
             p.y = lm_y - sensor_distance * sin(phi) + y_jitter[i]
             p.theta = wrap_angle(robot_theta + theta_jitter[i])
-            if i < 1: # change to i<0 to disable
+            if i < 0: # change to i<0 to disable
                 print('  lm_theta=', lm_theta*180/pi,
                       '  sensor_orient=', sensor_orient*180/pi,
                       '  robot_theta=', robot_theta*180/pi,

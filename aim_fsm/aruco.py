@@ -2,53 +2,45 @@ try: import cv2
 except: pass
 
 import math
+from math import pi
+
 import numpy as np
 from numpy import sqrt, arctan2
+
+from . import camera
+from .geometry import *
 
 ARUCO_MARKER_SIZE = 25
 
 class ArucoMarker(object):
-    def __init__(self, aruco_parent, marker_id, corners, translation, rotation):
+    def __init__(self, aruco_parent, marker_id, corners, tvec, rvec):
+        self.aruco_parent = aruco_parent
         self.marker_id = marker_id
         self.corners = corners
-        self.aruco_parent = aruco_parent
 
         # OpenCV Pose information
-        self.opencv_translation = translation
-        self.opencv_rotation = (180/math.pi)*rotation
+        self.tvec = tvec
+        self.rvec = rvec
 
-        # Marker coordinates in robot's camera reference frame
-        self.camera_coords = (-translation[0], -translation[1], translation[2])
+        # Marker coordinates in robot's camera reference frame:
+        # x points right, y points down, z is depth
+        self.camera_coords = (-tvec[0][0], -tvec[1][0], tvec[2][0])
 
-        # Distance in the x-y plane; particle filter ignores height so don't include it
-        self.camera_distance = math.sqrt(translation[0]*translation[0] +
-                                         # translation[1]*translation[1] +
-                                         translation[2]*translation[2])
+        # Distance along the ground plane; particle filter ignores height so don't include camera y
+        self.camera_distance = math.sqrt(tvec[0][0]**2 + tvec[2][0]**2)
+
         # Conversion to euler angles
-        self.euler_rotation = self.rotationMatrixToEulerAngles(
-                                        cv2.Rodrigues(rotation)[0])*(180/math.pi)
+        rotationm, jacob = cv2.Rodrigues(rvec)
+        self.euler_angles = rotation_matrix_to_euler_angles(rotationm)
 
     def __str__(self):
-        return "<ArucoMarker id=%d trans=(%d,%d,%d) rot=(%d,%d,%d) erot=(%d,%d,%d)>" % \
-                (self.marker_id, *self.opencv_translation, *self.opencv_rotation, *self.euler_rotation)
+        return "<ArucoMarker id=%d tvec=(%d,%d,%d) rvec=(%d,%d,%d) euler=(%d,%d,%d)>" % \
+                (self.marker_id, *(self.tvec[:,0].tolist()),
+                 *((self.rvec[:,0]*180/pi).tolist()), *self.euler_angles*180/pi)
 
     def __repr__(self):
         return self.__str__()
 
-    @staticmethod
-    def rotationMatrixToEulerAngles(R) :
-        sy = sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
-        singular = sy < 1e-6
-        if  not singular:
-            x = arctan2(R[2,1] , R[2,2])
-            y = arctan2(-R[2,0], sy)
-            z = arctan2(R[1,0], R[0,0])
-        else:
-            x = arctan2(-R[1,2], R[1,1])
-            y = arctan2(-R[2,0], sy)
-            z = 0
-
-        return np.array([x, y, z])
 
 class RobotArucoDetector(object):
     def __init__(self, robot, dictionary_name, marker_size=ARUCO_MARKER_SIZE, disabled_ids=[]):
@@ -61,22 +53,13 @@ class RobotArucoDetector(object):
         self.disabled_ids = disabled_ids  # disable markers with high false detection rates
         self.ids = []
         self.corners = []
-        self.marker_corners_3d = np.array([
+        self.marker_size = marker_size #these units will be pose est units!!
+        self.object_corners = np.array([
             [-marker_size / 2, marker_size / 2, 0],  # Top left
             [marker_size / 2, marker_size / 2, 0],   # Top right
             [marker_size / 2, -marker_size / 2, 0],  # Bottom right
             [-marker_size / 2, -marker_size / 2, 0]  # Bottom left
             ], dtype=np.float32)
-
-        # Added for pose estimation
-        self.marker_size = marker_size #these units will be pose est units!!
-        self.image_size = self.robot.camera.resolution
-        focal_len = self.robot.camera.focal_length
-        self.camera_matrix = \
-            np.array([[focal_len[0],  0,            self.image_size[0]/2],
-                      [0,          -focal_len[1],   self.image_size[1]/2],
-                      [0,             0,            1]]).astype(float)
-        self.distortion_array = np.array([[0,0,0,0,0]]).astype(float)
 
     def process_image(self,gray):
         self.seen_marker_ids = []
@@ -86,20 +69,19 @@ class RobotArucoDetector(object):
 
         # Estimate poses
         for i in range(len(self.corners)):
-            marker_corners_2d = self.corners[i]
+            image_corners = self.corners[i]
             id = int(self.ids[i][0])
-            success, rvec, tvec = cv2.solvePnP(self.marker_corners_3d,
-                                               marker_corners_2d,
-                                               self.camera_matrix,
-                                               self.distortion_array)
-            tvec = (tvec[0][0], tvec[1][0], tvec[2][0])
+            success, rvec, tvec = cv2.solvePnP(self.object_corners,
+                                               image_corners,
+                                               self.robot.camera.camera_matrix,
+                                               self.robot.camera.distortion_array)
             if id in self.disabled_ids: continue
             if rvec[2][0] > math.pi/2 or rvec[2][0] < -math.pi/2:
                 # can't see a marker facing away from us, so bogus
                 print(f'Marker rejected! id={id}  tvec={tvec}  ' +
                       f'rvec=({rvec[0][0]*180/pi},{rvec[1][0]*180/pi},{rvec[2][0]*180/pi})')
                 continue
-            marker = ArucoMarker(self, id, marker_corners_2d, tvec, -rvec)
+            marker = ArucoMarker(self, id, image_corners, tvec, rvec)
             self.seen_marker_ids.append(id)
             self.seen_marker_objects[id] = marker
 
