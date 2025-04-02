@@ -33,6 +33,16 @@ class DataEvent(Event):
         super().__init__()
         self.data = data
 
+    def __repr__(self):
+        try:
+            src_string = self.source.name
+        except:
+            src_string = repr(self.source)
+        data_string = repr(self.data)
+        if len(data_string) > 20:
+            data_string = data_string[:17] + '...'
+        return '<%s from %s: %s>' % (self.__class__.__name__, src_string, data_string)
+
 
 class TextMsgEvent(Event):
     """Signals a text message broadcasted to the state machine."""

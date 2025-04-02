@@ -71,18 +71,18 @@ class PilotBase(StateNode):
             self.robot.rrt.draw_path = navplan.extract_path()
             #print('ReceivePlan: draw_path=', self.robot.world.rrt.draw_path)
             self.robot.rrt.grid_display = grid_display
+            self.parent.navplan = navplan
             self.post_data(navplan)
 
     class PilotExecutePlan(StateNode):
         def start(self, event=None):
-            if not isinstance(event, DataEvent) and isinstance(event.data, NavPlan):
-                raise ValueError(event)
-            self.index = 0  # skip initial node which should match our pose
-            if self.parent.execute:
-                self.navplan = event.data
-            else:
+            if not self.parent.execute:
                 self.parent.parent.post_completion()
                 return
+            if isinstance(event, DataEvent) and isinstance(event.data, NavPlan):
+                self.parent.navplan = event.data
+            self.navplan = self.parent.navplan
+            self.index = 0  # skip initial node which should match our pose
             super().start(event)
 
         class DispatchStep(StateNode):

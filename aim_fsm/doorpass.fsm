@@ -1,6 +1,5 @@
 from numpy import matrix, tan, arctan2
 from math import sin, cos, atan2, pi, sqrt
-from cv2 import Rodrigues
 
 from .utils import Pose
 from .nodes import *
@@ -24,15 +23,15 @@ class DoorPass(StateNode):
         if isinstance(event,DataEvent):
             door = event.data
         if isinstance(door, int):
-            door ='Doorway-%d' % door
+            door ='Doorway-%d:0.a' % door
         if isinstance(door, str):
-            doorway = self.robot.world_map.objects.get(door)
+            doorobj = self.robot.world_map.objects.get(door)
         elif isinstance(door, DoorwayObj):
-            doorway = door
+            doorobj = door
         else:
-            doorway = None
-        if isinstance(doorway, DoorwayObj):
-            self.object = doorway
+            doorobj = None
+        if isinstance(doorobj, DoorwayObj):
+            self.object = doorobj
         else:
             print("Error in DoorPass: no doorway named %s" % repr(door))
             raise ValueError(door,doorway)
@@ -94,10 +93,10 @@ class DoorPass(StateNode):
             turn = wrap_angle(bearing - rtheta)
             print('^^ TurnToGate: gate=(%.1f, %.1f)  offset=%.1f rtheta=%.1f  bearing=%.1f  turn=%.1f' %
                   (gate_x, gate_y, self.offset, rtheta*180/pi, bearing*180/pi, turn*180/pi))
-            if False and abs(turn) < 0.1:
+            if abs(turn) < 2.5 * (pi/180):
                 self.angle_deg = 0
                 super().start(event)
-                self.post_success()
+                self.post_completion()
             else:
                 self.angle_deg = turn * 180/pi
                 super().start(event)

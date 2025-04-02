@@ -40,9 +40,9 @@ class WorldObject():
         self.matched.is_visible = True
         if self.matched.is_fixed or robot.particle_filter.state != robot.particle_filter.LOCALIZED:
             return
-        MIN_SENSOR_NOISE = 5
-        sensor_noise = max(MIN_SENSOR_NOISE, self.sensor_distance * 0.1)
-        self.matched.pose.update(self.pose, sensor_noise)
+        MIN_MEASUREMENT_NOISE = 5
+        measurement_noise = max(MIN_MEASUREMENT_NOISE, math.sqrt(self.sensor_distance))
+        self.matched.pose.update(self.pose, measurement_noise)
         if hasattr(self, 'spec'):
             self.matched.spec = self.spec
         if hasattr(self, 'marker'):

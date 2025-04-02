@@ -202,7 +202,7 @@ class PathPlanner():
         rrt_instance.smooth_path()
 
         # If the path ends in a collision according to the RRT, back off
-        while len(rrt_instance.path) > 2:
+        while False: # len(rrt_instance.path) > 2:
           last_node = rrt_instance.path[-1]
           if rrt_instance.collides(last_node):
             rrt_instance.path = rrt_instance.path[:-1]
@@ -296,14 +296,19 @@ class PathPlanner():
 class PathPlannerNode(StateNode):
     def start(self,event=None):
         super().start(event)
+        print('PathPlannerNode got', event)
         if isinstance(event, DataEvent):
             if isinstance(event.data, Pose):
-                self.target_pose = event.data
+                self.target_pose = target = event.data
             elif isinstance(event.data, WorldObject):
-                self.target_pose = event.data.pose
+                target = event.data
+                self.target_pose = target.pose
+            elif isinstance(event.data,str) and event.data in self.robot.world_map.objects:
+                target = self.robot.world_map.objects[event.data]
+                self.target_pose = target.pose
             else:
-                raise ValuError(event.data)
-        result = self.robot.path_planner.plan_path_this_process(self.robot, event.data)
+                raise ValueError(event.data)
+        result = self.robot.path_planner.plan_path_this_process(self.robot, target)
         self.post_event(result)
 
 #----------------------------------------------------------------

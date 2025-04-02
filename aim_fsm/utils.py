@@ -247,16 +247,19 @@ class PoseEstimate(Pose):
             self.kf_x.set_measurement_noise(measurement_noise)
             self.kf_y.set_measurement_noise(measurement_noise)
             self.kf_z.set_measurement_noise(measurement_noise)
+
         self.kf_x.predict()
         self.x = self.kf_x.update(new_pose.x)
+
         self.kf_y.predict()
         self.y = self.kf_y.update(new_pose.y)
+
         self.kf_z.predict()
         self.z = self.kf_z.update(new_pose.z)
+
         if self.theta is not None:
             self.kf_theta.predict()
-            self.kf_theta.update(new_pose.theta)
-            self.theta = self.kf_theta.get_state()
+            self.theta = self.kf_theta.update(new_pose.theta)
 
     def __repr__(self):
         return f'<PoseEstimate x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta)} origin_id={self.origin_id}>'

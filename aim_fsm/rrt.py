@@ -287,8 +287,7 @@ class RRT():
         if target_q is not None:
             # Last nodes turn to desired final heading
             last = self.path[-1]
-            goal = RRTNode(parent=last, x=self.goal.x, y=self.goal.y,
-                           q=target_q, radius=0)
+            goal = RRTNode(parent=last, x=self.goal.x, y=self.goal.y, q=target_q)
             self.path.append(goal)
         return (treeA, treeB, self.path)
 

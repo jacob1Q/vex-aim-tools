@@ -560,11 +560,16 @@ class SLAMParticle(Particle):
         return '<SLAMParticle %d: (%.2f, %.2f) %.1f deg. log_wt=%f, %d-lm>' % \
                (self.index, self.x, self.y, self.theta*180/pi, self.log_weight, len(self.landmarks))
 
-    sigma_r = 50
-    sigma_alpha = 15 * (pi/180)
-    sigma_phi = 15 * (pi/180)
-    sigma_theta =  15 * (pi/180)
-    sigma_z = 50
+    # sigma_r = 50
+    # sigma_alpha = 15 * (pi/180)
+    # sigma_phi = 15 * (pi/180)
+    # sigma_theta =  15 * (pi/180)
+    # sigma_z = 50
+    sigma_r = 10
+    sigma_alpha = 5 * (pi/180)
+    sigma_phi = 5 * (pi/180)
+    sigma_theta =  5 * (pi/180)
+    sigma_z = 10
     landmark_sensor_variance_Qt = np.array([[sigma_r**2, 0             , 0],
                                             [0         , sigma_alpha**2, 0],
                                             [0         , 0             , sigma_phi**2]])
@@ -613,7 +618,7 @@ class SLAMParticle(Particle):
         else:
             print('Unrecognized landmark type:',lm_id)
             lm_orient = sensor_orient
-        if self.index < 2:
+        if self.index < 0:
             print(f'theta={self.theta*180/pi} sensor_orient={sensor_orient*180/pi}  lm_orient={lm_orient*180/pi}')
         lm_mu =  np.array([[lm_x], [lm_y]])
         H = self.sensor_jacobian_H(dx, dy, sensor_dist)

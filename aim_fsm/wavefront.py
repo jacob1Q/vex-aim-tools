@@ -112,7 +112,7 @@ class WaveFront():
 
     def generate_round_goal_points(self, shape):
         center_x, center_y = shape.center[0,0], shape.center[1,0]
-        radius = shape.radius + aim_kin.body_diameter/2
+        radius = shape.radius + aim_kin.body_diameter/2 + 15 # extra gap so we don't grab the object
         divisions = 24
         empty_points = []
         goal_points = []
