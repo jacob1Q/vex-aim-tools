@@ -77,7 +77,7 @@ class PilotBase(StateNode):
     class PilotExecutePlan(StateNode):
         def start(self, event=None):
             if not self.parent.execute:
-                self.parent.parent.post_completion()
+                self.parent.post_completion()
                 return
             if isinstance(event, DataEvent) and isinstance(event.data, NavPlan):
                 self.parent.navplan = event.data

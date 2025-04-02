@@ -470,6 +470,7 @@ class ParticleFilter():
             p.theta = theta
             p.log_weight = 0.0
             p.weight = 1.0
+        self.state = ParticleFilter.LOCALIZED
         self.update_variance_estimate()
 
     def look_for_new_landmarks(self): pass  # SLAM only
@@ -718,7 +719,8 @@ class SLAMSensorModel(SensorModel):
                     just_looking = False
             else: # no landmarks, so we can't be lost
                 print(';;; LOCALIZED ;;; DUE TO ZERO LANDMARKS')
-                self.pf.state = ParticleFilter.LOCALIZED
+                self.pf.set_pose(0,0,0)
+                self.pf.robot.world_map.clear()
 
         # Unless forced, don't evaluate unless the robot moved enough
         # for evaluation to be worthwhile.
