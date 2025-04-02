@@ -636,7 +636,7 @@ class SLAMParticle(Particle):
         Ql =  H.dot(old_sigma.dot(H.T)) + self.landmark_sensor_variance_Qt
         Ql_inv = np.linalg.inv(Ql)
         K = old_sigma.dot((H.T).dot(Ql_inv))
-        z = np.array([[sensor_dist], [sensor_bearing], [sensor_orient + self.theta]])
+        z = np.array([[sensor_dist], [sensor_bearing], [sensor_orient]])
         # (ex,ey) is vector from particle to map position of lm
         ex = old_mu[0,0] - self.x
         ey = old_mu[1,0] - self.y

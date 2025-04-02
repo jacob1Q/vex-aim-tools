@@ -577,4 +577,10 @@ class WorldMap():
                     f'and is {vis}\n'
             else:
                 prompt += f'{id} is missing\n'
+        landmark_ids = list(self.robot.particle_filter.sensor_model.landmarks.keys())
+        if landmark_ids:
+            for id in landmark_ids:
+                prompt += f'{id} is a navigation landmark.'
+        else:
+            prompt += 'There are currently no navigation landmarks.'    
         return prompt
