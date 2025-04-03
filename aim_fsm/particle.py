@@ -568,7 +568,7 @@ class SLAMParticle(Particle):
     # sigma_z = 50
     sigma_r = 10
     sigma_alpha = 5 * (pi/180)
-    sigma_phi = 5 * (pi/180)
+    sigma_phi = 15 * (pi/180)
     sigma_theta =  5 * (pi/180)
     sigma_z = 10
     landmark_sensor_variance_Qt = np.array([[sigma_r**2, 0             , 0],
@@ -636,7 +636,7 @@ class SLAMParticle(Particle):
         Ql =  H.dot(old_sigma.dot(H.T)) + self.landmark_sensor_variance_Qt
         Ql_inv = np.linalg.inv(Ql)
         K = old_sigma.dot((H.T).dot(Ql_inv))
-        z = np.array([[sensor_dist], [sensor_bearing], [sensor_orient]])
+        z = np.array([[sensor_dist], [sensor_bearing], [sensor_orient + self.theta]])
         # (ex,ey) is vector from particle to map position of lm
         ex = old_mu[0,0] - self.x
         ey = old_mu[1,0] - self.y
@@ -669,7 +669,7 @@ class SLAMParticle(Particle):
                   ' sensor_dist=',sensor_dist,
                   ' sensor_bearing=',sensor_bearing*180/pi,
                   ' sensor_orient=',sensor_orient*180/pi,
-                  ' delta_sensor=',delta_sensor)
+                  ' delta_sensor=',delta_sensor.tolist())
         #print (f'Updating {id} to ({new_mu[0][0]},{new_mu[1][0]}) @ {new_mu[2][0]*180/pi}')
         self.landmarks[id] = (new_mu[0:2], wrap_angle(new_mu[2][0]), new_sigma)
 
@@ -699,7 +699,7 @@ class SLAMSensorModel(SensorModel):
         evaluated = False
 
         # Don't evaluate if robot is still moving; ArucoMarker info will be bad.
-        if self.robot.is_moving():
+        if self.robot.is_moving() or self.pf.robot.world_map.vision_paused:
             return False
 
         # Compute robot motion even if forced, to check for robot origin_id change
@@ -789,7 +789,7 @@ class SLAMSensorModel(SensorModel):
             pp = particles
             evaluated = True
 
-        obj = self.robot.world_map.objects[id]
+        #print(f'process_landmark {obj} vis:{obj.is_visible} theta:{self.robot.pose.theta*180/pi:.2f} moving:{self.robot.is_moving()}')
         should_update_landmark = (not obj.is_fixed) and \
             (self.pf.state == ParticleFilter.LOCALIZED)
 
@@ -890,13 +890,13 @@ class SLAMParticleFilter(ParticleFilter):
             p.y = lm_y - sensor_distance * sin(phi) + y_jitter[i]
             p.theta = wrap_angle(robot_theta + theta_jitter[i])
             if i < 0: # change to i<0 to disable
-                print('  lm_theta=', lm_theta*180/pi,
-                      '  sensor_orient=', sensor_orient*180/pi,
-                      '  robot_theta=', robot_theta*180/pi,
-                      '  sensor_distance=', sensor_distance,
-                      '\n  sensor_bearing=', sensor_bearing*180/pi,
-                      '  abs bearing=', phi*180/pi,
-                      f'pose = ({p.x}, {p.y}) @ {p.theta*180/pi}')
+                print(f'  lm_theta={lm_theta*180/pi:.2f}' +
+                      f'  sensor_orient={sensor_orient*180/pi:.2f}' +
+                      f'  robot_theta={robot_theta*180/pi:.2f}' +
+                      f'  sensor_distance={sensor_distance:.2f}' +
+                      f'  sensor_bearing={sensor_bearing*180/pi:.2f}' +
+                      f'  abs bearing={phi*180/pi:.2f}' +
+                      f' pose = ({p.x:.2f}, {p.y:.2f}) @ {p.theta*180/pi:.2f}')
             if i < 0:  # change to i<0 to disable
                 print('NEW PARTICLE %d: ' % i, p.x, p.y, p.theta*180/pi)
         self.state = ParticleFilter.LOCALIZING

@@ -177,6 +177,7 @@ class WorldMap():
         self.missing_objects = []
         self.shared_objects = dict()
         self.name_counts = dict()  # For generating new object names
+        self.vision_paused = False
 
     def __repr__(self):
         return f'<WorldMap with {len(self.objects)} objects>'
@@ -189,6 +190,11 @@ class WorldMap():
         self.shared_objects.clear()
         self.name_counts.clear()
         
+    def pause_vision(self, value=True):
+        """Turn off visibility of objects when the robot is moving.  We won't
+        turn it back on until the robot has stopped AND we have processed a new
+        camera frame so visibilities are updated."""
+        self.vision_paused = value
 
     def update(self):
         self.updated_objects = []
@@ -359,14 +365,14 @@ class WorldMap():
                                              self.robot.camera.distortion_array)
         rotationm, jacob = cv2.Rodrigues(rvec)
         euler_angles = rotation_matrix_to_euler_angles(rotationm)
-        wall_orient = -euler_angles[1]
+        wall_orient = euler_angles[1]
         tvec[2][0] += aim_kin.camera_from_origin  # want distance from base frame not camera
 
         sensor_coords = (-tvec[0], -tvec[1], tvec[2])
         sensor_distance = math.sqrt(sensor_coords[0]**2 + sensor_coords[2]**2)
         sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
         # Flip wall orientation to match ArUcos for worldmap
-        sensor_orient = wrap_angle(pi + wall_orient) if side > 0 else wall_orient
+        sensor_orient = wrap_angle(pi - wall_orient) if side > 0 else -wall_orient
         theta = self.robot.pose.theta
         wall = WallObj(wall_spec)
         wall.pose = Pose(self.robot.pose.x + sensor_distance * cos(theta + sensor_bearing),

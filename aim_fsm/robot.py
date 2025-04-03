@@ -18,6 +18,7 @@ from .worldmap import *
 from .rrt import RRT
 from .path_planner import PathPlanner
 from .utils import Pose, PoseEstimate
+from .geometry import wrap_angle_deg
 from . import program
 
 class Robot():
@@ -84,9 +85,11 @@ class Robot():
         self.update_actuators()
         if not self.robot0.is_stopped():
             self.moving_frame = self.frame_count
+            self.world_map.pause_vision()
         else:
             if self.frame_count > self.moving_frame + 1:
                 self.world_map.update()
+                self.world_map.pause_vision(False)
         t = self.status['touch_flags']
         if self.touch != t:
             #print(f"status_update in {threading.current_thread().native_id}")
@@ -163,9 +166,9 @@ class Robot():
     def show_pose(self):
         def neaten(x):
             return round(x*10)/10
-        print(f'Odometry:  {neaten(self.robot0.get_x())}, ' +
-              f'{neaten(self.robot0.get_y())} ' +
-              f'heading {neaten(180-self.robot0.get_heading())} deg.', end='')
+        print(f'Odometry:  {neaten(self.robot0.get_y())}, ' +
+              f'{neaten(-self.robot0.get_x())} ' +
+              f'heading {neaten(wrap_angle_deg(-self.robot0.get_heading()))} deg.', end='')
         print(f'   [ Roll: {neaten(self.robot0.get_roll())}  ' +
               f'Pitch: {neaten(self.robot0.get_pitch())}  ' +
               f'Yaw: {neaten(self.robot0.get_yaw())} ]')
