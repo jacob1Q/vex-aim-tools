@@ -10,7 +10,7 @@ from .nodes import *
 from .events import PilotEvent
 from .transitions import *
 from .worldmap import WorldObject  #, DoorwayObj
-from .path_planner import PathPlanner, PathPlannerNode #, PathPlannerProcess
+from .path_planner import PathPlanner, PathPlanToObjectNode #, PathPlannerProcess
 from .geometry import segment_intersect_test
 from .doorpass import DoorPass
 from .pilot0 import *
@@ -125,7 +125,7 @@ class PilotBase(StateNode):
             def start(self, event=None):  # method of ExecutePlan
                 step = self.parent.navplan.steps[self.parent.index]
                 self.drive_steps = step.param
-                self.index = 1  # skip the first entry, which should be current pose
+                self.index = 0  # skip the first entry, which should be current pose
                 print('ExecutePlan steps=', self.drive_steps)
                 super().start(event)
 
@@ -134,12 +134,14 @@ class PilotBase(StateNode):
                 # We need separate turn and forward steps because turning
                 # while driving is not yet supported in aim.py.
 
+                next: self.NextStep()
+                next =C=> ParentCompletes()
+                next =S=> turn
+
                 turn: self.TurnStep() =C=> forward
+
                 forward: self.ForwardStep() =C=> next
 
-                next: self.NextStep()
-                next =S=> turn
-                next =C=> ParentCompletes()
             }
 
         class ExecuteDoorPass(DoorPass):
@@ -233,7 +235,7 @@ class PilotToObject(PilotBase):
         launch: self.ClearDisplays() =N=> self.SendObject() =D=> planner
 
         #planner: PathPlannerProcess() =D=> recv
-        planner: PathPlannerNode() =D=> recv
+        planner: PathPlanToObjectNode() =D=> recv
         planner =PILOT=> ParentPilotEvent() =N=> Print('Path planner failed')
 
         recv: self.ReceivePlan() =D=> exec

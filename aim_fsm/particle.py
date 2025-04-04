@@ -699,7 +699,7 @@ class SLAMSensorModel(SensorModel):
         evaluated = False
 
         # Don't evaluate if robot is still moving; ArucoMarker info will be bad.
-        if self.robot.is_moving() or self.pf.robot.world_map.vision_paused:
+        if self.robot.is_moving() or self.pf.robot.world_map.visibility_paused:
             return False
 
         # Compute robot motion even if forced, to check for robot origin_id change

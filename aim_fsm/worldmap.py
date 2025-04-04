@@ -177,7 +177,7 @@ class WorldMap():
         self.missing_objects = []
         self.shared_objects = dict()
         self.name_counts = dict()  # For generating new object names
-        self.vision_paused = False
+        self.visibility_paused = False
 
     def __repr__(self):
         return f'<WorldMap with {len(self.objects)} objects>'
@@ -190,11 +190,11 @@ class WorldMap():
         self.shared_objects.clear()
         self.name_counts.clear()
         
-    def pause_vision(self, value=True):
+    def pause_visibility(self, value=True):
         """Turn off visibility of objects when the robot is moving.  We won't
         turn it back on until the robot has stopped AND we have processed a new
         camera frame so visibilities are updated."""
-        self.vision_paused = value
+        self.visibility_paused = value
 
     def update(self):
         self.updated_objects = []

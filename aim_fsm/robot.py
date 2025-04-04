@@ -85,11 +85,12 @@ class Robot():
         self.update_actuators()
         if not self.robot0.is_stopped():
             self.moving_frame = self.frame_count
-            self.world_map.pause_vision()
+            self.world_map.pause_visibility()
         else:
             if self.frame_count > self.moving_frame + 1:
                 self.world_map.update()
-                self.world_map.pause_vision(False)
+                # turn in visibility AFTER we've processed a camera frame
+                self.world_map.pause_visibility(False)
         t = self.status['touch_flags']
         if self.touch != t:
             #print(f"status_update in {threading.current_thread().native_id}")

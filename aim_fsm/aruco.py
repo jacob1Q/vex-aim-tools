@@ -78,8 +78,8 @@ class RobotArucoDetector(object):
             if id in self.disabled_ids: continue
             if rvec[2][0] > math.pi/2 or rvec[2][0] < -math.pi/2:
                 # can't see a marker facing away from us, so bogus
-                print(f'Marker rejected! id={id}  tvec={tvec}  ' +
-                      f'rvec=({rvec[0][0]*180/pi},{rvec[1][0]*180/pi},{rvec[2][0]*180/pi})')
+                print(f'Marker rejected! id={id}  tvec={tvec.tolist()}  ' +
+                      f'rvec={(revec*180/pi).tolist()}')
                 continue
             marker = ArucoMarker(self, id, image_corners, tvec, rvec)
             self.seen_marker_ids.append(id)

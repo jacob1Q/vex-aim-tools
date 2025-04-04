@@ -485,7 +485,8 @@ class RRT():
                 node.parent = path[-1]
                 path[-1].q = atan2(y - path[-1].y, x - path[-1].x)
             path.append(node)
-        path[-1].q = path[-1].parent.q
+        if path[-1].parent is not None:
+            path[-1].q = path[-1].parent.q
         return path
 
 

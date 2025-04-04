@@ -74,7 +74,7 @@ class PathPlanner():
         be available in the child process."""
 
         # Fat obstacles and narrow doorways for WaveFront
-        robot.rrt.generate_obstacles(goal_object,
+        robot.rrt.generate_obstacles(None,
                                      PathPlanner.fat_obstacle_inflation,
                                      PathPlanner.fat_wall_inflation,
                                      PathPlanner.fat_doorway_adjustment)
@@ -174,7 +174,7 @@ class PathPlanner():
         # Run the wavefront path planner
         rrt_instance.obstacles = fat_obstacles
         if goal_shape.obstacle_id.startswith('Room'):
-            offsets = [1, -25, -1]
+            offsets = [1, -25, -1]   # try different spots in the room
         else:
             offsets = [None]
         for i in range(len(offsets)):
@@ -293,23 +293,29 @@ class PathPlanner():
         plan = NavPlan([step1, step2])
         return plan
 
-class PathPlannerNode(StateNode):
+class PathPlanToObjectNode(StateNode):
+    "goal_spec is either a WorldObject or a string (object id)"
+    def __init__(self, goal_spec=None):
+        super().__init__()
+        self.goal_spec = goal_spec
+
     def start(self,event=None):
         super().start(event)
-        print('PathPlannerNode got', event)
         if isinstance(event, DataEvent):
-            if isinstance(event.data, Pose):
-                self.target_pose = target = event.data
-            elif isinstance(event.data, WorldObject):
-                target = event.data
-                self.target_pose = target.pose
-            elif isinstance(event.data,str) and event.data in self.robot.world_map.objects:
-                target = self.robot.world_map.objects[event.data]
-                self.target_pose = target.pose
+            print('PathPlanToObjectNode got', event)
+            if isinstance(event.data, (WorldObject, str)):
+                self.goal_spec = event.data
             else:
-                raise ValueError(event.data)
-        result = self.robot.path_planner.plan_path_this_process(self.robot, target)
+                raise ValueError('DataEvent must be a WorldObject or string:', event)
+        if isinstance(self.goal_spec, WorldObject):
+            self.goal_obj = self.goal_spec
+        elif self.goal_spec in self.robot.world_map.objects:
+            self.goal_obj = self.robot.world_map.objects[self.goal_spec]
+        else:
+            raise ValueError('No world object with this id:', self.goal_spec)
+        result = self.robot.path_planner.plan_path_this_process(self.robot, self.goal_obj)
         self.post_event(result)
+        return result
 
 #----------------------------------------------------------------
 
