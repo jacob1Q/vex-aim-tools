@@ -192,7 +192,6 @@ class StateMachineProgram(StateNode):
             self.robot.robot0.inertial.calibrate()
             self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 50)
             self.robot.set_pose(0,0,0,0,reset_particles=False)
-            self.robot.world_map.update()
             self.put_down_handler()
 
         if not self.robot.was_picked_up:
