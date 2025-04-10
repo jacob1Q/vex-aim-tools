@@ -68,9 +68,9 @@ class DoorPass(StateNode):
                 delta_angle = wrap_angle(ctheta - rtheta)
                 delta_angle = delta_angle/pi*180
                 if -90 < delta_angle and delta_angle < 90:
-                    self.distance_mm = distance_mm(-40)
+                    self.distance_mm = -40
                 else:
-                    self.distance_mm = distance_mm(40)
+                    self.distance_mm = 40
                 self.drive_speed = 50
                 super().start(event)
             else:
