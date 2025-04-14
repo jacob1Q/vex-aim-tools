@@ -15,6 +15,7 @@ from .rrt import RRT, RRTNode, StartCollides, GoalCollides, GoalUnreachable
 from .wavefront import WaveFront
 from .geometry import wrap_angle, segment_intersect_test
 from .doorpass import DoorPass
+from .particle import ParticleFilter
 
 from . import rrt
 
