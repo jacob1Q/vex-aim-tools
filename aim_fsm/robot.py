@@ -174,7 +174,7 @@ class Robot():
               f'Pitch: {neaten(self.robot0.get_pitch())}  ' +
               f'Yaw: {neaten(self.robot0.get_yaw())} ]')
         pf_pose = self.particle_filter.update_pose_estimate()
-        var = self.particle_filter.update_variance_estimate()
+        var = self.particle_filter.update_pose_variance()
         print(f'Particles: {neaten(pf_pose.x)}, ' +
               f'{neaten(pf_pose.y)} ' +
               f'heading {neaten(pf_pose.theta*180/pi)} deg.  ' +

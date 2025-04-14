@@ -105,6 +105,8 @@ class ParticleViewer():
         else:
             print("Type 'h' in the particle viewer window for help.")
 
+# Basic shape drawing methods
+
     def draw_rectangle(self, center, size=(10,10),
                        angle=0, color=(1,1,1), fill=True):
         # Default to solid color and square window
@@ -191,17 +193,21 @@ class ParticleViewer():
         glEnd()
         glPopMatrix()
 
+# Landmark and world object display
+
     def draw_landmarks(self):
+        # Copy dictionaries as quickly as we can because they can change while we're iterating.
         landmarks = self.robot.particle_filter.sensor_model.landmarks.copy()
-        # Copy landmarks as quickly as we can because
-        # dictionary can change while we're iterating.
         objs = self.robot.world_map.objects.copy()
         arucos = [(marker.id, (np.array([[marker.pose.x], [marker.pose.y]]), marker.pose.theta, None))
                   for marker in objs.values()
                   if isinstance(marker, ArucoMarkerObj)]
+        walls = [(wall.id, (np.array([[wall.pose.x], [wall.pose.y]]), wall.pose.theta, None))
+                 for wall in objs.values()
+                 if isinstance(wall, WallObj)]
         all_specs = list(landmarks.items()) + \
             [marker for marker in arucos if marker[0] not in landmarks] + \
-            [wall for wall in objs if isinstance(wall[1],WallObj) and wall[0] not in landmarks]
+            [wall for wall in walls if wall[0] not in landmarks]
         for (id,specs) in all_specs:
             if not isinstance(id,str):
                 raise TypeError("Landmark names must be strings: %r" % id)
@@ -217,7 +223,9 @@ class ParticleViewer():
             elif id.startswith('Wall-'):
                 label = 'W' + id[id.find('-')+1:]
                 seen = self.robot.world_map.objects[id].is_visible
-                if seen:
+                if id not in landmarks:
+                    color = False
+                elif seen:
                     color = (1, 0.5, 0.3, 0.75)
                 else:
                     color = (0.5, 0, 0, 0.75)
@@ -234,9 +242,9 @@ class ParticleViewer():
                     color = (0.5, 1, 0.3, 0.75)
                 else:
                     color = (0, 0.5, 0, 0.75)
-            if isinstance(specs, Pose):
+            if isinstance(specs, Pose):  # landmark pre-defined at StateMachineProgram init
                 self.draw_landmark_from_pose(id, specs, label, color)
-            else:
+            elif color is not False:  # landmark created by SLAM
                 self.draw_landmark_from_particle(id, specs, label, color)
 
     def draw_landmark_from_pose(self, id, specs, label, color):
@@ -255,6 +263,8 @@ class ParticleViewer():
         for char in label:
             glutStrokeCharacter(GLUT_STROKE_MONO_ROMAN, ord(char))
         glPopMatrix()
+        if id.startswith('Wall-') and id in self.robot.world_map.objects:
+            self.draw_wall_worldobj(id)
 
     def draw_landmark_from_particle(self, id, specs, label, color):
         (lm_mu, lm_orient, lm_sigma) = specs
@@ -296,6 +306,16 @@ class ParticleViewer():
         glPopMatrix()
         ellipse_color = (color[1], color[2], color[0], 1)
         self.draw_particle_landmark_ellipse(lm_mu, lm_sigma, ellipse_color)
+        # for a wall, draw the WallObj as an outline
+        if id.startswith('Wall-') and id in self.robot.world_map.objects:
+            self.draw_wall_worldobj(id)
+
+    def draw_wall_worldobj(self, id):
+        wall = self.robot.world_map.objects[id]
+        color = (0.5, 1, 0.3, 0.75) if wall.is_visible else (0, 0.5, 0, 0.75)
+        size = (20, wall.length)
+        coords = (wall.pose.x, wall.pose.y)
+        self.draw_rectangle(coords, size=size, angle=wall.pose.theta*(180/pi), color=color, fill=False)
 
     def draw_particle_landmark_ellipse(self, coords, sigma, color):
         if sigma is None: return   # Arucos that are not solo landmarks
@@ -383,8 +403,8 @@ class ParticleViewer():
         while self.robot.robot0.is_move_active():
             time.sleep(0.1)
             glutPostRedisplay()
-        pf = self.robot.particle_filter
-        self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
+        #pf = self.robot.particle_filter
+        #self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
 
     def turn(self,angle_deg):
         self.robot.actuators['drive'].turn(None,angle_deg/180*pi)
@@ -393,8 +413,8 @@ class ParticleViewer():
         while self.robot.robot0.is_turn_active():
             time.sleep(0.1)
             glutPostRedisplay()
-        pf = self.robot.particle_filter
-        self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
+        #pf = self.robot.particle_filter
+        #self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
 
     def sideways(self,distance):
         self.robot.actuators['drive'].sideways(None,distance)
@@ -403,13 +423,8 @@ class ParticleViewer():
         while self.robot.robot0.is_move_active():
             time.sleep(0.1)
             glutPostRedisplay()
-        pf = self.robot.particle_filter
-        self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
-
-    async def look(self,angle):
-        pf = self.robot.particle_filter
-        self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
-        self.update_pose()
+        #pf = self.robot.particle_filter
+        #self.robot.loop.call_later(0.1, pf.look_for_new_landmarks)
 
     def keyPressed(self,key,mouseX,mouseY):
         pf = self.robot.particle_filter

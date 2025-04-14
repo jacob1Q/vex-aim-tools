@@ -28,15 +28,6 @@ class LinearKalmanFilter:
         self.R = measurement_noise**2
 
     def predict(self, control_input=0):
-        """
-        Prediction step of the Kalman filter
-        
-        Parameters:
-        - control_input: Optional control input affecting the state (default 0)
-        
-        Returns:
-        - Predicted state
-        """
         # Predict state (with optional control input)
         self.state += control_input
         
@@ -46,15 +37,6 @@ class LinearKalmanFilter:
         return self.state
     
     def update(self, measurement):
-        """
-        Update step of the Kalman filter
-        
-        Parameters:
-        - measurement: New measurement value
-        
-        Returns:
-        - Updated state estimate
-        """
         # Calculate innovation (measurement residual)
         innovation = measurement - self.state
         
@@ -73,12 +55,6 @@ class LinearKalmanFilter:
         return self.state
     
     def get_state(self):
-        """
-        Get the current state estimate
-        
-        Returns:
-        - Current state estimate
-        """
         return self.state
 
 
@@ -248,17 +224,17 @@ class PoseEstimate(Pose):
             self.kf_y.set_measurement_noise(measurement_noise)
             self.kf_z.set_measurement_noise(measurement_noise)
 
-        self.kf_x.predict()
+        #self.kf_x.predict()
         self.x = self.kf_x.update(new_pose.x)
 
-        self.kf_y.predict()
+        #self.kf_y.predict()
         self.y = self.kf_y.update(new_pose.y)
 
-        self.kf_z.predict()
+        #self.kf_z.predict()
         self.z = self.kf_z.update(new_pose.z)
 
         if self.theta is not None:
-            self.kf_theta.predict()
+            #self.kf_theta.predict()
             self.theta = self.kf_theta.update(new_pose.theta)
 
     def __repr__(self):

@@ -41,7 +41,7 @@ class WorldObject():
         if self.matched.is_fixed or robot.particle_filter.state != robot.particle_filter.LOCALIZED:
             return
         MIN_MEASUREMENT_NOISE = 5
-        measurement_noise = max(MIN_MEASUREMENT_NOISE, math.sqrt(self.sensor_distance))
+        measurement_noise = max(MIN_MEASUREMENT_NOISE, math.sqrt(self.sensor_distance)/2)
         self.matched.pose.update(self.pose, measurement_noise)
         if hasattr(self, 'spec'):
             self.matched.spec = self.spec
@@ -115,6 +115,8 @@ class ArucoMarkerObj(WorldObject):
         
 
 class WallObj(WorldObject):
+
+
     def __init__(self, wall_spec, x=0, y=0, z=0, theta=0):
         super().__init__(x=x, y=y, z=z, theta=theta)
         self.wall_spec = wall_spec
@@ -126,6 +128,21 @@ class WallObj(WorldObject):
     def __repr__(self):
         vis = 'visible' if self.is_visible else 'unseen'
         return f'<WallObj {self.name} ({self.pose.x:.1f}, {self.pose.y:.1f}) @ {self.pose.theta*180/pi:.1f} deg. {vis}>'
+
+    ALIGNMENT_THRESHOLD = 25 * pi/180 # 25 degrees: aruco markers can only differ by this much
+
+    def is_wall_aligned(self, obj):
+        """An aruco marker or candidate wall is wall-aligned if the
+        sensor_orient values match, but could be off by pi if marker
+        is on the back of the wall."""
+        result = abs(wrap_angle(self.sensor_orient - obj.sensor_orient)) < self.ALIGNMENT_THRESHOLD or \
+            (isinstance(obj,ArucoMarkerObj) and \
+             abs(wrap_angle(self.sensor_orient + pi - obj.sensor_orient)) < self.ALIGNMENT_THRESHOLD)
+        if result is False: pass
+            # print(f'is_wall_aligned {self.name} {neaten(self.sensor_orient*180/pi)} with {obj.name}' +
+            #       f' {neaten(obj.sensor_orient*180/pi)}' +
+            #       f' diff = {neaten(abs(wrap_angle(self.sensor_orient - obj.sensor_orient))*180/pi)}  result: {result}')
+        return result
 
 wall_marker_dict = dict()
 
@@ -309,13 +326,15 @@ class WorldMap():
                 wall_markers[spec.label].append((id,marker))
         for (wall_id, markers) in wall_markers.items():
             orients = [marker[1].euler_angles[1] for marker in markers]
-            outlier_threshold = 20 * pi/180 # 20 degrees
             orig_orients = copy.copy(orients)
             if len(orients) == 1:
-                continue
+                # one marker is enough to update a wall if we're localizeds
+                if self.robot.particle_filter.state != self.robot.particle_filter.LOCALIZED:
+                    continue
             elif len(orients) == 2:
-                if abs(wrap_angle(orients[0] - orients[1])) > outlier_threshold:
-                    print('marker outlier:', orients)
+                if abs(wrap_angle(orients[0] - orients[1])) > WallObj.ALIGNMENT_THRESHOLD:
+                    # with two markers that disagree, we can't tell which is the outlier, so punt
+                    print(f'wall {wall_id} marker outlier: {[o*180/pi for o in orients]}')
                     continue
             else:
                 orients_consistent = False
@@ -323,7 +342,7 @@ class WorldMap():
                     n = len(orients)
                     orients_consistent = True
                     for i in range(n):
-                        exceeds = [abs(wrap_angle(orients[i] - orients[(i+j+1)%n])) > outlier_threshold
+                        exceeds = [abs(wrap_angle(orients[i] - orients[(i+j+1)%n])) > WallObj.ALIGNMENT_THRESHOLD
                                    for j in range(n-1)]
                         if all(exceeds):
                             #print('marker',i,' outlier:', orients)
@@ -332,8 +351,9 @@ class WorldMap():
                             orients_consistent = False
                             break
                 if len(orients) < 2:
-                    continue
+                    print('outlier removal left us one marker:', markers)
             wall = self.infer_wall_from_corners_lists(wall_id, markers)
+            wall.aruco_orients = orients
             self.candidates.append(wall)
             self.make_doorways_from_wall(wall)
 
@@ -347,10 +367,10 @@ class WorldMap():
             side = wall_spec.marker_specs[id]['side']
             cx = wall_spec.marker_specs[id]['x']
             cy = wall_spec.marker_specs[id]['y']
-            world_points.append((cx-marker_size/2 - length/2, cy+marker_size/2, 0))
-            world_points.append((cx+marker_size/2 - length/2, cy+marker_size/2, 0))
-            world_points.append((cx+marker_size/2 - length/2, cy-marker_size/2, 0))
-            world_points.append((cx-marker_size/2 - length/2, cy-marker_size/2, 0))
+            world_points.append((cx-marker_size/2 - length/2, cy+marker_size/2, 0.))
+            world_points.append((cx+marker_size/2 - length/2, cy+marker_size/2, 0.))
+            world_points.append((cx+marker_size/2 - length/2, cy-marker_size/2, 0.))
+            world_points.append((cx-marker_size/2 - length/2, cy-marker_size/2, 0.))
 
             corners = marker.corners[0]
             image_points.append(corners[0])
@@ -359,8 +379,8 @@ class WorldMap():
             image_points.append(corners[3])
 
         # Find rotation and translation vector from camera frame using SolvePnP
-        (success, rvec, tvec) = cv2.solvePnP(np.array(world_points),
-                                             np.array(image_points),
+        (success, rvec, tvec) = cv2.solvePnP(np.array(world_points, dtype=np.float64),
+                                             np.array(image_points, dtype=np.float64),
                                              self.robot.camera.camera_matrix,
                                              self.robot.camera.distortion_array)
         rotationm, jacob = cv2.Rodrigues(rvec)
@@ -409,8 +429,12 @@ class WorldMap():
         for otype in obj_types:
             self.associate_objects_of_type(otype)
 
-    def association_cost(self, obj1, obj2):
-        cost = ((obj1.pose.x-obj2.pose.x)**2 + (obj1.pose.y-obj2.pose.y)**2)
+    def association_cost(self, new_obj, old_obj):
+        if isinstance(new_obj, WallObj) and len(new_obj.aruco_orients) < 2 \
+           and not new_obj.is_wall_aligned(old_obj):
+            cost = np.inf
+        else:
+            cost = ((new_obj.pose.x - old_obj.pose.x)**2 + (new_obj.pose.y - old_obj.pose.y)**2)
         return cost
 
     def associate_objects_of_type(self, otype):
@@ -422,8 +446,7 @@ class WorldMap():
             return
         costs = np.zeros([N_new,N_old])
         if self.robot.particle_filter and \
-           self.robot.particle_filter.state in (self.robot.particle_filter.LOST,
-                                                self.robot.particle_filter.LOCALIZING):
+           self.robot.particle_filter.state != self.robot.particle_filter.LOCALIZED:
             MAX_ACCEPTABLE_COST = np.inf
         elif otype in (ArucoMarkerObj, WallObj, DoorwayObj):
             MAX_ACCEPTABLE_COST = np.inf  # should adjust based on pf undertainty
@@ -486,14 +509,15 @@ class WorldMap():
         pending = list(self.pending_objects.keys())
         COST_THRESHOLD = 50
         if self.robot.particle_filter and \
-           self.robot.particle_filter.state in (self.robot.particle_filter.LOST,
-                                                self.robot.particle_filter.LOCALIZING):
-            if unassociated:
-                pass # print("Not localized: can't add", unassociated)
+           self.robot.particle_filter.state != self.robot.particle_filter.LOCALIZED:
             return
         if self.robot.particle_filter:
             pass # print('robot.particle_filter.state=', self.robot.particle_filter.state)
         for candidate in unassociated:
+            if isinstance(candidate, WallObj) and len(candidate.aruco_orients) == 1:
+                #print('punting on', candidate, 'from', self.objects)
+                # only one aruco isn't enough to make a new wall
+                continue
             matches = [p for p in pending if self.association_cost(candidate,p) < COST_THRESHOLD]
             if matches:
                 m = matches[0]

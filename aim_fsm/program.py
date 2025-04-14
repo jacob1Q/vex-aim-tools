@@ -196,7 +196,8 @@ class StateMachineProgram(StateNode):
 
         if not self.robot.was_picked_up:
             self.robot.particle_filter.move()
-        
+            self.robot.particle_filter.look_for_new_landmarks()
+                
     def robot_put_down(self):
         pass
 

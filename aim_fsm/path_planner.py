@@ -313,7 +313,11 @@ class PathPlanToObjectNode(StateNode):
             self.goal_obj = self.robot.world_map.objects[self.goal_spec]
         else:
             raise ValueError('No world object with this id:', self.goal_spec)
-        result = self.robot.path_planner.plan_path_this_process(self.robot, self.goal_obj)
+        if self.robot.particle_filter.state != ParticleFilter.LOCALIZED:
+            print('PathPlanToOjectNode: Robot not localized!')
+            result = PilotEvent(NotLocalized)
+        else:
+            result = self.robot.path_planner.plan_path_this_process(self.robot, self.goal_obj)
         self.post_event(result)
         return result
 

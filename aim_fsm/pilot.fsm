@@ -11,6 +11,7 @@ from .events import PilotEvent
 from .transitions import *
 from .worldmap import WorldObject  #, DoorwayObj
 from .path_planner import PathPlanner, PathPlanToObjectNode #, PathPlannerProcess
+from .particle import *
 from .geometry import segment_intersect_test
 from .doorpass import DoorPass
 from .pilot0 import *
@@ -23,6 +24,7 @@ class PilotException(Exception):
 
 class InvalidPose(PilotException): pass
 class CollisionDetected(PilotException): pass
+class NotLocalized(PilotException): pass
 
 # Note: StartCollides, GoalCollides, and MaxIterations exceptions are defined in rrt.py.
 
@@ -211,8 +213,10 @@ class PilotToObject(PilotBase):
         if isinstance(event,DataEvent):
             if isinstance(event.data, WorldObject):
                 self.object = event.data
+            elif isinstance(event.data, str) and event.data in self.robot.world_map.objects:
+                self.object = self.robot.world_map.objects[event.data]
             else:
-                raise ValueError('DataEvent to PilotToObject must be a WorldObject', event.data)
+                raise ValueError('DataEvent to PilotToObject must be a WorldObject or id string', event)
         super().start(event)
 
     class OrientToObject(TurnToward):
@@ -277,7 +281,7 @@ class PilotToPose(PilotBase):
 
     class PilotRRTPlanner(StateNode):
         def planner(self,start_node,goal_node):
-            return self.robot.rrt.plan_path(start_node,goal_node, goal_object=self.parent.target_object)
+            return self.robot.rrt.plan_path(start_node, goal_node, goal_object=self.parent.target_object)
 
         def start(self,event=None):
             super().start(event)
@@ -285,6 +289,11 @@ class PilotToPose(PilotBase):
             if not isinstance(tpose,Pose) or (tpose.x == 0 and tpose.y == 0 and tpose.theta == 0):
                 print("Pilot: target pose is invalid: %s" % tpose)
                 self.parent.post_event(PilotEvent(InvalidPose, pose=tpose))
+                self.parent.post_failure()
+                return
+            if self.robot.particle_filter.state != ParticleFilter.LOCALIZED:
+                print('PilotRRTPlanner: Robot not localized!')
+                self.parent.post_event(PilotEvent(NotLocalized))
                 self.parent.post_failure()
                 return
             pose = self.robot.pose
