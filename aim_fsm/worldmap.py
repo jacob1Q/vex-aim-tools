@@ -47,6 +47,8 @@ class WorldObject():
             self.matched.spec = self.spec
         if hasattr(self, 'marker'):
             self.matched.marker = self.marker
+        if hasattr(self, 'seen_markers'):
+            self.matched.seen_markers = self.seen_markers
         if hasattr(self, 'sensor_distance'):
             self.matched.sensor_distance = self.sensor_distance
         if hasattr(self, 'sensor_bearing'):
@@ -178,7 +180,7 @@ class DoorwayObj(WorldObject):
 
     def __repr__(self):
         if self.pose_confidence >= 0:
-            return '<DoorwayObj %s: (%.1f,%.1f) @ %d deg.>' % \
+            return '<DoorwayObj %s: (%.1f,%.1f) @ %.1f deg.>' % \
                 (self.id, self.pose.x, self.pose.y, self.pose.theta*180/pi)
         else:
             return '<DoorwayObj %s: position unknown>' % self.id
@@ -354,6 +356,7 @@ class WorldMap():
                     print('outlier removal left us one marker:', markers)
             wall = self.infer_wall_from_corners_lists(wall_id, markers)
             wall.aruco_orients = orients
+            wall.seen_markers = markers
             self.candidates.append(wall)
             self.make_doorways_from_wall(wall)
 

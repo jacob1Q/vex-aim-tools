@@ -1,18 +1,20 @@
 import math
+from math import sin, cos, atan2, pi, sqrt
+from numpy import matrix, tan, arctan2
 import time
 import sys
 import asyncio
 
 from .base import *
-from .utils import Pose
+from .utils import *
 from .rrt import *
 from .nodes import *
 from .events import PilotEvent
 from .transitions import *
-from .worldmap import WorldObject  #, DoorwayObj
+from .worldmap import WorldObject, DoorwayObj
 from .path_planner import PathPlanner, PathPlanToObjectNode #, PathPlannerProcess
 from .particle import *
-from .geometry import segment_intersect_test
+from .geometry import *
 from .doorpass import DoorPass
 from .pilot0 import *
 
@@ -100,9 +102,14 @@ class PilotBase(StateNode):
                     pose = self.robot.pose
                     dest = self.parent.drive_steps[self.parent.index]
                     print(f'ExecuteDrive: dest={dest}  pose={pose}')
-                    dx = dest.x - pose.x
-                    dy = dest.y - pose.y
-                    angle_rads = wrap_angle(atan2(dy,dx) - pose.theta)
+                    if self.parent.index == len(self.parent.drive_steps) - 1:
+                        # last waypoint: turn to specified heading
+                        angle_rads = wrap_angle(dest.q - pose.theta)
+                    else:
+                        # turn to heading needed to reach this waypoint
+                        dx = dest.x - pose.x
+                        dy = dest.y - pose.y
+                        angle_rads = wrap_angle(atan2(dy,dx) - pose.theta)
                     self.robot.actuators['drive'].turn(self, angle_rads)
                     
             class ForwardStep(ActionNode):
@@ -137,8 +144,8 @@ class PilotBase(StateNode):
                 # while driving is not yet supported in aim.py.
 
                 next: self.NextStep()
-                next =C=> ParentCompletes()
                 next =S=> turn
+                next =C=> ParentCompletes()
 
                 turn: self.TurnStep() =C=> forward
 
@@ -276,6 +283,7 @@ class PilotToPose(PilotBase):
                 self.target_pose = event.data
             else:
                 raise ValueError(event.data)
+        print(f'PilotToPose: navigating to {self.target_pose}')
         self.robot.rrt.max_iter = self.max_iter
         super().start(event)
 
@@ -494,4 +502,276 @@ class PilotFrustration(StateNode):
         {speak, left2, right2} =C(2)=> done
 
         done: ParentCompletes()
+    }
+
+# ================ DoorPass ================
+
+class DoorPass(StateNode):
+    """Pass through a doorway. Assumes the doorway is nearby and unobstructed."""
+
+    OUTER_GATE_DISTANCE = 150 # mm
+    INNER_GATE_DISTANCE =  70 # mm -- currently unused
+
+    def __init__(self, door_spec=None):
+        self.door_spec = door_spec
+        super().__init__()
+
+    def start(self, event=None):
+        door_spec = self.door_spec
+        if isinstance(event,DataEvent):
+            door_spec = event.data
+        if isinstance(door_spec, int):
+            door_spec ='Doorway-%d:0.a' % door_spec
+        if isinstance(door_spec, str):
+            doorobj = self.robot.world_map.objects.get(door_spec)
+        elif isinstance(door_spec, DoorwayObj):
+            doorobj = door_spec
+        else:
+            doorobj = None
+        if isinstance(doorobj, DoorwayObj):
+            self.object = doorobj
+        else:
+            print("Error in DoorPass: no doorway named %s" % repr(door_spec))
+            raise ValueError(door_spec, doorobj)
+        super().start(event)
+
+
+    def calculate_gate(self, start_point, door, offset):
+        """Returns closest gate point (gx, gy)"""
+        (rx,ry) = start_point
+        dx = door.pose.x
+        dy = door.pose.y
+        dtheta = door.pose.theta
+        # calculate gates on either side of the door, then pick the closest
+        pt1x = dx + offset * cos(dtheta)
+        pt1y = dy + offset * sin(dtheta)
+        pt2x = dx + offset * cos(dtheta+pi)
+        pt2y = dy + offset * sin(dtheta+pi)
+        dist1sq = (pt1x-rx)**2 + (pt1y-ry)**2
+        dist2sq = (pt2x-rx)**2 + (pt2y-ry)**2
+        if dist1sq < dist2sq:
+            self.side = +1  # we're on the front side of the wall
+            return (pt1x, pt1y, wrap_angle(dtheta+pi))
+        else:
+            self.side = -1  # we're on the back side of the wall
+            return (pt2x, pt2y, dtheta)
+
+    class AwayFromCollide(Forward):
+        def start(self, event=None):
+            if isinstance(event,DataEvent):
+                startNode = event.data[0]
+                collideObj = event.data[1]
+                pose = self.robot.pose
+                (rx, ry, rtheta) = pose.x, pose.y, pose.theta
+                cx, cy = collideObj.center[0,0],collideObj.center[1,0]
+                ctheta = atan2(cy-ry, cx-rx)
+                delta_angle = wrap_angle(ctheta - rtheta)
+                delta_angle = delta_angle/pi*180
+                if -90 < delta_angle and delta_angle < 90:
+                    self.distance_mm = -40
+                else:
+                    self.distance_mm = 40
+                self.drive_speed = 50
+                super().start(event)
+            else:
+                raise ValueError('DataEvent to AwayFromCollide must be a StartCollides.args', event.data)
+                super().start(event)
+                self.post_failure()
+
+
+    class TravelToGate(PilotToPose):
+        def __init__(self,offset):
+            self.offset = offset
+            super().__init__()
+
+        def start(self,event=None):
+            pose = self.robot.pose
+            (rx, ry, rtheta) = pose.x, pose.y, pose.theta
+            (gate_x, gate_y, _) = self.parent.calculate_gate((rx,ry), self.parent.object, offset=self.offset)
+            dpose = self.parent.object.pose
+            target_theta = dpose.theta if self.parent.side == -1 else dpose.theta + pi
+            self.target_pose = Pose(gate_x, gate_y, theta=target_theta)
+            super().start()
+
+    class TurnToGate(Turn):
+        """Turn to the approach gate, or post success if we're already there."""
+        def __init__(self,offset):
+            self.offset = offset
+            super().__init__(turn_speed=45)
+
+        def start(self,event=None):
+            pose = self.robot.pose
+            (rx, ry, rtheta) = pose.x, pose.y, pose.theta
+            (gate_x, gate_y, _) = self.parent.calculate_gate((rx,ry), self.parent.object, offset=self.offset)
+            bearing = atan2(gate_y-ry, gate_x-rx)
+            turn = wrap_angle(bearing - rtheta)
+            print('^^ TurnToGate: gate=(%.1f, %.1f)  offset=%.1f rtheta=%.1f  bearing=%.1f  turn=%.1f' %
+                  (gate_x, gate_y, self.offset, rtheta*180/pi, bearing*180/pi, turn*180/pi))
+            MIN_TURN_ANGLE = 2.5 * (pi/180)
+            if abs(turn) < MIN_TURN_ANGLE:
+                self.angle_deg = 0
+                super().start(event)
+                self.post_completion()
+            else:
+                self.angle_deg = turn * 180/pi
+                super().start(event)
+
+
+    class ForwardToGate(Forward):
+        """Travel forward to reach the approach gate."""
+        def __init__(self,offset):
+            self.offset = offset
+            super().__init__()
+
+        def start(self,event=None):
+            rx = self.robot.pose.x
+            ry = self.robot.pose.y
+            (gate_x, gate_y, _) = self.parent.calculate_gate((rx,ry), self.parent.object, offset=self.offset)
+            self.distance_mm = sqrt((gate_x-rx)**2 + (gate_y-ry)**2)
+            self.drive_speed = 50
+            super().start(event)
+
+    class TurnToFaceWall(Turn):
+        def start(self,event=None):
+            robot_theta = self.robot.pose.theta
+            if self.parent.side == +1:
+                door_theta = self.parent.object.pose.theta +pi
+            else:
+                door_theta = self.parent.object.pose.theta
+            self.angle_deg = wrap_angle(door_theta - robot_theta) * 180/pi
+            super().start(event)
+
+    class CenterOnDoorway(Sideways):
+        def start(self, event=None):
+            door = self.parent.object
+            index = door.index
+            wall = door.wall
+            spec = wall.wall_spec
+            door_x = spec.doorways[index]['x']
+            side = self.parent.side
+            markers = [(num, spec['x']) for (num,spec) in spec.marker_specs.items()
+                       if spec['side'] == side]
+            lefts = [m for m in markers if m[1] < door_x]
+            left = max(lefts, key=lambda p : p[1])
+            rights = [m for m in markers if m[1] > door_x]
+            right = min(rights, key=lambda p: p[1])
+            print(f'left={lefts} left={left} rights={rights} right={right} door_x={door_x}')
+            seen_markers = self.robot.aruco_detector.seen_marker_objects
+            left_marker = seen_markers.get(left[0], None)
+            right_marker = seen_markers.get(right[0], None)
+            left_offset = left_marker.camera_coords[0] - (door_x - left[1]) if left_marker else None
+            right_offset = right_marker.camera_coords[0] - (door_x - right[1]) if right_marker else None
+            if left_offset and right_offset:
+                self.distance_mm = (left_offset + right_offset) / 2
+            elif left_offset:
+                print('DoorPass: right marker not visible!')
+                self.distance_mm = left_offset
+            elif right_offset:
+                print('DoorPass: left marker not visible!')
+                self.distance_mm = right_offset
+            else:
+                print('DoorPass: markers not visible!')
+                self.distance_mm = 0
+            print(f'offset = {self.distance_mm}')
+            super().start(event)
+
+    class CenterOnDoorway_Old(Sideways):
+        def start(self,event=None):
+            """Calculate the vector from the robot to the doorway and rotate it into the robot's
+            frame so the y component gives the sideways distance to line up with the door."""
+            # NOTE: since the robot won't be perfectly facing the door we should perhaps
+            # adjust theta to reflect that.
+            door_pose = self.parent.object.pose
+            robot_pose = self.robot.pose
+            dx = door_pose.x - robot_pose.x
+            dy = door_pose.y - robot_pose.y
+            vec = aboutZ(robot_pose.theta).dot(point(dx,dy))
+            self.distance_mm = vec[1,0]
+            print(f'dpose={door_pose} rpose={robot_pose} dx={neaten(dx)} dy={neaten(dy)}' +
+                  f' vec={neaten(vec[0,0])},{neaten(vec[1,0])} dist={neaten(self.distance_mm)}')
+            super().start(event)
+        
+
+    class TurnToMarker(Turn):
+        """Use camera image and native pose to center the door marker."""
+        def start(self,event=None):
+            marker_ids = self.parent.object.marker_ids
+            marker = self.robot.aruco_detector.seen_marker_objects.get(marker_ids[0], None) or \
+                     self.robot.aruco_detector.seen_marker_objects.get(marker_ids[1], None)
+            if not marker:
+                self.angle_deg = 0
+                super().start(event)
+                print("TurnToMarker failed to find marker %s or %s!" % marker_ids)
+                self.post_failure()
+                return
+            else:
+                print('TurnToMarker saw marker', marker)
+            sensor_dist = marker.camera_distance
+            sensor_bearing = atan2(marker.camera_coords[0],
+                                   marker.camera_coords[2])
+            x = self.robot.pose.position.x
+            y = self.robot.pose.position.y
+            theta = self.robot.pose.rotation.angle_z.radians
+            direction = theta + sensor_bearing
+            dx = sensor_dist * cos(direction)
+            dy = sensor_dist * sin(direction)
+            turn = wrap_angle(atan2(dy,dx) - self.robot.pose.rotation.angle_z.radians)
+            if abs(turn) < 0.5*pi/180:
+                self.angle_deg = 0
+            else:
+                self.angle_deg = turn * 180/pi
+            print("TurnToMarker %s turning by %.1f degrees" % (self.name, self.angle.degrees))
+            super().start(event)
+
+    class DriveThrough(Forward):
+        """Travel forward to drive through the gate."""
+        def __init__(self):
+            super().__init__()
+
+        def start(self,event=None):
+            pose = self.robot.pose
+            (rx, ry, rtheta) = pose.x, pose.y, pose.theta
+            (gate_x, gate_y, gate_theta) = self.parent.calculate_gate((rx,ry), self.parent.object, offset=5)
+            dist = sqrt((gate_x-rx)**2 + (gate_y-ry)**2)
+            offset = 120
+            delta_theta = wrap_angle(rtheta-(gate_theta+pi/2))
+            delta_dist = abs(offset/sin(delta_theta))
+            dist += delta_dist
+            self.distance_mm = dist
+            self.drive_speed = 50
+            super().start(event)
+
+    $setup{
+        check_start: PilotCheckStartDetail()
+        check_start =S=> travel_to_gate1 # turn_to_gate1
+        check_start =D=> away_from_collide
+        check_start =F=> Forward(-80) =C=> check_start2
+
+        travel_to_gate1: self.TravelToGate(DoorPass.OUTER_GATE_DISTANCE)
+        travel_to_gate1 =C=> StateNode() =T(1)=> align_with_wall
+        travel_to_gate1 =PILOT=> ParentFails()        
+
+        align_with_wall: self.TurnToFaceWall() =C=>
+            Print('facing the wall') =T(1)=> center_on_doorway
+
+        center_on_doorway: self.CenterOnDoorway() =C=>
+            Print('centered on doorway') =C=> through_door
+
+        through_door: self.DriveThrough() =C=> ParentCompletes()
+
+        away_from_collide: self.AwayFromCollide() =C=> StateNode() =T(0.2)=> check_start2
+        away_from_collide =F=> travel_to_gate1
+
+        check_start2: PilotCheckStartDetail()
+        check_start2 =S=> travel_to_gate1
+        check_start2 =D=> away_from_collide2
+        check_start2 =F=> ParentFails()
+
+        away_from_collide2: self.AwayFromCollide() =C=> StateNode() =T(0.2)=> check_start3
+        away_from_collide2 =F=> check_start3
+
+        check_start3: PilotCheckStart()
+        check_start3 =S=> travel_to_gate1
+        check_start3 =F=> ParentFails()
+
     }

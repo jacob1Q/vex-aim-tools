@@ -71,15 +71,19 @@ class RobotArucoDetector(object):
         for i in range(len(self.corners)):
             image_corners = self.corners[i]
             id = int(self.ids[i][0])
-            success, rvec, tvec = cv2.solvePnP(self.object_corners,
-                                               image_corners,
-                                               self.robot.camera.camera_matrix,
-                                               self.robot.camera.distortion_array)
+            try:
+                success, rvec, tvec = cv2.solvePnP(self.object_corners,
+                                                   image_corners,
+                                                   self.robot.camera.camera_matrix,
+                                                   self.robot.camera.distortion_array)
+            except Exception as e:
+                print(f'Aruco detector: solvePnP failed:', e)
+                return
             if id in self.disabled_ids: continue
             if rvec[2][0] > math.pi/2 or rvec[2][0] < -math.pi/2:
                 # can't see a marker facing away from us, so bogus
                 print(f'Marker rejected! id={id}  tvec={tvec.tolist()}  ' +
-                      f'rvec={(revec*180/pi).tolist()}')
+                      f'rvec={(rvec*180/pi).tolist()}')
                 continue
             marker = ArucoMarker(self, id, image_corners, tvec, rvec)
             self.seen_marker_ids.append(id)

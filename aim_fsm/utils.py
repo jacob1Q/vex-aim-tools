@@ -1,5 +1,7 @@
-from .geometry import wrap_angle
 import numpy as np
+from math import pi
+
+from .geometry import wrap_angle
 
 class LinearKalmanFilter:
     def __init__(self, initial_state, initial_uncertainty, process_noise, measurement_noise):
@@ -181,7 +183,7 @@ class Pose():
         self.origin_id = origin_id
 
     def __repr__(self):
-        return f'<Pose x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta)} origin_id={self.origin_id}>'
+        return f'<Pose x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta*180/pi)} deg. origin_id={self.origin_id}>'
 
     def __sub__(self, other):
         angdiff = wrap_angle(self.theta - other.theta) if self.theta is not None and other.theta is not None else None
@@ -238,5 +240,5 @@ class PoseEstimate(Pose):
             self.theta = self.kf_theta.update(new_pose.theta)
 
     def __repr__(self):
-        return f'<PoseEstimate x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta)} origin_id={self.origin_id}>'
+        return f'<PoseEstimate x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta*180/pi)} deg. origin_id={self.origin_id}>'
 
