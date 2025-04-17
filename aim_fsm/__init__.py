@@ -22,4 +22,3 @@ from .pickup import *
 from .pilot import *
 
 del base
-

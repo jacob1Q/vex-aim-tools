@@ -20,6 +20,7 @@ from .path_planner import PathPlanner
 from .utils import Pose, PoseEstimate
 from .geometry import wrap_angle_deg
 from . import program
+from .pilot import DoorPass
 
 class Robot():
     def __init__(self, robot0=None, loop=None, host="192.168.4.1",

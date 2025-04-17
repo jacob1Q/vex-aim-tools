@@ -14,7 +14,6 @@ from .worldmap import WorldObject, BarrelObj, BallObj, AprilTagObj
 from .rrt import RRT, RRTNode, StartCollides, GoalCollides, GoalUnreachable
 from .wavefront import WaveFront
 from .geometry import wrap_angle, segment_intersect_test
-from .doorpass import DoorPass
 from .particle import ParticleFilter
 
 from . import rrt
@@ -274,7 +273,8 @@ class PathPlanner():
         # we're outside the approach gate.
         start_point = (pt1.x, pt1.y)
         DELTA = 15 # mm
-        gate = DoorPass.calculate_gate(start_point, door, DoorPass.OUTER_GATE_DISTANCE + DELTA)
+        from .pilot import DoorPass
+        gate, side = DoorPass.calculate_gate(start_point, door, DoorPass.OUTER_GATE_DISTANCE + DELTA)
         (dx,dy) = (door.pose.x, door.pose.y)
         (gx,gy) = (gate[0],gate[1])
         gate_node = RRTNode(x=gx, y=gy)

@@ -336,7 +336,9 @@ class ParticleFilter():
             if self.state != ParticleFilter.LOCALIZED:
                 print(';;; LOCALIZED AFTER MOVE ;;;')
                 self.state = self.LOCALIZED
-            self.update_pose_variance()
+            self.update_pose_variance() # will also update the pose estimate
+        else:
+            self.update_pose_estimate()
         if self.robot.carrying:
             self.robot.world_map.update_carried_object(self.robot.carrying)
 

@@ -1,12 +1,10 @@
 import math
-from math import sin, cos, atan2, pi, sqrt
-from numpy import matrix, tan, arctan2
 import time
 import sys
 import asyncio
 
 from .base import *
-from .utils import *
+from .utils import Pose
 from .rrt import *
 from .nodes import *
 from .events import PilotEvent
@@ -15,7 +13,6 @@ from .worldmap import WorldObject, DoorwayObj
 from .path_planner import PathPlanner, PathPlanToObjectNode #, PathPlannerProcess
 from .particle import *
 from .geometry import *
-from .doorpass import DoorPass
 from .pilot0 import *
 
 #---------------- Pilot Exceptions and Events ----------------
@@ -102,14 +99,9 @@ class PilotBase(StateNode):
                     pose = self.robot.pose
                     dest = self.parent.drive_steps[self.parent.index]
                     print(f'ExecuteDrive: dest={dest}  pose={pose}')
-                    if self.parent.index == len(self.parent.drive_steps) - 1:
-                        # last waypoint: turn to specified heading
-                        angle_rads = wrap_angle(dest.q - pose.theta)
-                    else:
-                        # turn to heading needed to reach this waypoint
-                        dx = dest.x - pose.x
-                        dy = dest.y - pose.y
-                        angle_rads = wrap_angle(atan2(dy,dx) - pose.theta)
+                    dx = dest.x - pose.x
+                    dy = dest.y - pose.y
+                    angle_rads = wrap_angle(atan2(dy,dx) - pose.theta)
                     self.robot.actuators['drive'].turn(self, angle_rads)
                     
             class ForwardStep(ActionNode):
@@ -144,8 +136,8 @@ class PilotBase(StateNode):
                 # while driving is not yet supported in aim.py.
 
                 next: self.NextStep()
-                next =S=> turn
                 next =C=> ParentCompletes()
+                next =S=> turn
 
                 turn: self.TurnStep() =C=> forward
 
@@ -153,10 +145,26 @@ class PilotBase(StateNode):
 
             }
 
-        class ExecuteDoorPass(DoorPass):
+        class ExecuteDoorPass(StateNode):
+            """ Greasy hack to get around circular dependency between Pilot and DoorPass """
             def start(self, event=None):
+                dummy_doorpass = self.children['doorpass']
+                import copy
+                global pilot_global_doorpass_node  # set up in simple_cli
+                new_doorpass = copy.copy(pilot_global_doorpass_node)
+                new_doorpass.parent = dummy_doorpass.parent
+                new_doorpass.transitions = dummy_doorpass.transitions
+                self.children['doorpass'] = new_doorpass
+
                 step = self.parent.navplan.steps[self.parent.index]
-                super().start(DataEvent(step.param))
+                self.children['doorpass'].door_spec = step.param
+                super().start()
+
+            $setup{
+                doorpass: StateNode()  # dummy to be replaced by start() due to circularity
+                doorpass =C=> ParentCompletes()
+                doorpass =F=> ParentFails()
+            }
 
         class ExecuteBackup(Forward):
             def start(self, event=None):
@@ -282,8 +290,7 @@ class PilotToPose(PilotBase):
                 self.target_object = None
                 self.target_pose = event.data
             else:
-                raise ValueError(event.data)
-        print(f'PilotToPose: navigating to {self.target_pose}')
+                raise ValueError('Not a world object or pose:', event.data)
         self.robot.rrt.max_iter = self.max_iter
         super().start(event)
 
@@ -404,7 +411,7 @@ class PilotToPose(PilotBase):
             # We planned for a doorpass as the last step; replan to the outer gate.
             door = last_step.param
             last_node = navplan.steps[-2].param[-1]
-            gate = DoorPass.calculate_gate((last_node.x, last_node.y), door, DoorPass.OUTER_GATE_DISTANCE)
+            gate, side = DoorPass.calculate_gate((last_node.x, last_node.y), door, DoorPass.OUTER_GATE_DISTANCE)
             goal_node = RRTNode(x=gate[0], y=gate[1], q=gate[2])
             print('new goal is', goal_node)
             try:
@@ -532,11 +539,12 @@ class DoorPass(StateNode):
             self.object = doorobj
         else:
             print("Error in DoorPass: no doorway named %s" % repr(door_spec))
-            raise ValueError(door_spec, doorobj)
+            raise ValueError('Unrecognized door spec:', door_spec, doorobj)
         super().start(event)
 
 
-    def calculate_gate(self, start_point, door, offset):
+    @staticmethod
+    def calculate_gate(start_point, door, offset):
         """Returns closest gate point (gx, gy)"""
         (rx,ry) = start_point
         dx = door.pose.x
@@ -550,11 +558,11 @@ class DoorPass(StateNode):
         dist1sq = (pt1x-rx)**2 + (pt1y-ry)**2
         dist2sq = (pt2x-rx)**2 + (pt2y-ry)**2
         if dist1sq < dist2sq:
-            self.side = +1  # we're on the front side of the wall
-            return (pt1x, pt1y, wrap_angle(dtheta+pi))
+            side = +1  # we're on the front side of the wall
+            return (pt1x, pt1y, wrap_angle(dtheta+pi)), side
         else:
-            self.side = -1  # we're on the back side of the wall
-            return (pt2x, pt2y, dtheta)
+            side = -1  # we're on the back side of the wall
+            return (pt2x, pt2y, dtheta), side
 
     class AwayFromCollide(Forward):
         def start(self, event=None):
@@ -578,7 +586,6 @@ class DoorPass(StateNode):
                 super().start(event)
                 self.post_failure()
 
-
     class TravelToGate(PilotToPose):
         def __init__(self,offset):
             self.offset = offset
@@ -587,9 +594,10 @@ class DoorPass(StateNode):
         def start(self,event=None):
             pose = self.robot.pose
             (rx, ry, rtheta) = pose.x, pose.y, pose.theta
-            (gate_x, gate_y, _) = self.parent.calculate_gate((rx,ry), self.parent.object, offset=self.offset)
+            (gate_x, gate_y, _), side = DoorPass.calculate_gate((rx,ry), self.parent.object, offset=self.offset)
+            self.parent.side = side
             dpose = self.parent.object.pose
-            target_theta = dpose.theta if self.parent.side == -1 else dpose.theta + pi
+            target_theta = dpose.theta if side == -1 else dpose.theta + pi
             self.target_pose = Pose(gate_x, gate_y, theta=target_theta)
             super().start()
 
@@ -602,7 +610,7 @@ class DoorPass(StateNode):
         def start(self,event=None):
             pose = self.robot.pose
             (rx, ry, rtheta) = pose.x, pose.y, pose.theta
-            (gate_x, gate_y, _) = self.parent.calculate_gate((rx,ry), self.parent.object, offset=self.offset)
+            (gate_x, gate_y, _), side = DoorPass.calculate_gate((rx,ry), self.parent.object, offset=self.offset)
             bearing = atan2(gate_y-ry, gate_x-rx)
             turn = wrap_angle(bearing - rtheta)
             print('^^ TurnToGate: gate=(%.1f, %.1f)  offset=%.1f rtheta=%.1f  bearing=%.1f  turn=%.1f' %
@@ -626,7 +634,7 @@ class DoorPass(StateNode):
         def start(self,event=None):
             rx = self.robot.pose.x
             ry = self.robot.pose.y
-            (gate_x, gate_y, _) = self.parent.calculate_gate((rx,ry), self.parent.object, offset=self.offset)
+            (gate_x, gate_y, _), side = DoorPass.calculate_gate((rx,ry), self.parent.object, offset=self.offset)
             self.distance_mm = sqrt((gate_x-rx)**2 + (gate_y-ry)**2)
             self.drive_speed = 50
             super().start(event)
@@ -731,7 +739,7 @@ class DoorPass(StateNode):
         def start(self,event=None):
             pose = self.robot.pose
             (rx, ry, rtheta) = pose.x, pose.y, pose.theta
-            (gate_x, gate_y, gate_theta) = self.parent.calculate_gate((rx,ry), self.parent.object, offset=5)
+            (gate_x, gate_y, gate_theta), side = DoorPass.calculate_gate((rx,ry), self.parent.object, offset=5)
             dist = sqrt((gate_x-rx)**2 + (gate_y-ry)**2)
             offset = 120
             delta_theta = wrap_angle(rtheta-(gate_theta+pi/2))
