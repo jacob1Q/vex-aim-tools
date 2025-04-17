@@ -511,6 +511,8 @@ class PilotFrustration(StateNode):
         done: ParentCompletes()
     }
 
+pilot_global_doorpass_node = "Will be filled in by simple_cli due to circularity"
+
 # ================ DoorPass ================
 
 class DoorPass(StateNode):
