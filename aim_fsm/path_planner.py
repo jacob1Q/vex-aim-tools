@@ -263,10 +263,16 @@ class PathPlanner():
             else:
                 pt1 = pt2
 
-        # If no doorway, we're good to go
+        # If no doorway, we're good to go.  See if we need to turn at the end.
         if door is None:
-            step = NavStep(NavStep.DRIVE, path)
-            plan = NavPlan([step])
+            if len(path) > 1 and path[-1].x == path[-2].x and path[-1].y == path[-2].y:
+                all_but_last = path[:-1]
+                drive_step = NavStep(NavStep.DRIVE, all_but_last)
+                turn_step = NavStep(NavStep.TURN_TO, path[-1].q)
+                plan = NavPlan([drive_step, turn_step])
+            else:
+                drive_step = NavStep(NavStep.DRIVE, path)
+                plan = NavPlan([drive_step])
             return plan
 
         # Truncate the path at the doorway, and ajust to make sure

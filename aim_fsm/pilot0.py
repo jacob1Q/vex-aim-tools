@@ -5,6 +5,7 @@ them.
 
 """
 
+from .utils import *
 from .base import *
 from .rrt import *
 from .events import PilotEvent
@@ -56,6 +57,7 @@ class NavStep():
     DRIVE = "drive"
     DOORPASS = "doorpass"
     BACKUP = "backup"
+    TURN_TO = "turn_to"
 
     def __init__(self, type, param):
         """For DRIVE and BACKUP types, param is a list of RRTNode instances.  The
@@ -71,6 +73,8 @@ class NavStep():
         elif self.type == NavStep.DRIVE:
             psteps = [(round(node.x,1),round(node.y,1)) for node in self.param]
             pstring = repr(psteps)
+        elif self.type == NavStep.TURN_TO:
+            pstring = f'{neaten(self.param * 180/pi)} deg.'
         else:   # NavStep.BACKUP and anything else
             pstring = repr(self.param)
             if len(pstring) > 40:

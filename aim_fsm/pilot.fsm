@@ -145,6 +145,17 @@ class PilotBase(StateNode):
 
             }
 
+        class ExecuteTurnTo(Turn):
+            def start(self, event):
+                step = self.parent.navplan.steps[self.parent.index]
+                target_heading = step.param
+                self.angle_deg = wrap_angle(target_heading - self.robot.pose.theta) * 180/pi
+                print(f'ExecuteTurnTo: target heading = {neaten(target_heading*180/pi)} deg., ' +
+                      f'current heading = {neaten(self.robot.pose.theta*180/pi)} deg., ' +
+                      f'turn angle = {neaten(self.angle_deg)} .deg')
+                super().start(event)
+
+
         class ExecuteDoorPass(StateNode):
             """ Greasy hack to get around circular dependency between Pilot and DoorPass """
             def start(self, event=None):
@@ -191,12 +202,17 @@ class PilotBase(StateNode):
 
             dispatch: self.DispatchStep()
             dispatch =D(NavStep.DRIVE)=> drive
+            dispatch =D(NavStep.TURN_TO)=> turn_to
             dispatch =D(NavStep.DOORPASS)=> doorpass
             dispatch =D(NavStep.BACKUP)=> backup
 
             drive: self.ExecuteDrive()
             drive =C=> next
             drive =F=> ParentFails()
+
+            turn_to: self.ExecuteTurnTo()
+            turn_to =C=> next
+            turn_to =F=> ParentFails()
 
             doorpass: self.ExecuteDoorPass()
             doorpass =C=> next
