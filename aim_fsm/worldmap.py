@@ -179,9 +179,10 @@ class DoorwayObj(WorldObject):
         self.sensor_distance = self.wall.sensor_distance
 
     def __repr__(self):
+        vis = 'visible' if self.is_visible else 'unseen'
         if self.pose_confidence >= 0:
-            return '<DoorwayObj %s: (%.1f,%.1f) @ %.1f deg.>' % \
-                (self.id, self.pose.x, self.pose.y, self.pose.theta*180/pi)
+            return '<DoorwayObj %s: (%.1f,%.1f) @ %.1f deg. %s>' % \
+                (self.id, self.pose.x, self.pose.y, self.pose.theta*180/pi, vis)
         else:
             return '<DoorwayObj %s: position unknown>' % self.id
 
