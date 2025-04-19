@@ -7,13 +7,11 @@
   </head>
   <body>
     <h1>Speech Listener for VEX AIM</h1>
-    <button id="startButton" style="background-color: lime">Start Listening</button>
-    <button id="stopButton">Stop Listening</button><p/>
+    <button id="startStopButton" style="background-color: lime">Start Listening</button>
     <div id="result"></div>
 
     <script>
-      const startButton = document.getElementById('startButton');
-      const stopButton = document.getElementById('stopButton');
+      const startStopButton = document.getElementById('startStopButton');
       const resultDiv = document.getElementById('result');
       
       let recognition;
@@ -111,36 +109,35 @@
           };
       }
 
-      startButton.addEventListener('click', () => {
-          navigator.mediaDevices.getUserMedia({ audio: true })
-              .then(stream => {
-                  console.log('Microphone access granted');
-                  if (!isRecording) {
-                      initializeRecognition();
-                      recognition.start();
-                      isRecording = true;
-                  }
-		  startButton.style.backgroundColor = '';
-		  stopButton.style.backgroundColor = 'red';
+      startStopButton.addEventListener('click', () => {
+	  if (! isRecording) {
+              navigator.mediaDevices.getUserMedia({ audio: true })
+		  .then(stream => {
+                      console.log('Microphone access granted');
+                      if (!isRecording) {
+			  initializeRecognition();
+			  recognition.start();
+			  isRecording = true;
+                      }
+		      startStopButton.style.backgroundColor = 'red';
+		      startStopButton.textContent = 'Stop Recording';
               })
               .catch(error => {
                   console.error('Microphone access denied', error);
               });
-      });
-
-      stopButton.addEventListener('click', () => {
-          if (recognition && isRecording) {
-              recognition.stop();
-              isRecording = false;
-          }
-	  startButton.style.backgroundColor = 'lime';
-	  stopButton.style.backgroundColor = '';
-      });
+	  } else {
+              if (recognition && isRecording) {
+		  recognition.stop();
+		  isRecording = false;
+              }
+	      startStopButton.style.backgroundColor = 'lime';
+	      startStopButton.textContent = 'Start Recording';
+	  }});
 
       // Start up the speech listener service
       sendSessionID();
-      setInterval(() => { checkSessionID(); }, 500);
-      startButton.click();
+      setInterval(() => { checkSessionID(); }, 2000);
+      startStopButton.click();
       
     </script>
   </body>
