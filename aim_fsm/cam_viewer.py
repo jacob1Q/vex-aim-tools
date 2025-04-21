@@ -13,7 +13,7 @@ except:
     pass
 
 from . import opengl
-from .worldmap import AIVISION_RESOLUTION_SCALE
+from .camera import AIVISION_RESOLUTION_SCALE
 
 # For capturing images
 global snapno, path, running_fsm

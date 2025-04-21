@@ -1,5 +1,8 @@
 import numpy as np
 
+# aivision currently uses 320x240 dimensions but image is 640x480
+AIVISION_RESOLUTION_SCALE = 2
+
 class Camera():
     def __init__(self):
         focal_length = (400, 400)

@@ -14,6 +14,7 @@ from .path_planner import PathPlanner, PathPlanToObjectNode #, PathPlannerProces
 from .particle import *
 from .geometry import *
 from .pilot0 import *
+from .camera import AIVISION_RESOLUTION_SCALE
 
 #---------------- Pilot Exceptions and Events ----------------
 
@@ -235,24 +236,44 @@ class PilotBase(StateNode):
 
 class PilotToObject(PilotBase):
     "Use the wavefront planner to navigate to a distant object."
-    def __init__(self, object=None, execute=True):
+    def __init__(self, object_spec=None, execute=True):
         super().__init__()
-        self.object = object
+        self.object_spec = object_spec
         self.execute = execute
 
     def start(self, event=None):
         if isinstance(event,DataEvent):
             if isinstance(event.data, WorldObject):
                 self.object = event.data
+                self.object_spec = None
             elif isinstance(event.data, str) and event.data in self.robot.world_map.objects:
-                self.object = self.robot.world_map.objects[event.data]
+                self.object_spec = event.data
             else:
                 raise ValueError('DataEvent to PilotToObject must be a WorldObject or id string', event)
+        if isinstance(self.object_spec, WorldObject):
+            self.object = self.object_spec
+        elif isinstance(self.obj_spec, str):
+            self.object = self.robot.world_map.objects[self.object_spec]
+        if not self.object:
+            raise ValueError('PilotToObject has no target object specified')
         super().start(event)
 
     class OrientToObject(TurnToward):
         def start(self,event=None):
             self.object_spec = self.parent.object
+            super().start(event)
+
+    class CenterTheObject(Turn):
+        DEGREES_PER_PIXEL = 0.0829
+        def start(self, event=None):
+            if self.parent.object.is_visible:
+                spec = self.parent.object.spec
+                pixel_error = self.robot.camera.center[0] - (spec['originx'] + spec['width']/2)*AIVISION_RESOLUTION_SCALE
+                self.angle_deg = pixel_error * self.DEGREES_PER_PIXEL
+                print(f'spec={spec} pixel_error={pixel_error} turn_angle={self.angle_deg} deg.')
+            else:
+                print('*** PilotToObject: target object not currently visible: cannot center it')
+                self.angle_deg = 0
             super().start(event)
 
     class CheckArrival(StateNode):
@@ -280,8 +301,12 @@ class PilotToObject(PilotBase):
         exec =F=> ParentFails()
 
         check: self.CheckArrival()
-        check =S=> self.OrientToObject() =C=> ParentCompletes()
+        check =S=> orient
         check =F=> Print("NavPlan failed to reach goal: trying again") =N=> planner
+
+        orient: self.OrientToObject() =C=> StateNode() =T(0.5)=> center
+
+        center: self.CenterTheObject() =C=> ParentCompletes()
     }
 
 #---------------- PilotToPose ----------------

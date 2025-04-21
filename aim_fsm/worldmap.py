@@ -5,9 +5,7 @@ import cv2
 from . import aim_kin
 from .geometry import *
 from .utils import *
-
-# aivision currently uses 320x240 dimensions but image is 640x480
-AIVISION_RESOLUTION_SCALE = 2
+from .camera import AIVISION_RESOLUTION_SCALE
 
 class WorldObject():
     def __init__(self, id=None, name=None, x=0, y=0, z=0, theta=None, is_visible=False):

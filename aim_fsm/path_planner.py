@@ -41,7 +41,7 @@ class PathPlanner():
 
     # Skinny obstacles for the RRT are skinny because we model the
     # robot's shape explicitly.
-    skinny_obstacle_inflation = 10
+    skinny_obstacle_inflation = 15
     skinny_wall_inflation = 10
     skinny_doorway_adjustment = 0
 
@@ -184,7 +184,7 @@ class PathPlanner():
             # obstacles come after the goal so they can overwrite goal pixels
             for obstacle in fat_obstacles:
                 wf.add_obstacle(obstacle)
-            wf.set_goal_shape(goal_shape, offset, obstacle_inflation=PathPlanner.fat_obstacle_inflation)
+            wf.set_goal_shape(goal_shape, offset, obstacle_inflation=0)
             wf_start = (start_node.x, start_node.y)
             goal_found = wf.propagate(*wf_start)
             if goal_found: break
@@ -202,10 +202,13 @@ class PathPlanner():
         rrt_instance.smooth_path()
 
         # If the path ends in a collision according to the RRT, back off
-        while False: # len(rrt_instance.path) > 2:
+        while True: # len(rrt_instance.path) > 2:
           last_node = rrt_instance.path[-1]
-          if rrt_instance.collides(last_node):
-            rrt_instance.path = rrt_instance.path[:-1]
+          collider = rrt_instance.collides(last_node)
+          if collider:
+              print('Collision detected after path smoothing:', collider)
+              break
+              # rrt_instance.path = rrt_instance.path[:-1]
           else:
             break
 

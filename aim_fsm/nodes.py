@@ -399,7 +399,7 @@ class Flash(ActionNode):
     def valid_pattern(self, pat):
         if self.valid_color(pat):
             return True
-        if not (isinstance(pat,(list,tuple)) and len(pat) == 6):
+        if not (isinstance(pat, (list,tuple)) and len(pat) == 6):
             return False
         for color_spec in pat:
             if not self.valid_color(color_spec):
@@ -425,6 +425,8 @@ class Flash(ActionNode):
         if not self.valid_program(led_program):
             raise ValueError(led_program)
         self.led_program = led_program
+        self.duration = duration
+        self.num_cycles = num_cycles
         program_duration = sum(step[1] for step in led_program)
         if num_cycles is not None and duration is not None:
             raise ValueError('Cannot specify both num_cycles and duration')
@@ -436,6 +438,13 @@ class Flash(ActionNode):
             self.total_duration = np.inf
 
     def start(self,event=None):
+        program_duration = sum(step[1] for step in self.led_program)
+        if self.num_cycles:
+            self.total_duration = self.num_cycles * program_duration
+        elif self.duration:
+            self.total_duration = self.duration
+        else:
+            self.total_duration = np.inf
         self.current_step = -1
         self.time_remaining = self.total_duration
         super().start(event)
