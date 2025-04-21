@@ -252,7 +252,7 @@ class PilotToObject(PilotBase):
                 raise ValueError('DataEvent to PilotToObject must be a WorldObject or id string', event)
         if isinstance(self.object_spec, WorldObject):
             self.object = self.object_spec
-        elif isinstance(self.obj_spec, str):
+        elif isinstance(self.object_spec, str):
             self.object = self.robot.world_map.objects[self.object_spec]
         if not self.object:
             raise ValueError('PilotToObject has no target object specified')
