@@ -27,11 +27,12 @@ class Robot():
                  launch_speech_listener=True):
         if robot0 is None:
             robot0 = aim.Robot(host=host)
-        robot0.inertial.calibrate()
-        robot0.set_pose(0,0,0)
-        self.pose = Pose(0,0,0,0)
         self.robot0 = robot0
+        self.robot0.inertial.calibrate()
+        self.robot0.set_pose(0,0,0)
+        self.pose = Pose(0,0,0,0)
         self.loop = loop
+        self.holding = None   # object being held
         self.camera = Camera()
         self.kine = AIMKinematics(self)
         self.world_map = WorldMap(self)
@@ -57,7 +58,6 @@ class Robot():
         robot0._ws_img_thread.callback = self.image_callback
         robot0.get_camera_image()  # start the image stream
         robot0.aiv.tag_detection(True)
-        self.holding = None   # object being held
         self.thesaurus = Thesaurus()
         self.speech_listener = SpeechListener(self, self.thesaurus, debug=False)
         if launch_speech_listener:

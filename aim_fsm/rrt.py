@@ -498,7 +498,7 @@ class RRT():
         self.goal_obstacle = None
         obstacles = []
         for obj in self.robot.world_map.objects.values():
-            if (not obj.is_obstacle) or obj.is_missing or self.robot.carrying is obj:
+            if (not obj.is_obstacle) or obj.is_missing or self.robot.holding is obj:
                 continue
             if isinstance(obj, BarrelObj):
                 obst = self.generate_barrel_obstacle(obj, obstacle_inflation)

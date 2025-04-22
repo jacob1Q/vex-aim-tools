@@ -222,8 +222,7 @@ class WorldMap():
         self.detect_missing_objects()
         self.process_unassociated_objects()
         self.update_visibilities()
-        # Consider deletion of unmatched worldmap objects
-        # Update robot's pose if we have landmarks available
+        self.update_holding()
 
     def make_new_objects_from_vision(self):
         self.candidates = list()
@@ -579,6 +578,52 @@ class WorldMap():
         for obj in self.objects.values():
             if obj not in self.updated_objects:
                 obj.is_visible = False
+
+    def update_holding(self):
+        if self.robot.holding:
+            self.confirm_still_holding()
+        else:
+            self.confirm_not_holding()
+
+    def confirm_still_holding(self):
+        if (isinstance(self.robot.holding, BarrelObj) and self.robot.robot0.has_barrel()) or \
+            (isinstance(self.robot.holding, BallObj) and self.robot.robot0.has_ball()):
+                return
+        else:
+            print('No longer holding', self.robot.holding)
+            self.robot.holding.held_by = None
+            self.robot.holding = None
+
+    def confirm_not_holding(self):
+        if not (self.robot.robot0.has_barrel() or self.robot.robot0.has_ball()):
+            return
+        else:
+            held = None
+            for obj in self.robot.world_map.objects.values():
+                if isinstance(obj, (BarrelObj,BallObj)):
+                    spec = obj.spec
+                    if isinstance(obj, BarrelObj):
+                        width_margin = 40
+                    else:
+                        width_margin = 120
+                    if spec['originx']*AIVISION_RESOLUTION_SCALE < width_margin and \
+                       (spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE > (self.robot.camera.resolution[1] - width_margin):
+                        held = obj
+                        break
+            if held:
+                print('Robot now holding', held)
+                self.robot.holding = held
+                held.held_by = self.robot
+            else:
+                pass
+                # print('*** Could not find held object.')                
+
+    def update_held_object(self):
+        if self.robot.holding:
+            r = aim_kin.body_diameter/2 + self.robot.holding.diameter/2
+            pt = aboutZ(self.robot.pose.theta).dot(point(r,0))
+            self.robot.holding.pose.x = self.robot.pose.x + pt[0,0]
+            self.robot.holding.pose.y = self.robot.pose.y + pt[1,0]
 
     def show_objects(self):
         objs = sorted(self.objects.items(), key=lambda x: x[0])

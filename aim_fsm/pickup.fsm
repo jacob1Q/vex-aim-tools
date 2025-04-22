@@ -14,8 +14,10 @@ class CheckHolding(StateNode):
 class ClearHolding(StateNode):
     def start(self,event=None):
         super().start(event)
-        self.robot.holding.held_by = None
-        self.robot.holding = None
+        held = self.robot.holding
+        if held:
+            held.held_by = None
+            self.robot.holding = None
 
 class PickUp(ActionNode,ObjectSpecNode):
     def __init__(self, object_spec=None):

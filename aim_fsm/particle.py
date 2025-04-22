@@ -339,8 +339,7 @@ class ParticleFilter():
             self.update_pose_variance() # will also update the pose estimate
         else:
             self.update_pose_estimate()
-        if self.robot.carrying:
-            self.robot.world_map.update_carried_object(self.robot.carrying)
+        self.robot.world_map.update_held_object()
 
     def delocalize(self):
         self.state = self.LOST

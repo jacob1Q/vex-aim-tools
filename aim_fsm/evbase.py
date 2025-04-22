@@ -206,6 +206,8 @@ class EventListener:
         else:
             self.poll_handle = \
                 self.robot.loop.call_later(self.polling_interval, self._next_poll)
+            if TRACE.trace_level >= TRACE.polling:
+                print('TRACE%d: set polling interval' % TRACE.polling, self.polling_interval)
 
     def _next_poll(self):
         """Called to schedule the next polling interval and then poll the node."""

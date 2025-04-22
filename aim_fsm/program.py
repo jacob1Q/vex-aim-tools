@@ -125,7 +125,7 @@ class StateMachineProgram(StateNode):
 
         # Set up robot state
         self.robot.was_picked_up = False
-        self.robot.carrying = None
+        self.robot.holding = None
         self.robot.fetching = None
         self.robot.robot0.set_light_color(vex.LightType.ALL, vex.Color.TRANSPARENT)
         self.robot.clear_actuators()
