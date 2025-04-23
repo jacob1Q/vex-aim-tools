@@ -187,9 +187,10 @@ class EventListener:
     def stop(self):
         if not self.running: return
         self.running = False
-        if self.poll_handle: self.poll_handle.cancel()
+        if self.poll_handle:
+            self.poll_handle.cancel()
+            self.poll_handle = None
         self.robot.erouter.remove_all_listener_entries(self)
-        self.polling_interval = None
 
     def handle_event(self, event):
         pass
@@ -218,7 +219,7 @@ class EventListener:
             self.poll()
 
     def poll(self):
-        """Dummy polling function in case sublass neglects to supply one."""
+        """Dummy polling function in case subclass neglects to supply one."""
         if TRACE.trace_level >= TRACE.polling:
             print('TRACE%d: polling' % TRACE.polling, self)
         print('%s has no poll() method' % self)

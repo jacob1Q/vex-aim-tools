@@ -167,6 +167,7 @@ class PilotBase(StateNode):
                 new_doorpass.parent = dummy_doorpass.parent
                 new_doorpass.transitions = dummy_doorpass.transitions
                 self.children['doorpass'] = new_doorpass
+                self.start_node = new_doorpass
 
                 step = self.parent.navplan.steps[self.parent.index]
                 self.children['doorpass'].door_spec = step.param
@@ -799,7 +800,7 @@ class DoorPass(StateNode):
         check_start =F=> Forward(-80) =C=> check_start2
 
         travel_to_gate1: self.TravelToGate(DoorPass.OUTER_GATE_DISTANCE)
-        travel_to_gate1 =C=> StateNode() =T(1)=> align_with_wall
+        travel_to_gate1 =C=> travelwait: StateNode() =traveltimer:T(1)=> align_with_wall
         travel_to_gate1 =PILOT=> ParentFails()        
 
         align_with_wall: self.TurnToFaceWall() =C=>
