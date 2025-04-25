@@ -334,7 +334,7 @@ class WorldMap():
             elif len(orients) == 2:
                 if abs(wrap_angle(orients[0] - orients[1])) > WallObj.ALIGNMENT_THRESHOLD:
                     # with two markers that disagree, we can't tell which is the outlier, so punt
-                    print(f'wall {wall_id} marker outlier: {[o*180/pi for o in orients]}')
+                    #print(f'wall {wall_id} marker outlier: {[o*180/pi for o in orients]}')
                     continue
             else:
                 orients_consistent = False
@@ -379,11 +379,17 @@ class WorldMap():
             image_points.append(corners[2])
             image_points.append(corners[3])
 
-        # Find rotation and translation vector from camera frame using SolvePnP
-        (success, rvec, tvec) = cv2.solvePnP(np.array(world_points, dtype=np.float64),
-                                             np.array(image_points, dtype=np.float64),
-                                             self.robot.camera.camera_matrix,
-                                             self.robot.camera.distortion_array)
+            # Find rotation and translation vector from camera frame using SolvePnP
+            try:
+                (success, rvec, tvec) = cv2.solvePnP(np.array(world_points, dtype=np.float64),
+                                                     np.array(image_points, dtype=np.float64),
+                                                     self.robot.camera.camera_matrix,
+                                                     self.robot.camera.distortion_array)
+            except Exception as e:
+                print('*** SolvePnP exception', e, '\n',
+                      'world_points=', world_points, '\n',
+                      'image_points=', image_points)
+                continue
         rotationm, jacob = cv2.Rodrigues(rvec)
         euler_angles = rotation_matrix_to_euler_angles(rotationm)
         wall_orient = euler_angles[1]
@@ -616,7 +622,7 @@ class WorldMap():
                 held.held_by = self.robot
             else:
                 pass
-                # print('*** Could not find held object.')                
+                # print('*** Could not find held object.')
 
     def update_held_object(self):
         if self.robot.holding:

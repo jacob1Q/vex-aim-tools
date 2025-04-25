@@ -135,7 +135,7 @@ class GPT_test(StateMachineProgram):
       dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
       dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
         AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
-      dispatch =D()=> Print() =Next=> dispatch
+      dispatch =D()=> Print(prefix='Unrecognized #-command: ') =Next=> dispatch
       dispatch =C=> loop
 
       turntoward: self.CmdTurnToward()

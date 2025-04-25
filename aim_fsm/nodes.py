@@ -74,9 +74,10 @@ class Iterate(StateNode):
 
 class Print(StateNode):
     "Argument can be a string, or a function to be evaluated at print time."
-    def __init__(self,spec=None):
+    def __init__(self,spec=None, prefix=''):
         super().__init__()
         self.spec = spec
+        self.prefix = prefix
 
     def start(self,event=None):
         super().start(event)
@@ -85,7 +86,7 @@ class Print(StateNode):
         else:
             text = self.spec
         if text is None and isinstance(event, DataEvent):
-            text = repr(event.data)
+            text = self.prefix + repr(event.data)
         print(text)
         self.post_completion()
 
