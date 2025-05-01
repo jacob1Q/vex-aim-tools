@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import datetime
 import cv2
 
 from . import aim_kin
@@ -35,6 +36,7 @@ class WorldObject():
         return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f})>'
 
     def update_matched_object(self,robot):
+        "Update the matched world_map object with info from this candidate."
         self.matched.is_visible = True
         if self.matched.is_fixed or robot.particle_filter.state != robot.particle_filter.LOCALIZED:
             return
@@ -53,6 +55,8 @@ class WorldObject():
             self.matched.sensor_bearing = self.sensor_bearing
         if hasattr(self, 'sensor_orient'):
             self.matched.sensor_orient = self.sensor_orient
+        if hasattr(self, 'wall'):
+            self.matched.wall = self.wall.matched
 
 class BarrelObj(WorldObject):
     def __init__(self, spec):
@@ -356,7 +360,9 @@ class WorldMap():
             wall.aruco_orients = orients
             wall.seen_markers = markers
             self.candidates.append(wall)
-            self.make_doorways_from_wall(wall)
+            # Don't make doorways until wall is confirmed in world map
+            if [k for k in self.robot.world_map.objects.keys() if k.startswith(wall.name)]:
+                self.make_doorways_from_wall(wall)
 
     def infer_wall_from_corners_lists(self, wall_id, markers):
         wall_spec = wall_marker_dict[wall_id]
@@ -498,7 +504,7 @@ class WorldMap():
 
     def detect_missing_objects(self):
         for obj in self.objects.values():
-            if not isinstance(obj, (ArucoMarkerObj,WallObj)) and \
+            if not isinstance(obj, (ArucoMarkerObj,WallObj,DoorwayObj)) and \
                obj not in self.updated_objects and self.should_be_visible(obj):
                 if obj not in self.missing_objects:
                     obj.is_visible = False
@@ -647,8 +653,16 @@ class WorldMap():
 
     def get_prompt(self):
         prompt = ''
-        prompt += f'You are located at ({round(self.robot.pose.x)}, {round(self.robot.pose.y)})\n'
-        prompt += f'Your heading is {round(self.robot.pose.theta*180/pi)} degrees\n'
+        prompt += f'It is now {datetime.datetime.now().strftime("%B %d, %Y, %I:%M:%S %p")}.\n'
+        if self.robot.particle_filter.state == self.robot.particle_filter.LOCALIZED:
+            prompt += f'You are located at ({round(self.robot.pose.x)}, {round(self.robot.pose.y)})\n'
+            prompt += f'Your heading is {round(self.robot.pose.theta*180/pi)} degrees\n'
+        else:
+            prompt += f'You are currently lost (not localized) and do not see any landmarks.\n'
+        if self.robot.holding:
+            prompt += f'You are currently holding {self.robot.holding.id}.\n'
+        else:
+            prompt += f'You are not currently holding anything.\n'
         prompt += f'Your battery level is {self.robot.battery_percentage} percent.\n'
         for (id,obj) in self.objects.items():
             if not obj.is_missing:
@@ -660,6 +674,19 @@ class WorldMap():
                     f'and is {vis}\n'
             else:
                 prompt += f'{id} is missing\n'
+
+            if isinstance(obj, WallObj):
+                front_markers = []
+                back_markers = []
+                for marker_id, marker_info in obj.wall_spec.marker_specs.items():
+                    if marker_info['side'] == 1:  # +1 means front side
+                        front_markers.append(marker_id)
+                    else:  # -1 means back side
+                        back_markers.append(marker_id)
+                prompt += f'{obj.id} has markers {front_markers} on its front side and {back_markers} on its back side\n'   
+
+            if isinstance(obj, DoorwayObj):
+                prompt += f'{id} is part of {obj.wall.id}\n'
         landmark_ids = list(self.robot.particle_filter.sensor_model.landmarks.keys())
         if landmark_ids:
             for id in landmark_ids:

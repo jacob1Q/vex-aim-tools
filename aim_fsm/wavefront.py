@@ -103,22 +103,36 @@ class WaveFront():
         goal_points = []
         if shape.obstacle_id.startswith('Room'):
             empty_points, goal_points = self.generate_room_goal_points(shape, default_offset)
-        else:   # barrels, balls
+        elif isinstance(shape, Circle): # barrels, balls
             empty_points, goal_points = self.generate_round_goal_points(shape)
+        else: # rectangle
+            empty_points, goal_points = self.generate_rectangular_goal_points(shape)
+        # empty_points can be used to carve a passageway into a fattened obstacle;
+        # we used this with Cozmo lightcubes to force a perpendicular approach
         for point in empty_points:
             self.set_empty_cell(*rotate_point(point, shape.center[0:2,0], shape.orient))
         for point in goal_points:
             self.set_goal_cell(*rotate_point(point, shape.center[0:2,0], shape.orient))
 
-    def generate_round_goal_points(self, shape):
-        center_x, center_y = shape.center[0,0], shape.center[1,0]
-        radius = shape.radius + aim_kin.body_diameter/2 + 15 # extra gap so we don't grab the object
+    def generate_round_goal_points(self, circle):
+        center_x, center_y = circle.center[0,0], circle.center[1,0]
+        radius = circle.radius + aim_kin.body_diameter/2 + 15 # extra gap so we don't grab the object
         divisions = 24
         empty_points = []
         goal_points = []
         for phi in range(0,360,360//divisions):
             goal_points.append([center_x + radius*cos(phi/180*pi),
                                 center_y + radius*sin(phi/180*pi)])
+        return empty_points, goal_points
+
+    def generate_rectangular_goal_points(self, rectangle):
+        empty_points = []
+        goal_points = []
+        vertices = rectangle.vertices
+        center = vertices.mean(axis=1)
+        goal_points.append([center[0], center[1]])
+        for i in range(len(vertices)):
+            goal_points.append([vertices[0,i], vertices[1,i]])
         return empty_points, goal_points
 
     def generate_room_goal_points(self, shape, default_offset):

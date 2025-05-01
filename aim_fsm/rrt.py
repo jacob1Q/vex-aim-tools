@@ -569,6 +569,15 @@ class RRT():
         return s
 
     @staticmethod
+    def generate_doorway_obstacle(doorway, obstacle_inflation):
+        DOORWAY_THICKNESS = 5
+        s = Rectangle(center=geometry.point(doorway.pose.x, doorway.pose.y),
+                      dimensions=[doorway.door_width+2*obstacle_inflation, DOORWAY_THICKNESS+2*obstacle_inflation],
+                      orient=doorway.pose.theta)
+        s.obstacle_id = doorway.id
+        return s
+
+    @staticmethod
     def generate_ball_obstacle(ball, obstacle_inflation):
         s = Circle(center=geometry.point(ball.pose.x, ball.pose.y),
                    radius = ball.diameter/2 + obstacle_inflation)

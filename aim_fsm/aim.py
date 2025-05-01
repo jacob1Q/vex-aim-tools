@@ -25,7 +25,7 @@ SYS_FLAGS_IS_MOVING         = (1<<5) # if there is any wheel movement whatsoever
 SYS_FLAGS_HAS_CRASHED       = (1<<6)
 SYS_FLAGS_IS_SHAKE          = (1<<8)
 SOUND_SIZE_MAX_BYTES     = 255 * 1024
-BARREL_MIN_Y             = 160 # *** changed from 180
+BARREL_MIN_Y             = 150 # *** changed from 180
 BARREL_MIN_CX            = 120
 BARREL_MAX_CX            = 200
 

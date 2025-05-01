@@ -48,6 +48,12 @@ class StateNode(EventListener):
                 print('TRACE%d:' % TRACE.statenode_start, self, 'starting child', self.start_node)
             self.start_node.start()
 
+    def punt_super_start(self):
+        "Call this if you need to post a failure event without calling super().start()."
+        self.running = True
+        for t in self.transitions:
+            t.start()
+
     def stop(self):
         # If this node was stopped by an outgoing transition firing,
         # and then its parent tries to stop it, we need to cancel the

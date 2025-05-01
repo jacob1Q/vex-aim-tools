@@ -583,7 +583,9 @@ class DoorPass(StateNode):
             self.object = doorobj
         else:
             print("Error in DoorPass: no doorway named %s" % repr(door_spec))
-            raise ValueError('Unrecognized door spec:', door_spec, doorobj)
+            self.punt_super_start()
+            self.post_failure()
+            return
         super().start(event)
 
 
