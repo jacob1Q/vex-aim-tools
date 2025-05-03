@@ -6,7 +6,7 @@ import numpy as np
 import heapq
 from math import floor, ceil, cos, sin
 
-from .geometry import wrap_angle, rotate_point, polygon_fill, check_concave
+from .geometry import wrap_angle, point, rotate_point, aboutZ, polygon_fill, check_concave
 from .rrt import StartCollides
 from .rrt_shapes import *
 from . import aim_kin
@@ -103,22 +103,42 @@ class WaveFront():
         goal_points = []
         if shape.obstacle_id.startswith('Room'):
             empty_points, goal_points = self.generate_room_goal_points(shape, default_offset)
+        elif shape.obstacle_id.startswith('Aruco'):
+            empty_points, goal_points = self.generate_aruco_goal_points(shape)
         else:   # barrels, balls
             empty_points, goal_points = self.generate_round_goal_points(shape)
-        for point in empty_points:
-            self.set_empty_cell(*rotate_point(point, shape.center[0:2,0], shape.orient))
-        for point in goal_points:
-            self.set_goal_cell(*rotate_point(point, shape.center[0:2,0], shape.orient))
+        for pt in empty_points:
+            self.set_empty_cell(*pt)
+            #self.set_empty_cell(*rotate_point(point, shape.center[0:2,0], shape.orient))
+        for pt in goal_points:
+            self.set_goal_cell(*pt)
+            #self.set_goal_cell(*rotate_point(point, shape.center[0:2,0], shape.orient))
 
     def generate_round_goal_points(self, shape):
+        EXTRA_GAP = 15
         center_x, center_y = shape.center[0,0], shape.center[1,0]
-        radius = shape.radius + aim_kin.body_diameter/2 + 15 # extra gap so we don't grab the object
+        radius = shape.radius + aim_kin.body_diameter/2 + EXTRA_GAP # extra gap so we don't grab the object
         divisions = 24
         empty_points = []
         goal_points = []
         for phi in range(0,360,360//divisions):
             goal_points.append([center_x + radius*cos(phi/180*pi),
                                 center_y + radius*sin(phi/180*pi)])
+        return empty_points, goal_points
+
+    def generate_aruco_goal_points(self, shape):
+        EXTRA_GAP = 60
+        basic_offset = point(aim_kin.body_diameter/2 + EXTRA_GAP, 0)
+        rotated_offset = aboutZ(shape.orient).dot(basic_offset)
+        offset_center = shape.center + rotated_offset
+        center_x, center_y = offset_center[0,0], offset_center[1,0]
+        empty_points = []
+        goal_points = [[center_x, center_y]]
+        return empty_points, goal_points
+        ### disabled
+        vertices = shape.vertices
+        for i in range(vertices.shape[0]):
+            goal_points.append([vertices[0,i], vertices[1,i]])
         return empty_points, goal_points
 
     def generate_room_goal_points(self, shape, default_offset):

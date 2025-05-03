@@ -267,14 +267,21 @@ class PilotToObject(PilotBase):
     class CenterTheObject(Turn):
         DEGREES_PER_PIXEL = 0.0829
         def start(self, event=None):
-            if self.parent.object.is_visible:
-                spec = self.parent.object.spec
-                pixel_error = self.robot.camera.center[0] - (spec['originx'] + spec['width']/2)*AIVISION_RESOLUTION_SCALE
-                self.angle_deg = pixel_error * self.DEGREES_PER_PIXEL
-                print(f'spec={spec} pixel_error={pixel_error} turn_angle={self.angle_deg} deg.')
+            obj = self.parent.object
+            if obj.is_visible:
+                if hasattr(obj, 'spec'):   # aivision object
+                    spec = self.parent.object.spec
+                    pixel_error = self.robot.camera.center[0] - (spec['originx'] + spec['width']/2)*AIVISION_RESOLUTION_SCALE
+                elif hasattr(obj, 'marker'): # aruco marker
+                    center = np.mean(obj.marker.corners, axis=1)
+                    pixel_error = self.robot.camera.center[0] - center[0,0]
+                else:
+                    print(f"*** PilotToObject: don't know how to center {obj}")
+                    pixel_error = 0
             else:
                 print('*** PilotToObject: target object not currently visible: cannot center it')
-                self.angle_deg = 0
+                pixel_error = 0
+            self.angle_deg = pixel_error * self.DEGREES_PER_PIXEL
             super().start(event)
 
     class CheckArrival(StateNode):

@@ -8,6 +8,7 @@ from .geometry import wrap_angle
 
 from .rrt_shapes import *
 from .worldmap import BarrelObj, BallObj, AprilTagObj, ArucoMarkerObj, WallObj, DoorwayObj
+from .aruco import ARUCO_MARKER_SIZE
 
 # *** TODO: Collision checking needs to use opposite headings
 # for treeB nodes because robot is asymmetric.
@@ -498,7 +499,7 @@ class RRT():
         self.goal_obstacle = None
         obstacles = []
         for obj in self.robot.world_map.objects.values():
-            if (not obj.is_obstacle) or obj.is_missing or self.robot.holding is obj:
+            if (not obj.is_obstacle) or obj.is_missing or (self.robot.holding is obj):
                 continue
             if isinstance(obj, BarrelObj):
                 obst = self.generate_barrel_obstacle(obj, obstacle_inflation)
@@ -510,7 +511,9 @@ class RRT():
                 obsts = self.generate_wall_obstacles(obj, obstacle_inflation, doorway_adjustment)
                 obstacles += obsts
                 obst = None
-            elif isinstance(obj, (ArucoMarkerObj,DoorwayObj)):
+            elif isinstance(obj, ArucoMarkerObj):
+                obst = self.generate_aruco_obstacle(obj, obstacle_inflation)
+            elif isinstance(obj, DoorwayObj):
                 obst = None
             else:
                 print("*** Can't generate obstacle for", obj)
@@ -528,6 +531,7 @@ class RRT():
             elif obst is not None:
                 obstacles.append(obst)
         self.obstacles = obstacles
+
 
     @staticmethod
     def generate_wall_obstacles(wall, wall_inflation, doorway_adjustment):
@@ -574,6 +578,14 @@ class RRT():
                    radius = ball.diameter/2 + obstacle_inflation)
         s.obstacle_id = ball.id
         return s
+
+    @staticmethod
+    def generate_aruco_obstacle(aruco, obstacle_inflation):
+        r = Rectangle(center=geometry.point(aruco.pose.x, aruco.pose.y),
+                      dimensions=[5+obstacle_inflation, ARUCO_MARKER_SIZE+obstacle_inflation],
+                      orient=aruco.pose.theta)
+        r.obstacle_id = aruco.id
+        return r
 
     @staticmethod
     def generate_apriltag_obstacle(apriltag, obstacle_inflation):
@@ -637,11 +649,11 @@ class RRT():
         xmax = xmin
         ymax = ymin
         objs =  self.robot.world_map.objects.values()
-        # Rooms aren't obstacles, so include them separately.
-        rooms = [] # [obj for obj in objs if isinstance(obj,RoomObj)]
-        # Cubes and markers may not be obstacles if they are goal locations, so include them again.
+        # Rooms and Aruco markers aren't obstacles, so include them separately.
+        others = [] # [obj for obj in objs if isinstance(obj,(RoomObj, ArucoMarkerObj)]
+        # Objects may not be obstacles if they are goal locations, so include them again.
         goals = [self.goal_obstacle] if self.goal_obstacle else []
-        for obj in self.obstacles + rooms + goals:
+        for obj in self.obstacles +  others + goals:
             ((x0,y0),(x1,y1)) = obj.get_bounding_box()
             xmin = min(xmin, x0)
             ymin = min(ymin, y0)
