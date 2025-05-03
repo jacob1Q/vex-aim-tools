@@ -328,10 +328,19 @@ class PathViewer():
 
         if the_rrt.goal_obstacle:
             obst = the_rrt.goal_obstacle
-            self.draw_circle(center=(obst.center[0,0],obst.center[1,0]),
-                             radius=obst.radius,
-                             color=(0,1,0,0.5),
-                             fill=True)
+            if isinstance(obst, Circle):
+                self.draw_circle(center=(obst.center[0,0],obst.center[1,0]),
+                                 radius=obst.radius,
+                                 color=(0,1,0,0.5),
+                                 fill=True)
+            else:
+                self.draw_rectangle(center=(obst.center[0,0],obst.center[1,0]),
+                                    width=obst.max_Ex-obst.min_Ex,
+                                    height=obst.max_Ey-obst.min_Ey,
+                                    angle=obst.orient*180/pi,
+                                    color=(0,1,0,0.5),
+                                    fill=True)
+                
 
         if the_rrt.start:
             self.draw_robot(the_rrt.start)

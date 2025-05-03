@@ -10,8 +10,8 @@ from .base import StateNode
 from .utils import Pose
 from .events import DataEvent, PilotEvent
 from .pilot0 import NavPlan, NavStep
-from .worldmap import WorldObject, BarrelObj, BallObj, AprilTagObj, DoorwayObj
-from .rrt import RRT, RRTNode, StartCollides, GoalCollides, GoalUnreachable, NotLocalized
+from .worldmap import WorldObject, BarrelObj, BallObj, AprilTagObj, DoorwayObj, ArucoMarkerObj
+from .rrt import RRT, RRTNode, StartCollides, GoalCollides, GoalUnreachable
 from .wavefront import WaveFront
 from .geometry import wrap_angle, segment_intersect_test
 from .particle import ParticleFilter
@@ -74,7 +74,7 @@ class PathPlanner():
         be available in the child process."""
 
         # Fat obstacles and narrow doorways for WaveFront
-        robot.rrt.generate_obstacles(None,
+        robot.rrt.generate_obstacles(goal_object,
                                      PathPlanner.fat_obstacle_inflation,
                                      PathPlanner.fat_wall_inflation,
                                      PathPlanner.fat_doorway_adjustment)
@@ -95,6 +95,8 @@ class PathPlanner():
             goal_shape = RRT.generate_ball_obstacle(goal_object, 0)
         elif isinstance(goal_object, DoorwayObj):
             goal_shape = RRT.generate_doorway_obstacle(goal_object,0)
+        elif isinstance(goal_object, ArucoMarkerObj):
+            goal_shape = RRT.generate_aruco_obstacle(goal_object, 0)
         else:
             raise ValueError("Can't convert path planner goal %s to shape." % goal_object)
 
