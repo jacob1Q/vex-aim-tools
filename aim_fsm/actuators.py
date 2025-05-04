@@ -29,7 +29,7 @@ class Actuator():
         elif self.holder is node:
             return True
         else:
-            raise self.ActuatorLocked(self)
+            raise self.ActuatorLocked(f'{self} locked by {self.holder}')
 
     def unlock(self, node):
         if self.holder is node:
