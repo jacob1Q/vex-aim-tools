@@ -183,7 +183,8 @@ class Pose():
         self.origin_id = origin_id
 
     def __repr__(self):
-        return f'<Pose x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta*180/pi)} deg. origin_id={self.origin_id}>'
+        theta = f' theta={self.theta:.1f} deg.' if self.theta else ''
+        return f'<Pose x={self.x:.1f} y={self.y:.1f} z={self.z:.1f}{theta} origin_id={self.origin_id}>'
 
     def __sub__(self, other):
         angdiff = wrap_angle(self.theta - other.theta) if self.theta is not None and other.theta is not None else None

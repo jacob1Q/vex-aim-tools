@@ -7,12 +7,27 @@ new_preamble = """
   You converse with humans and answer questions as concisely as possible.
   Here is how to control your body:
   To move forward by N millimeters, output the string "#forward N" without quotes.
+  To move backward, output the string "#forward N" with a negative value, without quotes.
   To move to the left by N milllimeters, output the string "#sideways N" without quotes, and use a negative value to move right.
   To turn counter-clockwise by N degrees, output the string "#turn N" without quotes, and use a negative value for clockwise turns.
   To turn toward object X, output the string "#turntoward X" without quotes.
+  To travel to object X, output the string #pilottoobject X" without quotes.
   To pick up object X, output the string "#pickup X" without quotes.
-  To drop an object, output the string "#drop" without quotes.
+  To drop an object you are holding, output the string "#drop" without quotes.
+  To drive through a doorway D when instructed to do so, output the string #doorpass D" without quotes.
   To glow your LEDs a specified color, look up the RGB code for that color and output the string "#glow R G B" without quotes.  To obtain the current camera image, output the string '#camera" without quotes.
+  To flash your LEDs a specific pattern, output the string "#flash pattern_step...", 
+    where "pattern_step..." denotes a sequence of pattern_steps separated by spaces.
+  A pattern_step is either a color name such as "RED" (to be applied to all 6 LEDs) or
+   a list of six color names such as "(RED, BLUE, RED, BLUE, GREEN, TRANSPARENT)".  If a pattern step is a list, it must always contain
+   exactly  six color names.
+  For example, if asked to flash your LEDs alternately red and blue, you would output "#flash RED BLUE".  Each of "RED" and "BLUE" is a pattern_step.
+  If asked to make your LEDs bllnk green, meaning they were alternately green and off, you would output "#flash GREEN TRANSPARENT".
+  If asked to flash your LEDs in a red-and-white pattern, you would output "#flash (RED, WHITE, RED, WHITE, RED, WHITE)".
+  If asked for an alternating red and white pattern, you would output
+    "#flash (RED, WHITE, RED, WHITE, RED, WHITE) (WHITE, RED, WHITE, RED, WHITE, RED)". Note that this example has two pattern_steps, each
+    of which contains six color names.
+  Whenever you are asked to flash or blink your LEDs, use "#flash" and not "#glow".
   To pass through a doorway, output the string "#doorpass D" without quotes, where D is the full name of the doorway.
   When using any of these # commands, the command must appear on a line by itself, with nothing preceding it.
   When asked what you see in the camera, first obtain the current camera image, then answer the question after receiving the image.
@@ -23,7 +38,9 @@ new_preamble = """
   Pronounce "Doorway-2:0.a" as "Doorway 2".
   Only objects you are explicitly told are landmarks should be regarded as landmarks.
   Remember to be concise in your answers.  Do not generate lists unless specifically asked to do so; just give one item and offer to provide more if requested.
-  Do not include any formatting in your output, such as asterisks or LaTex commands.  Just use plain text.
+  Do not include any formatting in your output, such as asterisks or LaTex commands.  Use plain text only.
+  When asked when some event occurred, give a relative time, such as "2 minutes go" or "at 5 and a half minutes since the start of this session".
+  Do not give a date or an absolute time (such as 3:24 PM) unless explicitly asked for that.
 """
 
 class GPT_test(StateMachineProgram):
@@ -69,6 +86,31 @@ class GPT_test(StateMachineProgram):
             print('Turning toward', self.object_spec)
             super().start(None)
 
+    class CmdPilotToObject(PilotToObject):
+        def start(self,event):
+            print(event.data)
+            spec = event.data.split(' ')
+            self.object_spec = ''.join(spec[1:])
+            super().start(None)
+
+    class CmdFailed(AskGPT):
+        def __init__(self, query_template, filler_fn):
+            super().__init__()
+            self.query_template = query_template
+            self.filler_fn = filler_fn
+            
+        def start(self,event=None):
+            self.query_text = self.query_template % self.filler_fn()
+            super().start()
+
+
+    class CmdDoorPass(DoorPass):
+      def start(self,event):
+          print(event.data)
+          spec = event.data.split(' ')
+          self.door_spec = ''.join(spec[1:])
+          super().start(None)
+
     class CmdPickup(PickUp):
       def start(self,event):
           print(event.data)
@@ -106,6 +148,26 @@ class GPT_test(StateMachineProgram):
                 self.args = (vex.LightType.ALL, vex.Color.TRANSPARENT)
             super().start(event)
 
+    class CmdFlash(Flash):
+        def program_step(self, pattern_step):
+            if ',' not in pattern_step:
+                lights = getattr(vex.Color, pattern_step, vex.Color.TRANSPARENT)
+            else:
+                lights = [getattr(vex.Color, c, vex.Color.TRANSPARENT) for c in re.findall('\w+', pattern_step)]
+            if len(lights) != self.robot.actuators['leds'].NUM_LEDS:
+                print('Invalid led pattern:', pattern_step) 
+                lights = vex.Color.TRANSPARENT
+            return (lights, 0.5)
+            
+        def start(self,event):
+            print(f"CmdFlash:  '{event.data}'")
+            spec = event.data
+            arg = spec.split(' ',maxsplit=1)[1]
+            pattern_steps = re.findall(r'(\w+|(?:\(\w+(?:, \w+)*\)))', arg)
+            led_program = [self.program_step(p) for p in pattern_steps]
+            self.led_program = led_program
+            super().start()
+
     class SpeakResponse(Say):
       def start(self,event):
         self.text = event.data
@@ -116,38 +178,51 @@ class GPT_test(StateMachineProgram):
         super().start()
 
     def setup(self):
-        #       Say("Talk to me") =C=> loop
+        #         Say("Talk to me") =C=> loop
         # 
-        #       loop: StateNode() =Hear()=> AskGPT() =OpenAITrans()=> check
+        #         loop: StateNode() =Hear()=> AskGPT() =OpenAITrans()=> check
         # 
-        #       check: self.CheckResponse()
-        #       check =D(list)=> dispatch
-        #       check =D(str)=> self.SpeakResponse() =C=> loop
+        #         check: self.CheckResponse()
+        #         check =D(list)=> dispatch
+        #         check =D(str)=> self.SpeakResponse() =C=> loop
         # 
-        #       dispatch: Iterate()
-        #       dispatch =D(re.compile('#say '))=> self.CmdSay() =CNext=> dispatch
-        #       dispatch =D(re.compile('#forward '))=> self.CmdForward() =CNext=> dispatch
-        #       dispatch =D(re.compile('#sideways '))=> self.CmdSideways() =CNext=> dispatch
-        #       dispatch =D(re.compile('#turn '))=> self.CmdTurn() =CNext=> dispatch
-        #       dispatch =D(re.compile('#turntoward '))=> turntoward
-        #       dispatch =D(re.compile('#drop$'))=> self.CmdDrop() =CNext=> dispatch
-        #       dispatch =D(re.compile('#pickup '))=> pickup
-        #       dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
-        #       dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
-        #         AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
-        #       dispatch =D()=> Print(prefix='Unrecognized #-command: ') =Next=> dispatch
-        #       dispatch =C=> loop
+        #         dispatch: Iterate()
+        #         dispatch =D(re.compile('#say '))=> self.CmdSay() =CNext=> dispatch
+        #         dispatch =D(re.compile('#forward '))=> self.CmdForward() =CNext=> dispatch
+        #         dispatch =D(re.compile('#sideways '))=> self.CmdSideways() =CNext=> dispatch
+        #         dispatch =D(re.compile('#turn '))=> self.CmdTurn() =CNext=> dispatch
+        #         dispatch =D(re.compile('#turntoward '))=> turntoward
+        #         dispatch =D(re.compile('#pilottoobject '))=> pilottoobject
+        #         dispatch =D(re.compile('#doorpass '))=> doorpass
+        #         dispatch =D(re.compile('#pickup '))=> pickup
+        #         dispatch =D(re.compile('#drop$'))=> self.CmdDrop() =CNext=> dispatch
+        #         dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
+        #         dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
+        #             AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
+        #         dispatch =D()=> Print(prefix='Unrecognized #-command: ') =Next=> dispatch
+        #         dispatch =C=> loop
         # 
-        #       turntoward: self.CmdTurnToward()
-        #       turntoward =CNext=> dispatch
-        #       turntoward =F=> StateNode() =Next=> dispatch
+        #         turntoward: self.CmdTurnToward()
+        #         turntoward =CNext=> dispatch
+        #         turntoward =F=> StateNode() =Next=> dispatch
         # 
-        #       pickup: self.CmdPickup()
-        #       pickup =CNext=> dispatch
-        #       pickup =F=> StateNode() =Next=> dispatch
+        #         pilottoobject: self.CmdPilotToObject()
+        #         pilottoobject =CNext=> dispatch
+        #         pilottoobject =PILOT(GoalUnreachable)=>
+        #             self.CmdFailed("The object %s is not reachable due to obstructions", lambda : pilottoobject.object_spec) =OpenAITrans()=> check
+        #         pilottoobject =F=>
+        #             self.CmdFailed("The name '%s' is not a valid object name.", lambda : pilottoobject.object_spec) =OpenAITrans()=> check
+        # 
+        #         doorpass: self.CmdDoorPass()
+        #         doorpass =CNext=> dispatch
+        #         doorpass =F=> self.CmdFailed("Doorpass failed for '%s'", lambda : doorpass.door_spec) =OpenAITrans()=> check
+        # 
+        #         pickup: self.CmdPickup()
+        #         pickup =CNext=> dispatch
+        #         pickup =F=> StateNode() =Next=> dispatch
         # 
         
-        # Code generated by genfsm on Thu Apr 24 20:50:10 2025:
+        # Code generated by genfsm on Sun May 11 12:03:22 2025:
         
         say1 = Say("Talk to me") .set_name("say1") .set_parent(self)
         loop = StateNode() .set_name("loop") .set_parent(self)
@@ -166,6 +241,11 @@ class GPT_test(StateMachineProgram):
         print1 = Print(prefix='Unrecognized #-command: ') .set_name("print1") .set_parent(self)
         turntoward = self.CmdTurnToward() .set_name("turntoward") .set_parent(self)
         statenode1 = StateNode() .set_name("statenode1") .set_parent(self)
+        pilottoobject = self.CmdPilotToObject() .set_name("pilottoobject") .set_parent(self)
+        cmdfailed1 = self.CmdFailed("The object %s is not reachable due to obstructions", lambda : pilottoobject.object_spec) .set_name("cmdfailed1") .set_parent(self)
+        cmdfailed2 = self.CmdFailed("The name '%s' is not a valid object name.", lambda : pilottoobject.object_spec) .set_name("cmdfailed2") .set_parent(self)
+        doorpass = self.CmdDoorPass() .set_name("doorpass") .set_parent(self)
+        cmdfailed3 = self.CmdFailed("Doorpass failed for '%s'", lambda : doorpass.door_spec) .set_name("cmdfailed3") .set_parent(self)
         pickup = self.CmdPickup() .set_name("pickup") .set_parent(self)
         statenode2 = StateNode() .set_name("statenode2") .set_parent(self)
         
@@ -214,23 +294,29 @@ class GPT_test(StateMachineProgram):
         datatrans7 = DataTrans(re.compile('#turntoward ')) .set_name("datatrans7")
         datatrans7 .add_sources(dispatch) .add_destinations(turntoward)
         
-        datatrans8 = DataTrans(re.compile('#drop$')) .set_name("datatrans8")
-        datatrans8 .add_sources(dispatch) .add_destinations(cmddrop1)
+        datatrans8 = DataTrans(re.compile('#pilottoobject ')) .set_name("datatrans8")
+        datatrans8 .add_sources(dispatch) .add_destinations(pilottoobject)
+        
+        datatrans9 = DataTrans(re.compile('#doorpass ')) .set_name("datatrans9")
+        datatrans9 .add_sources(dispatch) .add_destinations(doorpass)
+        
+        datatrans10 = DataTrans(re.compile('#pickup ')) .set_name("datatrans10")
+        datatrans10 .add_sources(dispatch) .add_destinations(pickup)
+        
+        datatrans11 = DataTrans(re.compile('#drop$')) .set_name("datatrans11")
+        datatrans11 .add_sources(dispatch) .add_destinations(cmddrop1)
         
         cnexttrans5 = CNextTrans() .set_name("cnexttrans5")
         cnexttrans5 .add_sources(cmddrop1) .add_destinations(dispatch)
         
-        datatrans9 = DataTrans(re.compile('#pickup ')) .set_name("datatrans9")
-        datatrans9 .add_sources(dispatch) .add_destinations(pickup)
-        
-        datatrans10 = DataTrans(re.compile('#glow ')) .set_name("datatrans10")
-        datatrans10 .add_sources(dispatch) .add_destinations(cmdglow1)
+        datatrans12 = DataTrans(re.compile('#glow ')) .set_name("datatrans12")
+        datatrans12 .add_sources(dispatch) .add_destinations(cmdglow1)
         
         cnexttrans6 = CNextTrans() .set_name("cnexttrans6")
         cnexttrans6 .add_sources(cmdglow1) .add_destinations(dispatch)
         
-        datatrans11 = DataTrans(re.compile('#camera$')) .set_name("datatrans11")
-        datatrans11 .add_sources(dispatch) .add_destinations(cmdsendcamera1)
+        datatrans13 = DataTrans(re.compile('#camera$')) .set_name("datatrans13")
+        datatrans13 .add_sources(dispatch) .add_destinations(cmdsendcamera1)
         
         completiontrans3 = CompletionTrans() .set_name("completiontrans3")
         completiontrans3 .add_sources(cmdsendcamera1) .add_destinations(askgpt2)
@@ -238,8 +324,8 @@ class GPT_test(StateMachineProgram):
         openaitrans2 = OpenAITrans() .set_name("openaitrans2")
         openaitrans2 .add_sources(askgpt2) .add_destinations(check)
         
-        datatrans12 = DataTrans() .set_name("datatrans12")
-        datatrans12 .add_sources(dispatch) .add_destinations(print1)
+        datatrans14 = DataTrans() .set_name("datatrans14")
+        datatrans14 .add_sources(dispatch) .add_destinations(print1)
         
         nexttrans1 = NextTrans() .set_name("nexttrans1")
         nexttrans1 .add_sources(print1) .add_destinations(dispatch)
@@ -257,10 +343,34 @@ class GPT_test(StateMachineProgram):
         nexttrans2 .add_sources(statenode1) .add_destinations(dispatch)
         
         cnexttrans8 = CNextTrans() .set_name("cnexttrans8")
-        cnexttrans8 .add_sources(pickup) .add_destinations(dispatch)
+        cnexttrans8 .add_sources(pilottoobject) .add_destinations(dispatch)
+        
+        pilottrans1 = PilotTrans(GoalUnreachable) .set_name("pilottrans1")
+        pilottrans1 .add_sources(pilottoobject) .add_destinations(cmdfailed1)
+        
+        openaitrans3 = OpenAITrans() .set_name("openaitrans3")
+        openaitrans3 .add_sources(cmdfailed1) .add_destinations(check)
         
         failuretrans2 = FailureTrans() .set_name("failuretrans2")
-        failuretrans2 .add_sources(pickup) .add_destinations(statenode2)
+        failuretrans2 .add_sources(pilottoobject) .add_destinations(cmdfailed2)
+        
+        openaitrans4 = OpenAITrans() .set_name("openaitrans4")
+        openaitrans4 .add_sources(cmdfailed2) .add_destinations(check)
+        
+        cnexttrans9 = CNextTrans() .set_name("cnexttrans9")
+        cnexttrans9 .add_sources(doorpass) .add_destinations(dispatch)
+        
+        failuretrans3 = FailureTrans() .set_name("failuretrans3")
+        failuretrans3 .add_sources(doorpass) .add_destinations(cmdfailed3)
+        
+        openaitrans5 = OpenAITrans() .set_name("openaitrans5")
+        openaitrans5 .add_sources(cmdfailed3) .add_destinations(check)
+        
+        cnexttrans10 = CNextTrans() .set_name("cnexttrans10")
+        cnexttrans10 .add_sources(pickup) .add_destinations(dispatch)
+        
+        failuretrans4 = FailureTrans() .set_name("failuretrans4")
+        failuretrans4 .add_sources(pickup) .add_destinations(statenode2)
         
         nexttrans3 = NextTrans() .set_name("nexttrans3")
         nexttrans3 .add_sources(statenode2) .add_destinations(dispatch)
