@@ -157,7 +157,7 @@ class SoundActuator(Actuator):
                 tts.save(speech_file_path)
             self.robot.speech_listener.pause()
             try:
-                self.robot.robot0.sound.play_file(speech_file_path)
+                self.robot.robot0.sound.play_local_file(speech_file_path)
             except aim.invalid_sound_file_exception:   # file too long
                 print("*** Speech too long. Truncating...")
                 text = text[0:len(text)//2]
@@ -170,7 +170,7 @@ class SoundActuator(Actuator):
 
     def play_sound_file(self, node, filepath):
         self.lock(node)
-        self.robot.robot0.sound.play_file(filepath)
+        self.robot.robot0.sound.play_local_file(filepath)
 
 
 class KickActuator(Actuator):
