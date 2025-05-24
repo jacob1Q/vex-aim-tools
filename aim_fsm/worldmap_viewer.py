@@ -900,7 +900,7 @@ class WorldMapViewer():
             return
         if isinstance(obj, (worldmap.OrangeBarrelObj, worldmap.BlueBarrelObj)):
             self.make_barrel(obj)
-        elif isinstance(obj, worldmap.BallObj):
+        elif isinstance(obj, worldmap.SportsBallObj):
             self.make_ball(obj)
         elif isinstance(obj, worldmap.AprilTagObj):
             self.make_apriltag(obj)

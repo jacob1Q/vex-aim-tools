@@ -90,7 +90,7 @@ class Drop(StateNode):
         check =S=> kick
 
 
-        kick: SoftKick() =C=> ClearHolding() =N=> look
+        kick: PlaceKick() =C=> ClearHolding() =N=> look
 
         # 1 second delay to give vision time to register the object
         look: StateNode() =T(1)=> done

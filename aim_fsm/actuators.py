@@ -5,8 +5,8 @@ from math import pi
 from gtts import gTTS
 from google.cloud import texttospeech
 
-from . import aim
-from . import vex
+import vex
+#from . import aim
 
 class Actuator():
     class ActuatorLocked(Exception): pass
@@ -77,25 +77,28 @@ class DriveActuator(Actuator):
             turntype = vex.TurnType.LEFT
         else:
             turntype = vex.TurnType.RIGHT
-        self.robot.robot0.turn_for(turntype, abs(angle_rads)*180/pi, turn_speed=turn_speed, wait=False)
+        self.robot.robot0.turn_for(turntype, abs(angle_rads)*180/pi,
+                                   turn_speed, vex.TurnVelocityUnits.DPS, False)
 
     def forward(self, node, distance_mm, drive_speed=None):
         self.lock(node)
         self.started = False
         angle_forward = 0
-        self.robot.robot0.move_for(distance_mm, angle_forward, drive_speed=drive_speed, wait=False)
+        self.robot.robot0.move_for(distance_mm, angle_forward,
+                                   drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
     def sideways(self, node, distance_mm, drive_speed=None):
         self.lock(node)
         self.started = False
         angle_leftward = -90
-        self.robot.robot0.move_for(distance_mm, angle_leftward, drive_speed=drive_speed, wait=False)
+        self.robot.robot0.move_for(distance_mm, angle_leftward,
+                                   drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
     def move(self, node, distance_mm, angle_rads, drive_speed=None, turn_speed=None):
         self.lock(node)
         self.started = False
         self.robot.robot0.move_for(distance_mm, angle_rads*180/pi,
-                                   drive_speed=drive_speed, turn_speed=turn_speed, wait=False)
+                                   drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
 class SoundActuator(Actuator):
     def __init__(self, robot):
@@ -118,7 +121,7 @@ class SoundActuator(Actuator):
             self.use_gcloud = False
 
     def status_update(self):
-        if self.robot.robot0.is_sound_active():
+        if self.robot.robot0.sound.is_active():
             self.playing = True
         else:
             if self.playing is True:
@@ -154,7 +157,7 @@ class SoundActuator(Actuator):
                 tts.save(speech_file_path)
             self.robot.speech_listener.pause()
             try:
-                self.robot.robot0.play_sound_file(speech_file_path)
+                self.robot.robot0.sound.play_file(speech_file_path)
             except aim.invalid_sound_file_exception:   # file too long
                 print("*** Speech too long. Truncating...")
                 text = text[0:len(text)//2]
@@ -163,11 +166,11 @@ class SoundActuator(Actuator):
 
     def play_sound(self, node, sound, volume=100):
         self.lock(node)
-        self.robot.robot0.play_sound(sound, volume)
+        self.robot.robot0.sound.play(sound, volume)
 
     def play_sound_file(self, node, filepath):
         self.lock(node)
-        self.robot.robot0.play_sound_file(filepath)
+        self.robot.robot0.sound.play_file(filepath)
 
 
 class KickActuator(Actuator):
@@ -178,7 +181,12 @@ class KickActuator(Actuator):
 
     def kick(self, node, kicktype):
         self.lock(node)
-        self.robot.robot0.kick(kicktype)
+        self.robot.robot0.kicker.kick(kicktype)
+        self.robot.loop.call_soon_threadsafe(self.set_delayed_completion)
+
+    def place(self, node, kicktype):
+        self.lock(node)
+        self.robot.robot0.kicker.place()
         self.robot.loop.call_soon_threadsafe(self.set_delayed_completion)
 
     def set_delayed_completion(self):
@@ -196,8 +204,8 @@ class LEDsActuator(Actuator):
         self.NUM_LEDS = 6
 
     def stop(self):
-        self.robot.robot0.clear_leds()
+        self.robot.robot0.led.on(vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)
 
     def set_light_color(self, node, *args):
         self.lock(node)
-        self.robot.robot0.set_light_color(*args)
+        self.robot.robot0.led.on(*args)

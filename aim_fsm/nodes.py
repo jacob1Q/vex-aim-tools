@@ -10,7 +10,7 @@ import cv2
 
 from multiprocessing import Process, Queue
 
-from . import vex
+import vex
 from . import evbase
 from .base import *
 from .events import *
@@ -298,6 +298,15 @@ class SoftKick(ActionNode):
     def start(self, event=None):
         super().start(event)
         self.robot.actuators['kick'].kick(self, vex.KickType.SOFT)
+
+
+class PlaceKick(ActionNode):
+    def __init__(self):
+        super().__init__()
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['kick'].place(self)
 
 
 class Kick(ActionNode):

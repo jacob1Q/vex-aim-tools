@@ -7,7 +7,7 @@ import math
 from .geometry import wrap_angle
 
 from .rrt_shapes import *
-from .worldmap import BarrelObj, BallObj, AprilTagObj, ArucoMarkerObj, WallObj, DoorwayObj
+from .worldmap import BarrelObj, SportsBallObj, AprilTagObj, ArucoMarkerObj, WallObj, DoorwayObj
 from .aruco import ARUCO_MARKER_SIZE
 
 # *** TODO: Collision checking needs to use opposite headings
@@ -503,7 +503,7 @@ class RRT():
                 continue
             if isinstance(obj, BarrelObj):
                 obst = self.generate_barrel_obstacle(obj, obstacle_inflation)
-            elif isinstance(obj, BallObj):
+            elif isinstance(obj, SportsBallObj):
                 obst = self.generate_ball_obstacle(obj, obstacle_inflation)
             elif isinstance(obj, AprilTagObj):
                 obst = self.generate_apriltag_obstacle(obj, obstacle_inflation)

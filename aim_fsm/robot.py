@@ -1,10 +1,12 @@
 import sys
 import threading
+import signal
 import numpy as np
 import cv2
 
-from . import aim
-from . import vex
+import vex
+#from . import aim
+
 from .camera import *
 from .aim_kin import *
 from .evbase import EventRouter
@@ -26,10 +28,12 @@ class Robot():
     def __init__(self, robot0=None, loop=None, host="192.168.4.1",
                  launch_speech_listener=True):
         if robot0 is None:
-            robot0 = aim.Robot(host=host)
+            robot0 = vex.Robot(host=host)
+        signal.signal(signal.SIGINT, lambda : 0)
         self.robot0 = robot0
         self.robot0.inertial.calibrate()
-        self.robot0.set_pose(0,0,0)
+        self.robot0.inertial.set_heading(0)
+        self.robot0.set_xy_position(0,0)
         self.pose = Pose(0,0,0,0)
         self.loop = loop
         self.holding = None   # object being held
@@ -56,8 +60,8 @@ class Robot():
         self.status = self.robot0._ws_status_thread.current_status['robot']
         robot0._ws_status_thread.callback = self.status_callback
         robot0._ws_img_thread.callback = self.image_callback
-        robot0.get_camera_image()  # start the image stream
-        robot0.aiv.tag_detection(True)
+        robot0.vision.get_camera_image()  # start the image stream
+        robot0.vision.tag_detection(True)
         self.thesaurus = Thesaurus()
         self.speech_listener = SpeechListener(self, self.thesaurus, debug=False)
         if launch_speech_listener:
@@ -76,7 +80,7 @@ class Robot():
             self.robot0.stop_all_motion()
             self.robot0.play_sound(vex.SoundType.ALARM, 100)
         """
-        heading = 360 - self.robot0.get_heading()
+        heading = 360 - self.robot0.inertial.get_heading()
         if heading > 180:
             heading = heading - 360
         theta = heading / 180 * pi
@@ -105,7 +109,8 @@ class Robot():
     def set_pose(self, x, y, z, theta, reset_particles=True):
         self.pose = PoseEstimate(x, y, z, theta)
         x0, y0, heading0 = -y, x, (360 - theta * 180/pi)  # convert to VEX frame
-        self.robot0.set_pose(x0, y0, heading0)
+        self.robot0.set_xy_position(x0,y0)
+        self.robot0.inertial.set_heading(heading0)
         if self.particle_filter and reset_particles:
             self.particle_filter.set_pose(x,y,theta)
 
@@ -138,8 +143,8 @@ class Robot():
         x = float(gyro['x'])
         y = float(gyro['y'])
         gyro_threshold = 15
-        pitch = self.robot0.get_pitch()
-        roll = self.robot0.get_roll()
+        pitch = self.robot0.inertial.get_pitch()
+        roll = self.robot0.inertial.get_roll()
         attitude_threshold = 4
         if abs(x) > gyro_threshold or abs(y) > gyro_threshold or \
            abs(pitch) > attitude_threshold or abs(roll) > attitude_threshold:
@@ -172,8 +177,8 @@ class Robot():
               f'{neaten(-self.robot0.get_x())} ' +
               f'heading {neaten(wrap_angle_deg(-self.robot0.get_heading()))} deg.', end='')
         print(f'   [ Roll: {neaten(self.robot0.get_roll())}  ' +
-              f'Pitch: {neaten(self.robot0.get_pitch())}  ' +
-              f'Yaw: {neaten(self.robot0.get_yaw())} ]')
+              f'Pitch: {neaten(self.robot0.inertial.get_pitch())}  ' +
+              f'Yaw: {neaten(self.robot0.inertial.get_yaw())} ]')
         pf_pose = self.particle_filter.update_pose_estimate()
         var = self.particle_filter.update_pose_variance()
         print(f'Particles: {neaten(pf_pose.x)}, ' +

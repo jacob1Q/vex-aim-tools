@@ -9,7 +9,7 @@ except:
 
 import cv2
 
-from . import vex
+import vex
 from . import evbase
 
 from .evbase import EventRouter
@@ -60,7 +60,8 @@ class StateMachineProgram(StateNode):
         super().__init__()
         self.name = self.__class__.__name__.lower()
         self.parent = None
-        self.robot.robot0.set_pose(0,0,0)
+        self.robot.robot0.set_xy_position(0,0)
+        self.robot.robot0.inertial.set_heading(0)
 
         if not hasattr(self.robot, 'erouter'):
             self.robot.erouter = EventRouter()
@@ -127,7 +128,7 @@ class StateMachineProgram(StateNode):
         self.robot.was_picked_up = False
         self.robot.holding = None
         self.robot.fetching = None
-        self.robot.robot0.set_light_color(vex.LightType.ALL, vex.Color.TRANSPARENT)
+        self.robot.robot0.led.on(vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)
         self.robot.clear_actuators()
 
         # World map and path planner
@@ -184,13 +185,13 @@ class StateMachineProgram(StateNode):
         if self.robot.is_picked_up():
             if not self.robot.was_picked_up:
                 self.robot.robot0.stop_all_movement()
-                self.robot.robot0.play_sound(vex.SoundType.HUAH, 50)
+                self.robot.robot0.sound.play(vex.SoundType.HUAH, 50)
                 self.robot.particle_filter.delocalize()
                 self.robot.was_picked_up = True
         elif self.robot.was_picked_up:
             self.robot.was_picked_up = False
             self.robot.robot0.inertial.calibrate()
-            self.robot.robot0.play_sound(vex.SoundType.DOORBELL, 50)
+            self.robot.robot0.sound.play(vex.SoundType.DOORBELL, 50)
             self.robot.set_pose(0,0,0,0,reset_particles=False)
             self.put_down_handler()
 

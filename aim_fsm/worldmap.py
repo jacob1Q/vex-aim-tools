@@ -72,7 +72,7 @@ class OrangeBarrelObj(BarrelObj):
 class BlueBarrelObj(BarrelObj):
     pass
 
-class BallObj(WorldObject):
+class SportsBallObj(WorldObject):
     def __init__(self, spec):
         super().__init__()
         self.spec = spec
@@ -240,8 +240,8 @@ class WorldMap():
             obj = OrangeBarrelObj(spec)
         elif spec['name'] == 'BlueBarrel':
             obj = BlueBarrelObj(spec)
-        elif spec['name'] == 'Ball':
-            obj = BallObj(spec)
+        elif spec['name'] == 'SportsBall':
+            obj = SportsBallObj(spec)
         elif spec['name'] == 'Robot':
             obj = RobotObj(spec)
         elif spec['name'].startswith('AprilTag'):
@@ -598,8 +598,8 @@ class WorldMap():
             self.confirm_not_holding()
 
     def confirm_still_holding(self):
-        if (isinstance(self.robot.holding, BarrelObj) and self.robot.robot0.has_barrel()) or \
-            (isinstance(self.robot.holding, BallObj) and self.robot.robot0.has_ball()):
+        if (isinstance(self.robot.holding, BarrelObj) and self.robot.robot0.has_any_barrel()) or \
+            (isinstance(self.robot.holding, SportsBallObj) and self.robot.robot0.has_sports_ball()):
                 return
         else:
             print('No longer holding', self.robot.holding)
@@ -607,19 +607,19 @@ class WorldMap():
             self.robot.holding = None
 
     def confirm_not_holding(self):
-        if not (self.robot.robot0.has_barrel() or self.robot.robot0.has_ball()):
+        if not (self.robot.robot0.has_any_barrel() or self.robot.robot0.has_sports_ball()):
             return
         else:
             held = None
             for obj in self.robot.world_map.objects.values():
-                if isinstance(obj, (BarrelObj,BallObj)):
+                if isinstance(obj, (BarrelObj,SportsBallObj)):
                     spec = obj.spec
                     if isinstance(obj, BarrelObj):
-                        width_margin = 40
+                        width_margin = 130
                     else:
                         width_margin = 120
                     if spec['originx']*AIVISION_RESOLUTION_SCALE < width_margin and \
-                       (spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE > (self.robot.camera.resolution[1] - width_margin):
+                       (spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE > (self.robot.camera.resolution[0] - width_margin):
                         held = obj
                         break
             if held:

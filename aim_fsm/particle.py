@@ -86,18 +86,18 @@ class RobotPosition(ParticleInitializer):
 class MotionModel():
     def __init__(self, robot):
         self.robot = robot
-        self.last_pose = Pose(self.robot.robot0.get_x(),
-                              self.robot.robot0.get_y(),
+        self.last_pose = Pose(self.robot.robot0.get_y_position(),
+                              - self.robot.robot0.get_x_position(),
                               0,
-                              -self.robot.robot0.get_heading() * pi/180,
+                              - self.robot.robot0.inertial.get_heading() * pi/180,
                               'from robot0'
         )
 
     def compute_robot_motion(self):
         # How much did we move since last evaluation?
-        x = self.robot.robot0.get_y()
-        y = - self.robot.robot0.get_x()
-        theta = - wrap_angle(self.robot.robot0.get_heading() * pi/180)
+        x = self.robot.robot0.get_y_position()
+        y = - self.robot.robot0.get_x_position()
+        theta = - wrap_angle(self.robot.robot0.inertial.get_heading() * pi/180)
         new_pose = Pose(x, y, 0, theta, 'from robot0')
         if not self.last_pose:  # robot was picked up
             self.last_pose = new_pose
