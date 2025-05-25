@@ -464,7 +464,7 @@ class Flash(ActionNode):
         self.poll()
 
     def complete(self):
-        self.robot.actuators['leds'].set_light_color(self, vex.LightType.ALL, vex.Color.TRANSPARENT)
+        self.robot.actuators['leds'].set_light_color(self, vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)
         super().complete()
 
     def poll(self):
@@ -478,13 +478,14 @@ class Flash(ActionNode):
             step_dur = self.time_remaining
         self.set_polling_interval(step_dur)
         leds_actuator = self.robot.actuators['leds']
-        if isinstance(step_pattern, (vex.Color,vex.Color.DefinedColor)) or \
-           len(step_pattern) == 3:
-            leds_actuator.set_light_color(self, vex.LightType.ALL, step_pattern)
+        if isinstance(step_pattern, (vex.Color,vex.Color.DefinedColor)):
+            leds_actuator.set_light_color(self, vex.LightType.ALL_LEDS, step_pattern)
+        elif isinstance(step_pattern, (tuple,list)) and len(step_pattern) == 3:
+            leds_actuator.set_light_color(self, vex.LightType.ALL_LEDS, *step_pattern)
         else:
-            lights = (vex.LightType.LIGHT1, vex.LightType.LIGHT2,
-                      vex.LightType.LIGHT3, vex.LightType.LIGHT4,
-                      vex.LightType.LIGHT5, vex.LightType.LIGHT6)
+            lights = (vex.LightType.LED1, vex.LightType.LED2,
+                      vex.LightType.LED3, vex.LightType.LED4,
+                      vex.LightType.LED5, vex.LightType.LED6)
             for (light, color) in zip(lights, step_pattern):
                 leds_actuator.set_light_color(self, light, color)
         self.time_remaining -= step_dur

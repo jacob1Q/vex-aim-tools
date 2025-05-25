@@ -16,17 +16,20 @@ new_preamble = """
   To drop an object you are holding, output the string "#drop" without quotes.
   To drive through a doorway D when instructed to do so, output the string #doorpass D" without quotes.
   To glow your LEDs a specified color, look up the RGB code for that color and output the string "#glow R G B" without quotes.  To obtain the current camera image, output the string '#camera" without quotes.
-  To flash your LEDs a specific pattern, output the string "#flash pattern_step...", 
+  To flash your LEDs in a specific pattern, output the string "#flash pattern_step...", 
     where "pattern_step..." denotes a sequence of pattern_steps separated by spaces.
-  A pattern_step is either a color name such as "RED" (to be applied to all 6 LEDs) or
-   a list of six color names such as "(RED, BLUE, RED, BLUE, GREEN, TRANSPARENT)".  If a pattern step is a list, it must always contain
-   exactly  six color names.
+  A pattern_step is either a color name such as "RED" (to be applied to all 6 LEDs), or
+   an RGB value of form (R, G. B), or
+   a list of six color names such as "(RED, BLUE, RED, BLUE, GREEN, TRANSPARENT)".
+   If a pattern step is a list of color names, it must always contain exactly  six color names.
   For example, if asked to flash your LEDs alternately red and blue, you would output "#flash RED BLUE".  Each of "RED" and "BLUE" is a pattern_step.
   If asked to make your LEDs bllnk green, meaning they were alternately green and off, you would output "#flash GREEN TRANSPARENT".
   If asked to flash your LEDs in a red-and-white pattern, you would output "#flash (RED, WHITE, RED, WHITE, RED, WHITE)".
   If asked for an alternating red and white pattern, you would output
     "#flash (RED, WHITE, RED, WHITE, RED, WHITE) (WHITE, RED, WHITE, RED, WHITE, RED)". Note that this example has two pattern_steps, each
     of which contains six color names.
+  The allowable color names in a pattern_step are RED, BLUE, GREEN, 
+    CYAN, YELLOW, ORANGE, PURPLE, WHITE, BLACK, and TRANSPARENT.  For all other colors, use the RGB code.
   Whenever you are asked to flash or blink your LEDs, use "#flash" and not "#glow".
   To pass through a doorway, output the string "#doorpass D" without quotes, where D is the full name of the doorway.
   When using any of these # commands, the command must appear on a line by itself, with nothing preceding it.
@@ -140,12 +143,12 @@ class GPT_test(StateMachineProgram):
             print(f"CmdGlow:  '{event.data}'")
             spec = event.data.split(' ')
             if len(spec) != 4:
-                self.args = (vex.LightType.ALL, vex.Color.TRANSPARENT)
+                self.args = (vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)
             try:
                 (r, g, b) = (int(x) for x in spec[1:])
-                self.args = (vex.LightType.ALL, r, g, b)
+                self.args = (vex.LightType.ALL_LEDS, r, g, b)
             except:
-                self.args = (vex.LightType.ALL, vex.Color.TRANSPARENT)
+                self.args = (vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)
             super().start(event)
 
     class CmdFlash(Flash):
@@ -153,10 +156,19 @@ class GPT_test(StateMachineProgram):
             if ',' not in pattern_step:
                 lights = getattr(vex.Color, pattern_step, vex.Color.TRANSPARENT)
             else:
-                lights = [getattr(vex.Color, c, vex.Color.TRANSPARENT) for c in re.findall('\w+', pattern_step)]
-            if len(lights) != self.robot.actuators['leds'].NUM_LEDS:
-                print('Invalid led pattern:', pattern_step) 
-                lights = vex.Color.TRANSPARENT
+                numeric_items = [int(i) for i in re.findall('\d+', pattern_step)]
+                if len(numeric_items) == 3:
+                    lights = [int(i) for i in numeric_items]
+                else:
+                    alpha_items = re.findall('\w+', pattern_step)
+                    lights = [getattr(vex.Color, c, vex.Color.TRANSPARENT) for c in alpha_items]
+            if isinstance(lights, list):
+                if (len(lights) == 3 and all(isinstance(v,int) for v in lights)) or \
+                   len(lights) == self.robot.actuators['leds'].NUM_LEDS:
+                    pass
+                else:
+                    print('Invalid led pattern:', pattern_step) 
+                    lights = vex.Color.TRANSPARENT
             return (lights, 0.5)
             
         def start(self,event):
@@ -166,6 +178,7 @@ class GPT_test(StateMachineProgram):
             pattern_steps = re.findall(r'(\w+|(?:\(\w+(?:, \w+)*\)))', arg)
             led_program = [self.program_step(p) for p in pattern_steps]
             self.led_program = led_program
+            self.num_cycles = 3
             super().start()
 
     class SpeakResponse(Say):
@@ -197,6 +210,7 @@ class GPT_test(StateMachineProgram):
         #         dispatch =D(re.compile('#pickup '))=> pickup
         #         dispatch =D(re.compile('#drop$'))=> self.CmdDrop() =CNext=> dispatch
         #         dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
+        # 	dispatch =D(re.compile('#flash '))=> self.CmdFlash() =CNext=> dispatch
         #         dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
         #             AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
         #         dispatch =D()=> Print(prefix='Unrecognized #-command: ') =Next=> dispatch
@@ -222,7 +236,7 @@ class GPT_test(StateMachineProgram):
         #         pickup =F=> StateNode() =Next=> dispatch
         # 
         
-        # Code generated by genfsm on Fri May 23 21:06:36 2025:
+        # Code generated by genfsm on Sat May 24 22:19:00 2025:
         
         say1 = Say("Talk to me") .set_name("say1") .set_parent(self)
         loop = StateNode() .set_name("loop") .set_parent(self)
@@ -236,6 +250,7 @@ class GPT_test(StateMachineProgram):
         cmdturn1 = self.CmdTurn() .set_name("cmdturn1") .set_parent(self)
         cmddrop1 = self.CmdDrop() .set_name("cmddrop1") .set_parent(self)
         cmdglow1 = self.CmdGlow() .set_name("cmdglow1") .set_parent(self)
+        cmdflash1 = self.CmdFlash() .set_name("cmdflash1") .set_parent(self)
         cmdsendcamera1 = self.CmdSendCamera() .set_name("cmdsendcamera1") .set_parent(self)
         askgpt2 = AskGPT("Please respond to the query using the camera image.") .set_name("askgpt2") .set_parent(self)
         print1 = Print(prefix='Unrecognized #-command: ') .set_name("print1") .set_parent(self)
@@ -315,8 +330,14 @@ class GPT_test(StateMachineProgram):
         cnexttrans6 = CNextTrans() .set_name("cnexttrans6")
         cnexttrans6 .add_sources(cmdglow1) .add_destinations(dispatch)
         
-        datatrans13 = DataTrans(re.compile('#camera$')) .set_name("datatrans13")
-        datatrans13 .add_sources(dispatch) .add_destinations(cmdsendcamera1)
+        datatrans13 = DataTrans(re.compile('#flash ')) .set_name("datatrans13")
+        datatrans13 .add_sources(dispatch) .add_destinations(cmdflash1)
+        
+        cnexttrans7 = CNextTrans() .set_name("cnexttrans7")
+        cnexttrans7 .add_sources(cmdflash1) .add_destinations(dispatch)
+        
+        datatrans14 = DataTrans(re.compile('#camera$')) .set_name("datatrans14")
+        datatrans14 .add_sources(dispatch) .add_destinations(cmdsendcamera1)
         
         completiontrans3 = CompletionTrans() .set_name("completiontrans3")
         completiontrans3 .add_sources(cmdsendcamera1) .add_destinations(askgpt2)
@@ -324,8 +345,8 @@ class GPT_test(StateMachineProgram):
         openaitrans2 = OpenAITrans() .set_name("openaitrans2")
         openaitrans2 .add_sources(askgpt2) .add_destinations(check)
         
-        datatrans14 = DataTrans() .set_name("datatrans14")
-        datatrans14 .add_sources(dispatch) .add_destinations(print1)
+        datatrans15 = DataTrans() .set_name("datatrans15")
+        datatrans15 .add_sources(dispatch) .add_destinations(print1)
         
         nexttrans1 = NextTrans() .set_name("nexttrans1")
         nexttrans1 .add_sources(print1) .add_destinations(dispatch)
@@ -333,8 +354,8 @@ class GPT_test(StateMachineProgram):
         completiontrans4 = CompletionTrans() .set_name("completiontrans4")
         completiontrans4 .add_sources(dispatch) .add_destinations(loop)
         
-        cnexttrans7 = CNextTrans() .set_name("cnexttrans7")
-        cnexttrans7 .add_sources(turntoward) .add_destinations(dispatch)
+        cnexttrans8 = CNextTrans() .set_name("cnexttrans8")
+        cnexttrans8 .add_sources(turntoward) .add_destinations(dispatch)
         
         failuretrans1 = FailureTrans() .set_name("failuretrans1")
         failuretrans1 .add_sources(turntoward) .add_destinations(statenode1)
@@ -342,8 +363,8 @@ class GPT_test(StateMachineProgram):
         nexttrans2 = NextTrans() .set_name("nexttrans2")
         nexttrans2 .add_sources(statenode1) .add_destinations(dispatch)
         
-        cnexttrans8 = CNextTrans() .set_name("cnexttrans8")
-        cnexttrans8 .add_sources(pilottoobject) .add_destinations(dispatch)
+        cnexttrans9 = CNextTrans() .set_name("cnexttrans9")
+        cnexttrans9 .add_sources(pilottoobject) .add_destinations(dispatch)
         
         pilottrans1 = PilotTrans(GoalUnreachable) .set_name("pilottrans1")
         pilottrans1 .add_sources(pilottoobject) .add_destinations(cmdfailed1)
@@ -357,8 +378,8 @@ class GPT_test(StateMachineProgram):
         openaitrans4 = OpenAITrans() .set_name("openaitrans4")
         openaitrans4 .add_sources(cmdfailed2) .add_destinations(check)
         
-        cnexttrans9 = CNextTrans() .set_name("cnexttrans9")
-        cnexttrans9 .add_sources(doorpass) .add_destinations(dispatch)
+        cnexttrans10 = CNextTrans() .set_name("cnexttrans10")
+        cnexttrans10 .add_sources(doorpass) .add_destinations(dispatch)
         
         failuretrans3 = FailureTrans() .set_name("failuretrans3")
         failuretrans3 .add_sources(doorpass) .add_destinations(cmdfailed3)
@@ -366,8 +387,8 @@ class GPT_test(StateMachineProgram):
         openaitrans5 = OpenAITrans() .set_name("openaitrans5")
         openaitrans5 .add_sources(cmdfailed3) .add_destinations(check)
         
-        cnexttrans10 = CNextTrans() .set_name("cnexttrans10")
-        cnexttrans10 .add_sources(pickup) .add_destinations(dispatch)
+        cnexttrans11 = CNextTrans() .set_name("cnexttrans11")
+        cnexttrans11 .add_sources(pickup) .add_destinations(dispatch)
         
         failuretrans4 = FailureTrans() .set_name("failuretrans4")
         failuretrans4 .add_sources(pickup) .add_destinations(statenode2)

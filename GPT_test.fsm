@@ -16,17 +16,20 @@ new_preamble = """
   To drop an object you are holding, output the string "#drop" without quotes.
   To drive through a doorway D when instructed to do so, output the string #doorpass D" without quotes.
   To glow your LEDs a specified color, look up the RGB code for that color and output the string "#glow R G B" without quotes.  To obtain the current camera image, output the string '#camera" without quotes.
-  To flash your LEDs a specific pattern, output the string "#flash pattern_step...", 
+  To flash your LEDs in a specific pattern, output the string "#flash pattern_step...", 
     where "pattern_step..." denotes a sequence of pattern_steps separated by spaces.
-  A pattern_step is either a color name such as "RED" (to be applied to all 6 LEDs) or
-   a list of six color names such as "(RED, BLUE, RED, BLUE, GREEN, TRANSPARENT)".  If a pattern step is a list, it must always contain
-   exactly  six color names.
+  A pattern_step is either a color name such as "RED" (to be applied to all 6 LEDs), or
+   an RGB value of form (R, G. B), or
+   a list of six color names such as "(RED, BLUE, RED, BLUE, GREEN, TRANSPARENT)".
+   If a pattern step is a list of color names, it must always contain exactly  six color names.
   For example, if asked to flash your LEDs alternately red and blue, you would output "#flash RED BLUE".  Each of "RED" and "BLUE" is a pattern_step.
   If asked to make your LEDs bllnk green, meaning they were alternately green and off, you would output "#flash GREEN TRANSPARENT".
   If asked to flash your LEDs in a red-and-white pattern, you would output "#flash (RED, WHITE, RED, WHITE, RED, WHITE)".
   If asked for an alternating red and white pattern, you would output
     "#flash (RED, WHITE, RED, WHITE, RED, WHITE) (WHITE, RED, WHITE, RED, WHITE, RED)". Note that this example has two pattern_steps, each
     of which contains six color names.
+  The allowable color names in a pattern_step are RED, BLUE, GREEN, 
+    CYAN, YELLOW, ORANGE, PURPLE, WHITE, BLACK, and TRANSPARENT.  For all other colors, use the RGB code.
   Whenever you are asked to flash or blink your LEDs, use "#flash" and not "#glow".
   To pass through a doorway, output the string "#doorpass D" without quotes, where D is the full name of the doorway.
   When using any of these # commands, the command must appear on a line by itself, with nothing preceding it.
@@ -140,12 +143,12 @@ class GPT_test(StateMachineProgram):
             print(f"CmdGlow:  '{event.data}'")
             spec = event.data.split(' ')
             if len(spec) != 4:
-                self.args = (vex.LightType.ALL, vex.Color.TRANSPARENT)
+                self.args = (vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)
             try:
                 (r, g, b) = (int(x) for x in spec[1:])
-                self.args = (vex.LightType.ALL, r, g, b)
+                self.args = (vex.LightType.ALL_LEDS, r, g, b)
             except:
-                self.args = (vex.LightType.ALL, vex.Color.TRANSPARENT)
+                self.args = (vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)
             super().start(event)
 
     class CmdFlash(Flash):
@@ -153,10 +156,19 @@ class GPT_test(StateMachineProgram):
             if ',' not in pattern_step:
                 lights = getattr(vex.Color, pattern_step, vex.Color.TRANSPARENT)
             else:
-                lights = [getattr(vex.Color, c, vex.Color.TRANSPARENT) for c in re.findall('\w+', pattern_step)]
-            if len(lights) != self.robot.actuators['leds'].NUM_LEDS:
-                print('Invalid led pattern:', pattern_step) 
-                lights = vex.Color.TRANSPARENT
+                numeric_items = [int(i) for i in re.findall('\d+', pattern_step)]
+                if len(numeric_items) == 3:
+                    lights = [int(i) for i in numeric_items]
+                else:
+                    alpha_items = re.findall('\w+', pattern_step)
+                    lights = [getattr(vex.Color, c, vex.Color.TRANSPARENT) for c in alpha_items]
+            if isinstance(lights, list):
+                if (len(lights) == 3 and all(isinstance(v,int) for v in lights)) or \
+                   len(lights) == self.robot.actuators['leds'].NUM_LEDS:
+                    pass
+                else:
+                    print('Invalid led pattern:', pattern_step) 
+                    lights = vex.Color.TRANSPARENT
             return (lights, 0.5)
             
         def start(self,event):
@@ -166,6 +178,7 @@ class GPT_test(StateMachineProgram):
             pattern_steps = re.findall(r'(\w+|(?:\(\w+(?:, \w+)*\)))', arg)
             led_program = [self.program_step(p) for p in pattern_steps]
             self.led_program = led_program
+            self.num_cycles = 3
             super().start()
 
     class SpeakResponse(Say):
@@ -197,6 +210,7 @@ class GPT_test(StateMachineProgram):
         dispatch =D(re.compile('#pickup '))=> pickup
         dispatch =D(re.compile('#drop$'))=> self.CmdDrop() =CNext=> dispatch
         dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
+	dispatch =D(re.compile('#flash '))=> self.CmdFlash() =CNext=> dispatch
         dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
             AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
         dispatch =D()=> Print(prefix='Unrecognized #-command: ') =Next=> dispatch
