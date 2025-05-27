@@ -158,7 +158,7 @@ class SoundActuator(Actuator):
             self.robot.speech_listener.pause()
             try:
                 self.robot.robot0.sound.play_local_file(speech_file_path)
-            except aim.invalid_sound_file_exception:   # file too long
+            except vex.aim.InvalidSoundFileException:   # file too long
                 print("*** Speech too long. Truncating...")
                 text = text[0:len(text)//2]
                 continue
@@ -209,3 +209,19 @@ class LEDsActuator(Actuator):
     def set_light_color(self, node, *args):
         self.lock(node)
         self.robot.robot0.led.on(*args)
+
+
+class DisplayActuator(Actuator):
+    EMOJI_NAMES =  [key for (key,value) in vars(vex.EmojiType).items()
+                    if isinstance(value, vex.EmojiType.EmojiType)]
+
+    EMOJI_VALUES = [v for v in vars(vex.EmojiType).values()
+                    if isinstance(v, vex.EmojiType.EmojiType)]
+
+    def __init__(self, robot):
+        super().__init__(robot, 'display')
+
+    def show_emoji(self, node, emoji, direction=vex.EmojiLookType.LOOK_FORWARD):
+        self.lock(node)
+        self.robot.robot0.screen.show_emoji(emoji, direction)
+        self.current_emoji = emoji

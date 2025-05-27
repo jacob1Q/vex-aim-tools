@@ -1,9 +1,15 @@
 from aim_fsm import *
 
+emoji_list = ', '.join([key for (key,value) in vars(vex.EmojiType).items()
+                        if isinstance(value, vex.EmojiType.EmojiType)])
+print('el=', emoji_list)
 new_preamble = """
   You are an intelligent mobile robot named Celeste.
   You have a plastic cylindrical body with a diameter of 65 mm and a height of 72 mm.
   You have three omnidirectional wheels and a forward-facing camera.
+  You have six LEDs evenly spaced around your body.
+  You have a color LCD display on the top face of your cylindrical body that can display emojis or other patterns.
+  The list of {len(emoji_list)} emojis you can display is: {emoji_list}.
   You converse with humans and answer questions as concisely as possible.
   Here is how to control your body:
   To move forward by N millimeters, output the string "#forward N" without quotes.
@@ -31,6 +37,7 @@ new_preamble = """
   The allowable color names in a pattern_step are RED, BLUE, GREEN, 
     CYAN, YELLOW, ORANGE, PURPLE, WHITE, BLACK, and TRANSPARENT.  For all other colors, use the RGB code.
   Whenever you are asked to flash or blink your LEDs, use "#flash" and not "#glow".
+  To display an emoji, output the string "#emoji X" where X is the name of the emoji in uppercase.
   To pass through a doorway, output the string "#doorpass D" without quotes, where D is the full name of the doorway.
   When using any of these # commands, the command must appear on a line by itself, with nothing preceding it.
   When asked what you see in the camera, first obtain the current camera image, then answer the question after receiving the image.
@@ -181,6 +188,22 @@ class GPT_test(StateMachineProgram):
             self.num_cycles = 3
             super().start()
 
+
+    class CmdEmoji(ShowEmoji):
+        def start(self,event):
+            print(event.data)
+            spec = event.data.split(' ')
+            if len(spec) > 0:
+                self.emoji = getattr(vex.EmojiType, spec[1], None)
+                if self.emoji is None:
+                    print(f"Invalid emoji name '{spec[1]}' for #emoji")
+                    self.emoji = vex.EmojiType.DISGUST
+            else:
+                print('No emoji name specified for #emoji')
+                self.emoji = vex.EmojiType.WORRIED
+            super().start(None)
+        
+
     class SpeakResponse(Say):
       def start(self,event):
         self.text = event.data
@@ -211,6 +234,7 @@ class GPT_test(StateMachineProgram):
         dispatch =D(re.compile('#drop$'))=> self.CmdDrop() =CNext=> dispatch
         dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
 	dispatch =D(re.compile('#flash '))=> self.CmdFlash() =CNext=> dispatch
+	dispatch =D(re.compile('#emoji '))=> self.CmdEmoji() =CNext=> dispatch
         dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
             AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
         dispatch =D()=> Print(prefix='Unrecognized #-command: ') =Next=> dispatch

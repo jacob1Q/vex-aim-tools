@@ -44,7 +44,8 @@ class Robot():
         self.rrt = RRT(self)
         self.path_planner= PathPlanner()
         self.aruco_detector = None
-        acts = [DriveActuator(self), SoundActuator(self), KickActuator(self), LEDsActuator(self)]
+        acts = [DriveActuator(self), SoundActuator(self), KickActuator(self),
+                LEDsActuator(self), DisplayActuator(self)]
         self.actuators = {act.name : act for act in acts}
         self.erouter = EventRouter(self)
         self.particle_filter = None

@@ -491,6 +491,18 @@ class Flash(ActionNode):
         self.time_remaining -= step_dur
 
 
+class ShowEmoji(ActionNode):
+    def __init__(self, emoji=vex.EmojiType.HAPPY, direction=vex.EmojiLookType.LOOK_FORWARD):
+        super().__init__()
+        self.emoji = emoji
+        self.direction = direction
+        
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['display'].show_emoji(self, self.emoji, self.direction)
+        self.complete()
+
+
 class AbortAllActions(StateNode):
     def start(self,event=None):
         super().start(event)
