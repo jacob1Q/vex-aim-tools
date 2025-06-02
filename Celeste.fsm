@@ -73,7 +73,7 @@ new_preamble = """
   Do not give a date or an absolute time (such as 3:24 PM) unless explicitly asked for that.
 """
 
-class GPT_test(StateMachineProgram):
+class Celeste(StateMachineProgram):
 
     class CheckResponse(StateNode):
         def start(self, event):
