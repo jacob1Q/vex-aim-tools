@@ -1,0 +1,53 @@
+import vex
+
+from .nodes import *
+from .transitions import *
+
+#---------------- Emotion Macros from VEXCode ----------------
+
+class ActHappy(ActionNode):
+    $setup{
+        ShowEmoji(vex.EmojiType.HAPPY)                                =T(0.5)=>
+	PlaySound(vex.SoundType.ACT_HAPPY)                            =T(0.115)=>
+        ShowEmoji(vex.EmojiType.HAPPY, vex.EmojiLookType.LOOK_RIGHT)  =N=>
+	Glow(vex.Color.YELLOW)                                        =N=>
+        Turn(-4, 100)                                                 =C=>
+	Glow(vex.Color.WHITE)                                         =N=>
+        ShowEmoji(vex.EmojiType.HAPPY, vex.EmojiLookType.LOOK_LEFT)   =N=>
+        Turn(8, 100)                                                  =C=>
+	Glow(vex.Color.YELLOW)                                        =N=>
+        ShowEmoji(vex.EmojiType.HAPPY, vex.EmojiLookType.LOOK_RIGHT)  =N=>
+        Turn(-4, 100)                                                 =C=>
+	StateNode()                                                   =T(0.1)=> loop
+
+        loop: Iterate(3)
+	loop =D=> 
+          ShowEmoji(vex.EmojiType.QUIET)                              =N=>
+  	  Glow(vex.Color.WHITE)                                       =N=>
+          MoveFor(1, 90)                                              =C=>
+          ShowEmoji(vex.EmojiType.HAPPY)                              =N=>
+          Glow(vex.Color.YELLOW)                                      =N=>
+          MoveFor(1, -90)                                             =CNext=> loop
+	loop =C=> finish
+
+        finish: Glow(vex.Color.TRANSPARENT) =T(0.5)=> ParentCompletes()
+
+    }
+
+class ActSad(ActionNode):
+    $setup{
+        ShowEmoji(vex.EmojiType.SAD)                                  =T(0.5)=>
+	PlaySound(vex.SoundType.ACT_SAD)                              =T(0.115)=>
+	Glow(vex.LightType.ALL_LEDS, 0, 0, 250)                       =N=>
+        ShowEmoji(vex.EmojiType.SAD, vex.EmojiLookType.LOOK_RIGHT)    =N=>
+        MoveFor(11, -315, 70)                                         =C=>
+	Glow(vex.LightType.ALL_LEDS, 0, 0, 50)                        =N=>
+        ShowEmoji(vex.EmojiType.SAD, vex.EmojiLookType.LOOK_LEFT)     =N=>
+        MoveFor(11, -225, 70)                                         =C=>
+	Glow(vex.LightType.ALL_LEDS, 0, 0, 10)                        =N=>
+        ShowEmoji(vex.EmojiType.SAD, vex.EmojiLookType.LOOK_FORWARD)  =N=>
+        MoveFor(11, -45, 70)                                          =C=>
+        StateNode()                                                   =T(0.5)=>
+        Glow(vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)           =N=>
+        ParentCompletes()
+    }

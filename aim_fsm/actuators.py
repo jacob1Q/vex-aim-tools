@@ -100,6 +100,13 @@ class DriveActuator(Actuator):
         self.robot.robot0.move_for(distance_mm, angle_rads*180/pi,
                                    drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
+    def move_for(self, node, distance_mm, angle_deg, drive_speed=None):
+        self.lock(node)
+        self.started = False
+        self.robot.robot0.move_for(distance_mm, -angle_deg,
+                                   drive_speed, vex.DriveVelocityUnits.MMPS, False)
+
+
 class SoundActuator(Actuator):
     def __init__(self, robot):
         super().__init__(robot, 'sound')
@@ -172,6 +179,10 @@ class SoundActuator(Actuator):
         self.lock(node)
         self.robot.robot0.sound.play_local_file(filepath)
 
+    def play_note(self, node, pitch, duration):
+        self.lock(node)
+        self.robot.robot0.sound.play_note(pitch, duration)
+
 
 class KickActuator(Actuator):
     KICK_DURATION = 0.25 # seconds
@@ -207,8 +218,12 @@ class LEDsActuator(Actuator):
         self.robot.robot0.led.on(vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)
 
     def set_light_color(self, node, *args):
+        if len(args) == 2 or len(args) == 4:
+            corrected_args = args
+        else:
+            corrected_args = [vex.LightType.ALL_LEDS, *args]
         self.lock(node)
-        self.robot.robot0.led.on(*args)
+        self.robot.robot0.led.on(*corrected_args)
 
 
 class DisplayActuator(Actuator):
@@ -225,3 +240,8 @@ class DisplayActuator(Actuator):
         self.lock(node)
         self.robot.robot0.screen.show_emoji(emoji, direction)
         self.current_emoji = emoji
+
+    def hide_emoji(self, node):
+        self.lock(node)
+        self.robot.robot0.screen.hide_emoji()
+        self.current_emoji = None

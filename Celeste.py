@@ -4,13 +4,17 @@ emoji_list = ', '.join([key for (key,value) in vars(vex.EmojiType).items()
                         if isinstance(value, vex.EmojiType.EmojiType)])
 print('el=', emoji_list)
 new_preamble = """
+  IDENTITY SECTION.
   You are an intelligent mobile robot named Celeste.
+  You converse with humans and answer questions as concisely as possible.
+  You are a type of robot called VEX AIM, manufactured by a company called Innovation First.
   You have a plastic cylindrical body with a diameter of 65 mm and a height of 72 mm.
   You have three omnidirectional wheels and a forward-facing camera.
-  You have six LEDs evenly spaced around your body.
-  You have a color LCD display on the top face of your cylindrical body that can display emojis or other patterns.
-  The list of {len(emoji_list)} emojis you can display is: {emoji_list}.
-  You converse with humans and answer questions as concisely as possible.
+  You have six color LEDs evenly spaced around your body.
+  You have a color LCD display on the top face of your cylindrical body that can display VEX emojicons.
+  The list of {len(emoji_list)} VEX emojicons you can display is: {emoji_list}. Please remember this list.
+
+  BODY CONTROL SECTION.
   Here is how to control your body:
   To move forward by N millimeters, output the string "#forward N" without quotes.
   To move backward, output the string "#forward N" with a negative value, without quotes.
@@ -37,17 +41,33 @@ new_preamble = """
   The allowable color names in a pattern_step are RED, BLUE, GREEN, 
     CYAN, YELLOW, ORANGE, PURPLE, WHITE, BLACK, and TRANSPARENT.  For all other colors, use the RGB code.
   Whenever you are asked to flash or blink your LEDs, use "#flash" and not "#glow".
-  To display an emoji, output the string "#emoji X" where X is the name of the emoji in uppercase.
+  To display an emoji, which must be one of your VEX emojicons, output the string "#emoji X" where X is the name of the VEX emojicon in uppercase.
   To pass through a doorway, output the string "#doorpass D" without quotes, where D is the full name of the doorway.
   When using any of these # commands, the command must appear on a line by itself, with nothing preceding it.
   When asked what you see in the camera, first obtain the current camera image, then answer the question after receiving the image.
+
+  MUSICAL NOTES SECTION.
+  You can play musical notes ranging from C5 (middle C) to A8.
+  For a sharp write C#5.
+  You can only play one note at a time; you cannot play chords.
+  To play a sequence of notes like C5, E5, G5, output "#playnotes C5 E5 G5".
+  The symbol C5 denotes a quarter note.  An appended underscore  doubles the note's duration.
+  So for a half note, write C5_.  For a whole note write C5__.
+  An appended minus sign halves the duration.  For an eighth note write C5-.
+  When asked to play a song or note sequence, do not say the notes first; just play them using #playnotes.
+
+  PRONUNCIATION SECTION.
   Pronounce "AprilTag-1.a" as "April Tag 1-A", and similarly for any word of form "AprilTag-N.x".
   Pronounce "OrangeBarrel.a" as "Orange Barrel A", pronounce "BlueBarrel.b" as "Blue Barrel B", and similarly for other barrel designators.
   Prounounce "ArucoMarkerObj-2.a" as "Marker 2".
   Pronounce 'Wall-2.a' as "Wall 2".
   Pronounce "Doorway-2:0.a" as "Doorway 2".
+
+  GENERAL ADVICE SECTION.
   Only objects you are explicitly told are landmarks should be regarded as landmarks.
-  Remember to be concise in your answers.  Do not generate lists unless specifically asked to do so; just give one item and offer to provide more if requested.
+  Remember to be concise in your answers.
+  Do not conclude your answer by asking if there is anything else the user would like; wait for them to tell you.
+  Do not generate lists unless specifically asked to do so; just give one item and offer to provide more if requested.
   Do not include any formatting in your output, such as asterisks or LaTex commands.  Use plain text only.
   When asked when some event occurred, give a relative time, such as "2 minutes go" or "at 5 and a half minutes since the start of this session".
   Do not give a date or an absolute time (such as 3:24 PM) unless explicitly asked for that.
@@ -204,6 +224,13 @@ class GPT_test(StateMachineProgram):
             super().start(None)
         
 
+    class CmdPlayNotes(PlayNotes):
+        def start(self, event):
+            print(event.data)
+            self.score = event.data[event.data.find(' ')+1:]
+            super().start()
+
+
     class SpeakResponse(Say):
       def start(self,event):
         self.text = event.data
@@ -235,6 +262,7 @@ class GPT_test(StateMachineProgram):
         #         dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
         # 	dispatch =D(re.compile('#flash '))=> self.CmdFlash() =CNext=> dispatch
         # 	dispatch =D(re.compile('#emoji '))=> self.CmdEmoji() =CNext=> dispatch
+        # 	dispatch =D(re.compile('#playnotes '))=> self.CmdPlayNotes() =CNext=> dispatch
         #         dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
         #             AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
         #         dispatch =D()=> Print(prefix='Unrecognized #-command: ') =Next=> dispatch
@@ -260,7 +288,7 @@ class GPT_test(StateMachineProgram):
         #         pickup =F=> StateNode() =Next=> dispatch
         # 
         
-        # Code generated by genfsm on Tue May 27 00:55:23 2025:
+        # Code generated by genfsm on Mon Jun  2 02:40:41 2025:
         
         say1 = Say("Talk to me") .set_name("say1") .set_parent(self)
         loop = StateNode() .set_name("loop") .set_parent(self)
@@ -276,6 +304,7 @@ class GPT_test(StateMachineProgram):
         cmdglow1 = self.CmdGlow() .set_name("cmdglow1") .set_parent(self)
         cmdflash1 = self.CmdFlash() .set_name("cmdflash1") .set_parent(self)
         cmdemoji1 = self.CmdEmoji() .set_name("cmdemoji1") .set_parent(self)
+        cmdplaynotes1 = self.CmdPlayNotes() .set_name("cmdplaynotes1") .set_parent(self)
         cmdsendcamera1 = self.CmdSendCamera() .set_name("cmdsendcamera1") .set_parent(self)
         askgpt2 = AskGPT("Please respond to the query using the camera image.") .set_name("askgpt2") .set_parent(self)
         print1 = Print(prefix='Unrecognized #-command: ') .set_name("print1") .set_parent(self)
@@ -367,8 +396,14 @@ class GPT_test(StateMachineProgram):
         cnexttrans8 = CNextTrans() .set_name("cnexttrans8")
         cnexttrans8 .add_sources(cmdemoji1) .add_destinations(dispatch)
         
-        datatrans15 = DataTrans(re.compile('#camera$')) .set_name("datatrans15")
-        datatrans15 .add_sources(dispatch) .add_destinations(cmdsendcamera1)
+        datatrans15 = DataTrans(re.compile('#playnotes ')) .set_name("datatrans15")
+        datatrans15 .add_sources(dispatch) .add_destinations(cmdplaynotes1)
+        
+        cnexttrans9 = CNextTrans() .set_name("cnexttrans9")
+        cnexttrans9 .add_sources(cmdplaynotes1) .add_destinations(dispatch)
+        
+        datatrans16 = DataTrans(re.compile('#camera$')) .set_name("datatrans16")
+        datatrans16 .add_sources(dispatch) .add_destinations(cmdsendcamera1)
         
         completiontrans3 = CompletionTrans() .set_name("completiontrans3")
         completiontrans3 .add_sources(cmdsendcamera1) .add_destinations(askgpt2)
@@ -376,8 +411,8 @@ class GPT_test(StateMachineProgram):
         openaitrans2 = OpenAITrans() .set_name("openaitrans2")
         openaitrans2 .add_sources(askgpt2) .add_destinations(check)
         
-        datatrans16 = DataTrans() .set_name("datatrans16")
-        datatrans16 .add_sources(dispatch) .add_destinations(print1)
+        datatrans17 = DataTrans() .set_name("datatrans17")
+        datatrans17 .add_sources(dispatch) .add_destinations(print1)
         
         nexttrans1 = NextTrans() .set_name("nexttrans1")
         nexttrans1 .add_sources(print1) .add_destinations(dispatch)
@@ -385,8 +420,8 @@ class GPT_test(StateMachineProgram):
         completiontrans4 = CompletionTrans() .set_name("completiontrans4")
         completiontrans4 .add_sources(dispatch) .add_destinations(loop)
         
-        cnexttrans9 = CNextTrans() .set_name("cnexttrans9")
-        cnexttrans9 .add_sources(turntoward) .add_destinations(dispatch)
+        cnexttrans10 = CNextTrans() .set_name("cnexttrans10")
+        cnexttrans10 .add_sources(turntoward) .add_destinations(dispatch)
         
         failuretrans1 = FailureTrans() .set_name("failuretrans1")
         failuretrans1 .add_sources(turntoward) .add_destinations(statenode1)
@@ -394,8 +429,8 @@ class GPT_test(StateMachineProgram):
         nexttrans2 = NextTrans() .set_name("nexttrans2")
         nexttrans2 .add_sources(statenode1) .add_destinations(dispatch)
         
-        cnexttrans10 = CNextTrans() .set_name("cnexttrans10")
-        cnexttrans10 .add_sources(pilottoobject) .add_destinations(dispatch)
+        cnexttrans11 = CNextTrans() .set_name("cnexttrans11")
+        cnexttrans11 .add_sources(pilottoobject) .add_destinations(dispatch)
         
         pilottrans1 = PilotTrans(GoalUnreachable) .set_name("pilottrans1")
         pilottrans1 .add_sources(pilottoobject) .add_destinations(cmdfailed1)
@@ -409,8 +444,8 @@ class GPT_test(StateMachineProgram):
         openaitrans4 = OpenAITrans() .set_name("openaitrans4")
         openaitrans4 .add_sources(cmdfailed2) .add_destinations(check)
         
-        cnexttrans11 = CNextTrans() .set_name("cnexttrans11")
-        cnexttrans11 .add_sources(doorpass) .add_destinations(dispatch)
+        cnexttrans12 = CNextTrans() .set_name("cnexttrans12")
+        cnexttrans12 .add_sources(doorpass) .add_destinations(dispatch)
         
         failuretrans3 = FailureTrans() .set_name("failuretrans3")
         failuretrans3 .add_sources(doorpass) .add_destinations(cmdfailed3)
@@ -418,8 +453,8 @@ class GPT_test(StateMachineProgram):
         openaitrans5 = OpenAITrans() .set_name("openaitrans5")
         openaitrans5 .add_sources(cmdfailed3) .add_destinations(check)
         
-        cnexttrans12 = CNextTrans() .set_name("cnexttrans12")
-        cnexttrans12 .add_sources(pickup) .add_destinations(dispatch)
+        cnexttrans13 = CNextTrans() .set_name("cnexttrans13")
+        cnexttrans13 .add_sources(pickup) .add_destinations(dispatch)
         
         failuretrans4 = FailureTrans() .set_name("failuretrans4")
         failuretrans4 .add_sources(pickup) .add_destinations(statenode2)

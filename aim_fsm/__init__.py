@@ -20,5 +20,6 @@ from .path_planner import *
 from .program import StateMachineProgram, runfsm
 from .pickup import *
 from .pilot import *
+from .macros import *
 
 del base

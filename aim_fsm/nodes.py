@@ -167,6 +167,12 @@ class GPTOneShot(StateNode):
 
 #________________ Actions ________________
 
+class AbortAllActions(StateNode):
+    def start(self,event=None):
+        super().start(event)
+        self.robot.abort_all_actions()
+        self.post_completion()
+
 class ActionNode(StateNode):
     def unlock_held_actuators(self):
         for actuator in self.robot.actuators.values():
@@ -192,6 +198,18 @@ class Forward(ActionNode):
             self.distance_mm = event.data
         super().start(event)
         self.robot.actuators['drive'].forward(self, self.distance_mm, self.drive_speed)
+
+
+class MoveFor(ActionNode):
+    def __init__(self, distance_mm=0, angle_deg=0, drive_speed=None):
+        super().__init__()
+        self.distance_mm = distance_mm
+        self.angle_deg = angle_deg
+        self.drive_speed = drive_speed
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['drive'].move_for(self, self.distance_mm, self.angle_deg, self.drive_speed)
 
 
 class Sideways(ActionNode):
@@ -370,7 +388,55 @@ class PlaySoundFile(ActionNode):
         self.robot.actuators['sound'].play_sound_file(self, self.filepath)
 
 
+class PlayNotes(ActionNode):
+    DURATION = 200 # msecs
+
+    def __init__(self, score='C5'):
+        super().__init__()
+        self.score = score
+
+    def start(self, event=None):
+        super().start(event)
+        if isinstance(event, DataEvent) and isinstance(event.data, (str,list,tuple)):
+            score = event.data
+        else:
+            score = self.score
+        if isinstance(score, str):
+            self.note_list = [s for s in score.strip().split(' ') if len(s) > 0]
+        else:
+            self.note_list = score
+        self.index = -1
+        self.complete()
+
+    def complete(self):
+        self.index += 1
+        if self.index >= len(self.note_list):
+            super().complete()
+        else:
+            note = self.note_list[self.index]
+            if note[-2:] == '__':
+                pitch = note[0:-2]
+                duration = self.DURATION * 4
+            elif note[-1:] == '_':
+                pitch = note[0:-1]
+                duration = self.DURATION * 2
+            elif note[-1:] == '-':
+                pitch = note[0:-1]
+                duration = self.DURATION // 2
+            else:
+                pitch = note
+                duration = self.DURATION
+            if pitch[0] in 'ABCDEFG' and \
+               ( len(pitch) == 2 and pitch[1] in '5678' ) or \
+               ( len(pitch) == 3 and pitch[1] == '#' and pitch[2] in '5678'):
+                self.robot.actuators['sound'].play_note(self, pitch, duration)
+            else:
+                print(f"Invalid pitch '{pitch}' in {self}")
+                self.complete()
+
+
 class Glow(ActionNode):
+    """Glow(light_type, color) or Glow(light_type, r, g, b)"""
     def __init__(self, *args):
         self.args = args
         super().__init__()
@@ -503,12 +569,11 @@ class ShowEmoji(ActionNode):
         self.complete()
 
 
-class AbortAllActions(StateNode):
-    def start(self,event=None):
+class HideEmoji(ActionNode):
+    def start(self, event=None):
         super().start(event)
-        self.robot.abort_all_actions()
-        self.post_completion()
-
+        self.robot.actuators['display'].hide_emoji()
+        self.complete()
 
 
 #________________ Multiprocessing ________________
