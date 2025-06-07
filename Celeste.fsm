@@ -2,7 +2,6 @@ from aim_fsm import *
 
 emoji_list = ', '.join([key for (key,value) in vars(vex.EmojiType).items()
                         if isinstance(value, vex.EmojiType.EmojiType)])
-print('el=', emoji_list)
 new_preamble = """
   IDENTITY SECTION.
   You are an intelligent mobile robot named Celeste.
@@ -43,6 +42,8 @@ new_preamble = """
   Whenever you are asked to flash or blink your LEDs, use "#flash" and not "#glow".
   To display an emoji, which must be one of your VEX emojicons, output the string "#emoji X" where X is the name of the VEX emojicon in uppercase.
   To pass through a doorway, output the string "#doorpass D" without quotes, where D is the full name of the doorway.
+  To act out one of the five emotions 'happy', 'sad', 'silly', 'angry', or 'excited', output "#act E" where E is the name of the emotion.
+  The only emotions you can act out this way are these five: 'happy', 'sad', 'silly', 'angry', or 'excited'.
   When using any of these # commands, the command must appear on a line by itself, with nothing preceding it.
   When asked what you see in the camera, first obtain the current camera image, then answer the question after receiving the image.
 
@@ -224,6 +225,33 @@ class Celeste(StateMachineProgram):
             super().start(None)
         
 
+    class CmdAct(StateNode):
+        class SendAction(StateNode):
+            def start(self, event=None):
+                super().start(event)
+                self.post_data(self.parent.act)
+
+        def start(self,event):
+            print(event.data)
+            spec = event.data.split(' ')
+            if len(spec) > 0:
+                self.act = spec[1]
+            else:
+                self.act = ''
+            super().start()
+
+        $setup{  # CmdAct
+            dispatch: self.SendAction()
+            dispatch =D('happy')=> ActHappy() =C=> complete
+            dispatch =D('sad')=> ActSad() =C=> complete
+            dispatch =D('silly')=> ActSilly() =C=> complete
+            dispatch =D('angry')=> ActAngry() =C=> complete
+            dispatch =D('excited')=> ActExcited() =C=> complete
+
+            complete: ParentCompletes()
+        }
+
+
     class CmdPlayNotes(PlayNotes):
         def start(self, event):
             print(event.data)
@@ -262,6 +290,7 @@ class Celeste(StateMachineProgram):
         dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
 	dispatch =D(re.compile('#flash '))=> self.CmdFlash() =CNext=> dispatch
 	dispatch =D(re.compile('#emoji '))=> self.CmdEmoji() =CNext=> dispatch
+	dispatch =D(re.compile('#act '))=> self.CmdAct() =CNext=> dispatch
 	dispatch =D(re.compile('#playnotes '))=> self.CmdPlayNotes() =CNext=> dispatch
         dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
             AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
