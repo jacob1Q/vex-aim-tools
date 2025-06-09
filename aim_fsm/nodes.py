@@ -391,6 +391,14 @@ class PlaySoundFile(ActionNode):
 class PlayNotes(ActionNode):
     DURATION = 200 # msecs
 
+    convert_flat = {'Ab' : 'G#',
+                    'Bb' : 'A#',
+                    'Cb' : 'B',
+                    'Db' : 'C#',
+                    'Eb' : 'D#',
+                    'Fb' : 'E',
+                    'Gb' : 'F#'}
+
     def __init__(self, score='C5'):
         super().__init__()
         self.score = score
@@ -414,6 +422,14 @@ class PlayNotes(ActionNode):
             super().complete()
         else:
             note = self.note_list[self.index]
+            # convert flats to sharps
+            if len(note) >= 3 and note[1] == 'b':
+                if note[0] == 'C':
+                    octave = note[2] if note[2] in '5678' else '1'
+                    note = 'B' + str(int(octave)-1) + note[3:]
+                else:
+                    note = self.convert_flat[note[0:2]] + note[2:]
+            # handle note duration
             if note[-2:] == '__':
                 pitch = note[0:-2]
                 duration = self.DURATION * 4
@@ -426,6 +442,7 @@ class PlayNotes(ActionNode):
             else:
                 pitch = note
                 duration = self.DURATION
+            # validate note and play if valid, else complain
             if pitch[0] in 'ABCDEFG' and \
                ( len(pitch) == 2 and pitch[1] in '5678' ) or \
                ( len(pitch) == 3 and pitch[1] == '#' and pitch[2] in '5678'):
