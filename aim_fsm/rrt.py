@@ -488,6 +488,8 @@ class RRT():
             path.append(node)
         if path[-1].parent is not None:
             path[-1].q = path[-1].parent.q
+        else:
+            path[-1].q = 0
         return path
 
 
