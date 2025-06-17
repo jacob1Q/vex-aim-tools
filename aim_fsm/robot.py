@@ -85,7 +85,7 @@ class Robot():
         if heading > 180:
             heading = heading - 360
         theta = heading / 180 * pi
-        # self.pose = PoseEstimate(self.robot0.get_y(), -self.robot0.get_x(), 0, theta)
+        # self.pose = PoseEstimate(self.robot0.get_y(), -self.robot0.get_x_position(), 0, theta)
 
         self.battery_percentage = self.status['battery']
         self.update_actuators()
@@ -143,13 +143,15 @@ class Robot():
         gyro = self.status['gyro_rate']
         x = float(gyro['x'])
         y = float(gyro['y'])
-        gyro_threshold = 15
+        gyro_threshold = 40
         pitch = self.robot0.inertial.get_pitch()
         roll = self.robot0.inertial.get_roll()
-        attitude_threshold = 4
+        attitude_threshold = 8
         if abs(x) > gyro_threshold or abs(y) > gyro_threshold or \
            abs(pitch) > attitude_threshold or abs(roll) > attitude_threshold:
-            #print(f"*** Gyro  x:{x}  y:{y}  pitch:{pitch}  roll:{roll}")
+            if not self.was_picked_up:
+                print(f"=== [Gyro  x: {x}  y: {y}  threshold: {gyro_threshold}]   " +
+                      f"[Inertial  pitch: {pitch}  roll: {roll}  threshold: {attitude_threshold}]")
             return True
         else:
             if self.was_picked_up:
@@ -161,6 +163,9 @@ class Robot():
 
     def ask_gpt(self, query_text):
         self.openai_client.query(query_text)
+
+    def gpt_note_for_later(self,text):
+        self.openai_client.note_for_later(text)
 
     def send_gpt_camera(self, instruction=None):
         self.openai_client.send_camera_image(instruction=instruction)
@@ -174,12 +179,12 @@ class Robot():
     def show_pose(self):
         def neaten(x):
             return round(x*10)/10
-        print(f'Odometry:  {neaten(self.robot0.get_y())}, ' +
-              f'{neaten(-self.robot0.get_x())} ' +
-              f'heading {neaten(wrap_angle_deg(-self.robot0.get_heading()))} deg.', end='')
-        print(f'   [ Roll: {neaten(self.robot0.get_roll())}  ' +
-              f'Pitch: {neaten(self.robot0.inertial.get_pitch())}  ' +
-              f'Yaw: {neaten(self.robot0.inertial.get_yaw())} ]')
+        print(f'Odometry:  {self.robot0.get_y_position():.1f}, ' +
+              f'{-self.robot0.get_x_position():.1f} ' +
+              f'heading {wrap_angle_deg(-self.robot0.inertial.get_heading()):.1f} deg.', end='')
+        print(f'   [ Roll: {self.robot0.inertial.get_roll():.1f}  ' +
+              f'Pitch: {self.robot0.inertial.get_pitch():.1f}  ' +
+              f'Yaw: {self.robot0.inertial.get_yaw():.1f} ]')
         pf_pose = self.particle_filter.update_pose_estimate()
         var = self.particle_filter.update_pose_variance()
         print(f'Particles: {neaten(pf_pose.x)}, ' +
@@ -190,4 +195,4 @@ class Robot():
         print()
 
     def print_raw_odometry(self):
-        print(f'x={self.robot0.get_x()} y={self.robot0.get_y()} hdg={self.robot0.get_heading()}')
+        print(f'x={self.robot0.get_x_position()} y={self.robot0.get_y_position()} hdg={self.robot0.inertial.get_heading()}')

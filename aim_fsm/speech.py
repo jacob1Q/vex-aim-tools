@@ -3,6 +3,7 @@ from flask_cors import CORS
 import webbrowser
 import threading
 import os
+import sys
 import logging
 
 from .thesaurus import Thesaurus
@@ -85,7 +86,7 @@ class SpeechListener():
 
     def handle_utterance(self, utterance):
         if self.enabled and self.paused:
-                print('Discarded:', utterance)
+                print('Discarded:', utterance, flush=True)
         if self.paused or not self.enabled:
             return
         print("Raw utterance: '%s'" % utterance)
@@ -94,6 +95,7 @@ class SpeechListener():
         words = self.thesaurus.substitute_phrases(words)
         string = " ".join(words)
         print("Heard: '%s'" % string)
+        sys.stdout.flush()
         if len(string) == 0:
             return
         event = SpeechEvent(string, words)

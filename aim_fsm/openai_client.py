@@ -38,6 +38,9 @@ class OpenAIClient():
         self.messages.append({'role': 'user', 'content': query_text})
         self.robot.loop.call_soon_threadsafe(self.launch_openai_query)
 
+    def note_for_later(self, text):
+        self.messages.append({'role': 'system', 'content': text})
+
     def camera_query(self, query_text):
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
         swapped_colors = cv2.cvtColor(self.robot.camera_image, cv2.COLOR_RGB2BGR)

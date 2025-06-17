@@ -99,6 +99,7 @@ def cli_loop(_robot):
             running_fsm = aim_fsm.program.running_fsm
             readline.write_history_file(histfile)
             try:
+                sys.stdout.flush()
                 cli_loop._line = cli_loop._console.raw_input('C> ').strip()
             except KeyboardInterrupt:
                 process_interrupt()

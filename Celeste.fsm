@@ -12,6 +12,9 @@ new_preamble = """
   You have six color LEDs evenly spaced around your body.
   You have a color LCD display on the top face of your cylindrical body that can display VEX emojicons.
   The list of {len(emoji_list)} VEX emojicons you can display is: {emoji_list}. Please remember this list.
+  A human might pick you up and later put you back down.
+  When you are picked up, you cannot move or see, but you can still talk.
+  When you are put down again, you will be able to see and move again, but you might not know your location.
 
   BODY CONTROL SECTION.
   Here is how to control your body:
@@ -75,6 +78,20 @@ new_preamble = """
 """
 
 class Celeste(StateMachineProgram):
+
+    def picked_up_celeste(self):
+        self.robot.gpt_note_for_later("You have been picked up.")
+
+    def put_down_celeste(self):
+        self.stop_children()
+        self.robot.gpt_note_for_later("You were picked up but have now been put down.")
+        self.children['putdown'].start()
+
+    def start(self):
+        self.robot.openai_client.set_preamble(new_preamble)
+        self.picked_up_handler = self.picked_up_celeste
+        self.put_down_handler = self.put_down_celeste
+        super().start()
 
     class CheckResponse(StateNode):
         def start(self, event):
@@ -264,12 +281,10 @@ class Celeste(StateMachineProgram):
         self.text = event.data
         super().start(event)
         
-    def start(self):
-        self.robot.openai_client.set_preamble(new_preamble)
-        super().start()
-
     $setup{
         Say("Talk to me") =C=> loop
+
+        putdown: Say(["I'm good", "Okay then", "I'm back", "Now then"]) =C=> loop
 
         loop: StateNode() =Hear()=> AskGPT() =OpenAITrans()=> check
 

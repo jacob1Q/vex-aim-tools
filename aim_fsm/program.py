@@ -84,8 +84,8 @@ class StateMachineProgram(StateNode):
         self.launch_particle_viewer = launch_particle_viewer
         self.particle_viewer_scale = particle_viewer_scale
         self.launch_path_viewer = launch_path_viewer
-        #self.picked_up_callback = self.robot_picked_up
-        self.put_down_handler = self.robot_put_down
+        self.picked_up_handler = self.robot_picked_up_default
+        self.put_down_handler = self.robot_put_down_default
 
         self.aruco = aruco
         self.aruco_marker_size = aruco_marker_size
@@ -188,6 +188,7 @@ class StateMachineProgram(StateNode):
                 self.robot.robot0.sound.play(vex.SoundType.HUAH, 50)
                 self.robot.particle_filter.delocalize()
                 self.robot.was_picked_up = True
+                self.picked_up_handler()
         elif self.robot.was_picked_up:
             self.robot.was_picked_up = False
             self.robot.robot0.inertial.calibrate()
@@ -199,7 +200,10 @@ class StateMachineProgram(StateNode):
             self.robot.particle_filter.move()
             self.robot.particle_filter.look_for_new_landmarks()
                 
-    def robot_put_down(self):
+    def robot_picked_up_default(self):
+        pass
+
+    def robot_put_down_default(self):
         pass
 
     def user_image(self,image,gray): pass
