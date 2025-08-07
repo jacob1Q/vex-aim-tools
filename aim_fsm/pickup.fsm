@@ -37,8 +37,12 @@ class PickUp(ActionNode,ObjectSpecNode):
     class SetHolding(StateNode):
         def start(self,event=None):
             super().start(event)
-            self.robot.holding = self.parent.object
-            self.parent.object.held_by = self.robot
+            if self.robot.robot0.has_any_barrel() or self.robot.robot0.has_sports_ball():
+                self.robot.holding = self.parent.object
+                self.parent.object.held_by = self.robot
+                self.post_completion()
+            else:
+                self.post_failure()
 
     class Pickup_PilotToObject(PilotToObject):
         def start(self,event=None):
@@ -54,19 +58,21 @@ class PickUp(ActionNode,ObjectSpecNode):
                 self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius + 5
             else:
                 self.distance_mm = 15
+            print(f'Pickup_Forward: robot moving {self.distance_mm :0.1f} mm from', self.robot.pose)
             super().start(event)
 
     $setup{
-        # check StartCollides
-        # drop object if carrying
-        # path plan to object
-        # check object is visible; fail if not
-        # pick up
-        # verify object held
+        # Pickup machine:
+        #   check StartCollides
+        #   drop object if carrying
+        #   path plan to object (PilotToObject)
+        #   check object is visible; fail if not
+        #   pick up
+        #   verify object held
 
         check_start: PilotCheckStart()
-        check_start =F=> Print("Start collides!") =N=> Forward(-50) =C=> check_holding
         check_start =S=> check_holding
+        check_start =F=> Print("Start collides!") =N=> Forward(-50) =C=> check_holding
 
         check_holding: CheckHolding()
         check_holding =F=> plan
@@ -77,8 +83,12 @@ class PickUp(ActionNode,ObjectSpecNode):
         plan =PILOT(GoalCollides)=> ParentPilotEvent()
 
         forward: self.Pickup_Forward()
-        forward =C=> self.SetHolding() =N=> ParentCompletes()
+        forward =C=> set_hold
         forward =F=> ParentFails()
+
+        set_hold: self.SetHolding()
+        set_hold =C=> ParentCompletes()
+        set_hold =F=> ParentFails()
         }
 
 ################ Drop ################

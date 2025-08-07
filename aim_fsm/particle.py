@@ -421,7 +421,7 @@ class ParticleFilter():
 
     def resample(self):
         # Compute and normalize the cdf; make local pointers for faster access.
-        #print('resampling...')
+        print('resampling...')
         exp_weights = self.exp_weights
         cdf = self.cdf
         cumsum = 0
@@ -469,8 +469,9 @@ class ParticleFilter():
             p.theta = theta
             p.log_weight = 0.0
             p.weight = 1.0
+        self.motion_model.last_pose = None
         self.state = ParticleFilter.LOCALIZED
-        self.update_pose_variance()
+        self.update_pose_variance()  # this will first update the pose estimate
 
     def look_for_new_landmarks(self): pass  # SLAM only
 

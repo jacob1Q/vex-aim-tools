@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import time
 import datetime
 import cv2
 
@@ -33,7 +34,8 @@ class WorldObject():
             vis = "missing"
         else:
             vis = "unseen"
-        return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f})>'
+        held = " held" if self.held_by else ""
+        return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f}){held}>'
 
     def update_matched_object(self,robot):
         "Update the matched world_map object with info from this candidate."
@@ -119,7 +121,6 @@ class ArucoMarkerObj(WorldObject):
         
 
 class WallObj(WorldObject):
-
 
     def __init__(self, wall_spec, x=0, y=0, z=0, theta=0):
         super().__init__(x=x, y=y, z=z, theta=theta)
@@ -216,7 +217,8 @@ class WorldMap():
         """Turn off visibility of objects when the robot is moving.  We won't
         turn it back on until the robot has stopped AND we have processed a new
         camera frame so visibilities are updated."""
-        self.visibility_paused = value
+        if self.visibility_paused != value:
+            self.visibility_paused = value
 
     def update(self):
         self.updated_objects = []
@@ -598,13 +600,19 @@ class WorldMap():
             self.confirm_not_holding()
 
     def confirm_still_holding(self):
+        MIN_UNHOLDING_TIME = 0.5  # seconds
+        t = time.time()
         if (isinstance(self.robot.holding, BarrelObj) and self.robot.robot0.has_any_barrel()) or \
             (isinstance(self.robot.holding, SportsBallObj) and self.robot.robot0.has_sports_ball()):
-                return
+            self.last_held_time = t
         else:
-            print('No longer holding', self.robot.holding)
-            self.robot.holding.held_by = None
-            self.robot.holding = None
+            if t - self.last_held_time > MIN_UNHOLDING_TIME:
+                # held object has been gone long enough
+                print('No longer holding', self.robot.holding)
+                self.robot.holding.held_by = None
+                self.robot.holding = None
+            else:
+                pass # wait a bit to see if held object comes back
 
     def confirm_not_holding(self):
         if not (self.robot.robot0.has_any_barrel() or self.robot.robot0.has_sports_ball()):

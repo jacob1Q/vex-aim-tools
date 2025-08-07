@@ -183,7 +183,7 @@ class Pose():
         self.origin_id = origin_id
 
     def __repr__(self):
-        theta = f' theta={self.theta:.1f} deg.' if self.theta else ''
+        theta = f' theta={self.theta*180/pi : .1f} deg.' if self.theta else ''
         return f'<Pose x={self.x:.1f} y={self.y:.1f} z={self.z:.1f}{theta} origin_id={self.origin_id}>'
 
     def __sub__(self, other):
@@ -241,5 +241,5 @@ class PoseEstimate(Pose):
             self.theta = self.kf_theta.update(new_pose.theta)
 
     def __repr__(self):
-        return f'<PoseEstimate x={neaten(self.x)} y={neaten(self.y)} z={neaten(self.z)} theta={neaten(self.theta*180/pi)} deg. origin_id={self.origin_id}>'
-
+        theta = f' theta={self.theta*180/pi : .1f} deg.' if self.theta else ''
+        return f'<PoseEstimate x={self.x:.1f} y={self.y:.1f} z={self.z:.1f}{theta} origin_id={self.origin_id}>'

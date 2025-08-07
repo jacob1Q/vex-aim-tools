@@ -194,7 +194,8 @@ class Forward(ActionNode):
         self.drive_speed = drive_speed
     
     def start(self, event=None):
-        if isinstance(event,DataEvent) and  isinstance(event.data, (int,float)):
+        if isinstance(event,DataEvent) and isinstance(event.data, (int,float)) and \
+           not isinstance(event.data, bool):  # True and False are also ints
             self.distance_mm = event.data
         super().start(event)
         self.robot.actuators['drive'].forward(self, self.distance_mm, self.drive_speed)
@@ -219,7 +220,8 @@ class Sideways(ActionNode):
         self.drive_speed = drive_speed
     
     def start(self, event=None):
-        if isinstance(event,DataEvent) and isinstance(event.data, (int,float)):
+        if isinstance(event,DataEvent) and isinstance(event.data, (int,float)) and \
+           not isinstance(event.data, bool):
             self.distance_mm = event.data
         super().start(event)
         self.robot.actuators['drive'].sideways(self, self.distance_mm, self.drive_speed)
@@ -232,7 +234,8 @@ class Turn(ActionNode):
         self.turn_speed = turn_speed
 
     def start(self, event=None):
-        if isinstance(event,DataEvent) and isinstance(event.data, (int,float)):
+        if isinstance(event,DataEvent) and isinstance(event.data, (int,float)) and \
+           not isinstance(event.data, bool):
             self.angle_deg = event.data
         super().start(event)
         self.robot.actuators['drive'].turn(self, self.angle_deg*pi/180, self.turn_speed)

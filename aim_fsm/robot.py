@@ -37,6 +37,7 @@ class Robot():
         self.pose = Pose(0,0,0,0)
         self.loop = loop
         self.holding = None   # object being held
+        self.last_held_time = 0
         self.camera = Camera()
         self.kine = AIMKinematics(self)
         self.world_map = WorldMap(self)
@@ -95,7 +96,7 @@ class Robot():
         else:
             if self.frame_count > self.moving_frame + 1:
                 self.world_map.update()
-                # turn in visibility AFTER we've processed a camera frame
+                # turn on visibility AFTER we've processed a camera frame
                 self.world_map.pause_visibility(False)
         t = self.status['touch_flags']
         if self.touch != t:
@@ -146,7 +147,7 @@ class Robot():
         gyro_threshold = 40
         pitch = self.robot0.inertial.get_pitch()
         roll = self.robot0.inertial.get_roll()
-        attitude_threshold = 8
+        attitude_threshold = 8  # degrees
         if abs(x) > gyro_threshold or abs(y) > gyro_threshold or \
            abs(pitch) > attitude_threshold or abs(roll) > attitude_threshold:
             if not self.was_picked_up:

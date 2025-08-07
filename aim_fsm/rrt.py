@@ -28,15 +28,15 @@ class RRTNode():
 
     def __repr__(self):
         if self.q is None:
-            return '<RRTNode (%.1f,%.1f)>' % (self.x, self.y)
+            return '<RRTNode (%.1f, %.1f)>' % (self.x, self.y)
         elif not self.parent:
-            return '<RRTNode (%.1f,%.1f)@%d deg>' % \
+            return '<RRTNode (%.1f, %.1f)@%d deg>' % \
                    (self.x, self.y, round(self.q/pi*180))
         elif self.radius is None:
-            return '<RRTNode line to (%.1f,%.1f)@%d deg>' % \
+            return '<RRTNode line to (%.1f, %.1f)@%d deg>' % \
                    (self.x, self.y, round(self.q/pi*180))
         else:
-            return '<RRTNode arc to (%.1f,%.1f)@%d deg, rad=%d>' % \
+            return '<RRTNode arc to (%.1f, %.1f)@%d deg, rad=%d>' % \
                    (self.x, self.y, round(self.q/pi*180), self.radius)
 
 
@@ -303,6 +303,7 @@ class RRT():
         """Smooth a path by picking random subsequences and replacing
         them with a direct link if there is no collision."""
         smoothed_path = self.path
+        print('smoothing path of length', len(smoothed_path))
         for _ in range(0,len(smoothed_path)):
             L = len(smoothed_path)
             if L <= 2: break
@@ -320,10 +321,13 @@ class RRT():
             turn_angle = wrap_angle(new_q - cur_q)
             if abs(turn_angle) <= self.max_turn:
                 result = self.try_linear_smooth(smoothed_path,i,j,cur_x,cur_y,new_q,dist)
+                #print('linear smooth: length', len(result) if result else '--')
             else:
                 result = self.try_arc_smooth(smoothed_path,i,j,cur_x,cur_y,cur_q)
+                #print('arc smooth: length', len(result) if result else '--')
             smoothed_path = result or smoothed_path
         self.path = smoothed_path
+        #print('final smoothed length', len(smoothed_path) if smoothed_path else '--')
 
     def try_linear_smooth(self,smoothed_path,i,j,cur_x,cur_y,new_q,dist):
         step_x = self.step_size * cos(new_q)

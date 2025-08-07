@@ -103,6 +103,7 @@ class PilotBase(StateNode):
                     dx = dest.x - pose.x
                     dy = dest.y - pose.y
                     angle_rads = wrap_angle(atan2(dy,dx) - pose.theta)
+                    print(f'Pilot TurnStep turning by {angle_rads*180/pi : .1f} deg.')
                     self.robot.actuators['drive'].turn(self, angle_rads)
                     
             class ForwardStep(ActionNode):
@@ -142,7 +143,7 @@ class PilotBase(StateNode):
 
                 turn: self.TurnStep() =C=> forward
 
-                forward: self.ForwardStep() =C=> next
+                forward: self.ForwardStep() =C=> next # Print('tm to continue drive...') =TM=> next
 
             }
 
@@ -174,6 +175,7 @@ class PilotBase(StateNode):
                 super().start()
 
             $setup{
+                # PilotExecutePlan.ExecuteDoorPass machine
                 doorpass: StateNode()  # dummy to be replaced by start() due to circularity
                 doorpass =C=> ParentCompletes()
                 doorpass =F=> ParentFails()
@@ -223,6 +225,8 @@ class PilotBase(StateNode):
             backup: self.ExecuteBackup()
             backup =C=> next
             backup =F=> ParentFails()
+
+            #next: Print('tm to continue...') =TM=> next2
 
             next: self.NextStep()
             next =S=> dispatch
@@ -803,6 +807,8 @@ class DoorPass(StateNode):
             super().start(event)
 
     $setup{
+        # DoorPass machine
+
         check_start: PilotCheckStartDetail()
         check_start =S=> travel_to_gate1 # turn_to_gate1
         check_start =D=> away_from_collide

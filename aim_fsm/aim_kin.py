@@ -10,8 +10,9 @@ from .rrt_shapes import *
 body_diameter = 57 # mm
 robot_height = 72 # mm
 kicker_extension = 15 # mm
-camera_angle = 18 # degrees (design spec)
-camera_angle = 23 # degrees (measured)
+camera_tilt = 18 # degrees downward (design spec)
+camera_tilt = 26.032 # degrees downward (measured for DST's robot)
+camera_tilt = 25 # degrees downward (estimated)
 camera_height = 43.47 # mm
 camera_from_origin = 27 # mm (approx distance from robot's center)
 
@@ -42,16 +43,16 @@ class AIMKinematics(Kinematics):
         # camera dummy: located above base frame but oriented correctly.
         #
         # Two similar triangles: the smaller one is determined by
-        # camera_height and camera_angle; its apex is located at the
+        # camera_height and camera_tilt; its apex is located at the
         # camera.  The larger triangle's apex is directly above the
         # base frame origin.
         y1 = camera_height
-        x1 =  y1 / tan(camera_angle*pi/180)
+        x1 =  y1 / tan(camera_tilt*pi/180)
         x2 = x1 + camera_from_origin
-        y2 = x2 * tan(camera_angle*pi/180)
+        y2 = x2 * tan(camera_tilt*pi/180)
         camera_dummy = Joint('camera_dummy', parent=base_frame,
                              description='Camera dummy joint located above base frame',
-                             d=y2, theta=-pi/2, alpha=-(90+camera_angle)*pi/180)
+                             d=y2, theta=-pi/2, alpha=-(90+camera_tilt)*pi/180)
 
         # camera frame: origin is at the actual camera; x axis points
         # right, y points down, z points forward

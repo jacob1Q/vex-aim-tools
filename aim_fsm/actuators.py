@@ -63,7 +63,7 @@ class DriveActuator(Actuator):
         # Bad timing can cause a just-started node to complete prematurely;
         # must wait until robot is seen to be moving before considering
         # looking for a stopped-moving status.
-        if self.robot.robot0.is_move_active() or self.robot.robot0.is_turn_active():
+        if not self.robot.robot0.is_stopped():
             self.started = True
         elif self.holder and self.started:
             self.holder.complete()
@@ -77,6 +77,7 @@ class DriveActuator(Actuator):
             turntype = vex.TurnType.LEFT
         else:
             turntype = vex.TurnType.RIGHT
+        self.robot.world_map.pause_visibility()
         self.robot.robot0.turn_for(turntype, abs(angle_rads)*180/pi,
                                    turn_speed, vex.TurnVelocityUnits.DPS, False)
 
@@ -84,6 +85,7 @@ class DriveActuator(Actuator):
         self.lock(node)
         self.started = False
         angle_forward = 0
+        self.robot.world_map.pause_visibility()
         self.robot.robot0.move_for(distance_mm, angle_forward,
                                    drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
@@ -91,6 +93,7 @@ class DriveActuator(Actuator):
         self.lock(node)
         self.started = False
         angle_leftward = -90
+        self.robot.world_map.pause_visibility()
         self.robot.robot0.move_for(distance_mm, angle_leftward,
                                    drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
@@ -103,6 +106,7 @@ class DriveActuator(Actuator):
     def move_for(self, node, distance_mm, angle_deg, drive_speed=None):
         self.lock(node)
         self.started = False
+        self.robot.world_map.pause_visibility()
         self.robot.robot0.move_for(distance_mm, -angle_deg,
                                    drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
@@ -195,7 +199,7 @@ class KickActuator(Actuator):
         self.robot.robot0.kicker.kick(kicktype)
         self.robot.loop.call_soon_threadsafe(self.set_delayed_completion)
 
-    def place(self, node, kicktype):
+    def place(self, node):
         self.lock(node)
         self.robot.robot0.kicker.place()
         self.robot.loop.call_soon_threadsafe(self.set_delayed_completion)
