@@ -97,17 +97,25 @@ class DriveActuator(Actuator):
         self.robot.robot0.move_for(distance_mm, angle_leftward,
                                    drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
-    def move(self, node, distance_mm, angle_rads, drive_speed=None, turn_speed=None):
-        self.lock(node)
-        self.started = False
-        self.robot.robot0.move_for(distance_mm, angle_rads*180/pi,
-                                   drive_speed, vex.DriveVelocityUnits.MMPS, False)
-
     def move_for(self, node, distance_mm, angle_deg, drive_speed=None):
         self.lock(node)
         self.started = False
         self.robot.world_map.pause_visibility()
         self.robot.robot0.move_for(distance_mm, -angle_deg,
+                                   drive_speed, vex.DriveVelocityUnits.MMPS, False)
+
+    def move_at(self, node, angle_deg, drive_speed=None):
+        self.lock(node)
+        self.started = False
+        self.robot.world_map.pause_visibility()
+        self.robot.robot0.move_at(-angle_deg, drive_speed, vex.DriveVelocityUnits.MMPS)
+
+
+    def move(self, node, distance_mm, angle_rads, drive_speed=None, turn_speed=None):
+        self.lock(node)
+        self.started = False
+        self.robot.world_map.pause_visibility()
+        self.robot.robot0.move_for(distance_mm, angle_rads*180/pi,
                                    drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
 

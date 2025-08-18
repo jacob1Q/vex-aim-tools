@@ -201,18 +201,6 @@ class Forward(ActionNode):
         self.robot.actuators['drive'].forward(self, self.distance_mm, self.drive_speed)
 
 
-class MoveFor(ActionNode):
-    def __init__(self, distance_mm=0, angle_deg=0, drive_speed=None):
-        super().__init__()
-        self.distance_mm = distance_mm
-        self.angle_deg = angle_deg
-        self.drive_speed = drive_speed
-
-    def start(self, event=None):
-        super().start(event)
-        self.robot.actuators['drive'].move_for(self, self.distance_mm, self.angle_deg, self.drive_speed)
-
-
 class Sideways(ActionNode):
     def __init__(self, distance_mm=0, drive_speed=None):
         super().__init__()
@@ -239,6 +227,29 @@ class Turn(ActionNode):
             self.angle_deg = event.data
         super().start(event)
         self.robot.actuators['drive'].turn(self, self.angle_deg*pi/180, self.turn_speed)
+
+
+class MoveFor(ActionNode):
+    def __init__(self, distance_mm=0, angle_deg=0, drive_speed=None):
+        super().__init__()
+        self.distance_mm = distance_mm
+        self.angle_deg = angle_deg
+        self.drive_speed = drive_speed
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['drive'].move_for(self, self.distance_mm, self.angle_deg, self.drive_speed)
+
+
+class MoveAt(ActionNode):
+    def __init__(self, angle_deg=0, drive_speed=None):
+        super().__init__()
+        self.angle_deg = angle_deg
+        self.drive_speed = drive_speed
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['drive'].move_at(self, self.angle_deg, self.drive_speed)
 
 
 class DrivePath(ActionNode):

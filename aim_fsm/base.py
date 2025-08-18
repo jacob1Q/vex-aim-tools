@@ -231,8 +231,7 @@ class Transition(EventListener):
 
     def fire(self,event=None):
         """Shut down source nodes and schedule start of destination nodes.
-        Lets the stack unwind by returning before destinations are started.
-        Delay also gives time for Cozmo action cancellation to take effect."""
+        Lets the stack unwind by returning before destinations are started."""
         if not self.running: return
         if TRACE.trace_level >= TRACE.transition_fire:
             if event == None:
@@ -243,8 +242,7 @@ class Transition(EventListener):
         for src in self.sources:
             src.stop()
         self.stop()
-        action_cancel_delay = 0.01  # wait for source node action cancellations to take effect
-        self.handle = self.robot.loop.call_later(action_cancel_delay, self.fire2, event)
+        self.handle = self.robot.loop.call_soon(self.fire2, event)
 
     def fire2(self,event):
         if self.handle is None:
