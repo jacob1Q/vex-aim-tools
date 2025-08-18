@@ -118,6 +118,12 @@ class DriveActuator(Actuator):
         self.robot.robot0.move_for(distance_mm, angle_rads*180/pi,
                                    drive_speed, vex.DriveVelocityUnits.MMPS, False)
 
+    def spin_wheels(self, node, left_vel, right_vel, back_vel):
+        self.lock(node)
+        self.started = False
+        self.robot.world_map.pause_visibility()
+        self.robot.robot0.spin_wheels(left_vel, right_vel, back_vel)
+
 
 class SoundActuator(Actuator):
     def __init__(self, robot):

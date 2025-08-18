@@ -116,6 +116,10 @@ class Robot():
         if self.particle_filter and reset_particles:
             self.particle_filter.set_pose(x,y,theta)
 
+    def abort_all_actions(self):
+        self.robot0.stop_all_movement()
+        self.clear_actuators()
+
     def update_actuators(self):
         for act in self.actuators.values():
             act.status_update()

@@ -173,6 +173,7 @@ class AbortAllActions(StateNode):
         self.robot.abort_all_actions()
         self.post_completion()
 
+
 class ActionNode(StateNode):
     def unlock_held_actuators(self):
         for actuator in self.robot.actuators.values():
@@ -249,7 +250,26 @@ class MoveAt(ActionNode):
 
     def start(self, event=None):
         super().start(event)
-        self.robot.actuators['drive'].move_at(self, self.angle_deg, self.drive_speed)
+        self.change_motion(self.angle_deg, self.drive_speed)
+
+    def change_motion(self, angle_deg, drive_speed=None):
+        self.angle_deg = angle_deg
+        self.drive_speed = drive_speed
+        if self.running:
+            self.robot.actuators['drive'].move_at(self, angle_deg, drive_speed)
+        else:
+            self.start()
+
+class SpinWheels(ActionNode):
+    def __init__(self, left_vel=0, right_vel=0, back_vel=0):
+        super().__init__()
+        self.left_vel = left_vel
+        self.right_vel = right_vel
+        self.back_vel = back_vel
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['drive'].spin_wheels(self, self.left_vel, self.right_vel, self.back_vel)
 
 
 class DrivePath(ActionNode):
