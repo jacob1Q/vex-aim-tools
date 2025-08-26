@@ -111,14 +111,14 @@ class DriveActuator(Actuator):
         self.robot.robot0.move_at(-angle_deg, drive_speed, vex.DriveVelocityUnits.MMPS)
 
 
-    def move(self, node, distance_mm, angle_rads, drive_speed=None, turn_speed=None):
+    def move_with_vectors(self, node, xvel, yvel, rvel):
         self.lock(node)
         self.started = False
         self.robot.world_map.pause_visibility()
-        self.robot.robot0.move_for(distance_mm, angle_rads*180/pi,
-                                   drive_speed, vex.DriveVelocityUnits.MMPS, False)
+        self.robot.robot0.move_with_vectors(xvel, yvel, rvel)
 
     def spin_wheels(self, node, left_vel, right_vel, back_vel):
+        print('*** spin_wheels is deprecated and is going away ***')
         self.lock(node)
         self.started = False
         self.robot.world_map.pause_visibility()

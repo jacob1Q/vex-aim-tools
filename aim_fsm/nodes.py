@@ -260,6 +260,19 @@ class MoveAt(ActionNode):
         else:
             self.start()
 
+class MoveWithVectors(ActionNode):
+    def __init__(self, xvel=0, yvel=0, rvel=0):
+        "xvel, yvel, rvel are percentages from -100 to 100)"
+        super().__init__()
+        self.xvel = xvel
+        self.yvel = yvel
+        self.rvel = rvel
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.actuators['drive'].move_with_vectors(self, self.xvel, self.yvel, self.rvel)
+
+
 class SpinWheels(ActionNode):
     def __init__(self, left_vel=0, right_vel=0, back_vel=0):
         super().__init__()
