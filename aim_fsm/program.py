@@ -157,7 +157,7 @@ class StateMachineProgram(StateNode):
 
         if self.launch_path_viewer:
             if not self.robot.path_viewer:
-                self.robot.path_viewer = PathViewer(self.robot, self.robot.rrt)
+                self.robot.path_viewer = PathViewer(self.robot)
             self.robot.path_viewer.start()
 
         if self.speech:

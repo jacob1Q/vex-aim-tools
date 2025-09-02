@@ -549,14 +549,12 @@ class PilotFrustration(StateNode):
 
 
     $setup{
-        launcher: AbortAllActions() =N=> StopAllMotors() =N=> {speak, turn}
+        launcher: AbortAllActions() =N=> {speak, turn}
 
         speak: self.SayObject()
 
         turn: StateNode() =RND=> {left, right}
-
         left: Turn(5) =C=> left2: Turn(-5)
-
         right: Turn(-5) =C=> right2: Turn(5)
 
         {speak, left2, right2} =C(2)=> done

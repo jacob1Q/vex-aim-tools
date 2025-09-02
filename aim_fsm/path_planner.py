@@ -10,7 +10,7 @@ from .base import StateNode
 from .utils import Pose
 from .events import DataEvent, PilotEvent
 from .pilot0 import NavPlan, NavStep
-from .worldmap import WorldObject, BarrelObj, SportsBallObj, AprilTagObj, DoorwayObj, ArucoMarkerObj
+from .worldmap import WorldObject, BarrelObj, SportsBallObj, AprilTagObj, DoorwayObj, ArucoMarkerObj, RoomObj
 from .rrt import RRT, RRTNode, StartCollides, GoalCollides, GoalUnreachable
 from .wavefront import WaveFront
 from .geometry import wrap_angle, segment_intersect_test
@@ -93,10 +93,14 @@ class PathPlanner():
             goal_shape = RRT.generate_barrel_obstacle(goal_object, 0)
         elif isinstance(goal_object, SportsBallObj):
             goal_shape = RRT.generate_ball_obstacle(goal_object, 0)
+        elif isinstance(goal_object, AprilTagObj):
+            goal_shape = RRT.generate_apriltag_obstacle(goal_object, 0)
         elif isinstance(goal_object, DoorwayObj):
             goal_shape = RRT.generate_doorway_obstacle(goal_object,0)
         elif isinstance(goal_object, ArucoMarkerObj):
             goal_shape = RRT.generate_aruco_obstacle(goal_object, 0)
+        elif isinstance(goal_object, RoomObj):
+            goal_shape = RRT.generate_room_obstacle(goal_object)
         else:
             raise ValueError("Can't convert path planner goal %s to shape." % goal_object)
 

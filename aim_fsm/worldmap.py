@@ -189,6 +189,31 @@ class DoorwayObj(WorldObject):
         else:
             return '<DoorwayObj %s: position unknown>' % self.id
 
+class RoomObj(WorldObject):
+    def __init__(self, name,
+                 points=np.resize(np.array([0,0,0,1]),(4,4)).transpose(),
+                 floor=1, door_ids=[], connections=[]):
+        "points should be four points in homogeneous coordinates forming a convex polygon"
+        id = 'Room-' + name
+        self.name = name
+        x,y,z,s = points.mean(1)
+        super().__init__(id,x,y)
+        self.points = points
+        self.floor = floor
+        self.door_ids = door_ids
+        self.connections = connections
+        self.is_obstacle = False
+        self.is_fixed = True
+
+    def __repr__(self):
+        return '<RoomObj %s: (%.1f,%.1f) floor=%s>' % (self.id, self.x, self.y, self.floor)
+
+    def get_bounding_box(self):
+        mins = self.points.min(1)
+        maxs = self.points.max(1)
+        return ((mins[0],mins[1]), (maxs[0],maxs[1]))
+
+
 ################################################################
 
 class WorldMap():
