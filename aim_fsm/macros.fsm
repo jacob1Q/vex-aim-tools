@@ -33,7 +33,9 @@ class ActHappy(ActionNode):
           MoveFor(1, -90)                                             =CNext=> loop
 	loop =C=> finish
 
-        finish: Glow(vex.Color.TRANSPARENT) =T(0.5)=> ParentCompletes()
+        finish: Glow(vex.Color.TRANSPARENT)                           =T(0.5)=>
+	ShowEmoji()                                                   =N=>
+	ParentCompletes()
 
     }
 
@@ -61,6 +63,7 @@ class ActSad(ActionNode):
 
         StateNode()                                                   =T(0.5)=>
         Glow(vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)           =N=>
+        ShowEmoji()                                                   =N=>
         ParentCompletes()
     }
 
@@ -100,6 +103,7 @@ class ActSilly(ActionNode):
 
         finish: ShowEmoji(vex.EmojiType.SILLY)                        =N=>
           Glow(vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)         =N=>
+            ShowEmoji()                                               =N=>
             ParentCompletes()
     }
 
@@ -123,6 +127,7 @@ class ActAngry(ActionNode):
 
         finish: StateNode()                                           =T(0.5)=>
         Glow(vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)           =N=>
+        ShowEmoji()                                                   =N=>
         ParentCompletes()
     }
 
@@ -155,5 +160,6 @@ class ActExcited(ActionNode):
         finish: ShowEmoji(vex.EmojiType.EXCITED)                      =N=>
         Glow(vex.Color.TRANSPARENT)                                   =N=>
         StateNode()                                                   =T(0.5)=>
+        ShowEmoji()                                                   =N=>
         ParentCompletes()        
     }

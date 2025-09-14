@@ -415,14 +415,13 @@ class Say(ActionNode):
 
 
 class PlaySound(ActionNode):
-    def __init__(self, sound=vex.SoundType.DOORBELL, volume=100):
+    def __init__(self, sound=vex.SoundType.DOORBELL):
         self.sound = sound
-        self.volume = volume
         super().__init__()
 
     def start(self,event=None):
         super().start(event)
-        self.robot.actuators['sound'].play_sound(self, self.sound, self.volume)
+        self.robot.actuators['sound'].play_sound(self, self.sound)
 
 
 class PlaySoundFile(ActionNode):
@@ -636,7 +635,7 @@ class ShowEmoji(ActionNode):
 class HideEmoji(ActionNode):
     def start(self, event=None):
         super().start(event)
-        self.robot.actuators['display'].hide_emoji()
+        self.robot.actuators['display'].hide_emoji(self)
         self.complete()
 
 
