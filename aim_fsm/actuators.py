@@ -182,7 +182,7 @@ class SoundActuator(Actuator):
                 tts.save(speech_file_path)
             self.robot.speech_listener.pause()
             try:
-                self.robot.robot0.sound.play_local_file(speech_file_path)
+                self.robot.robot0.sound.play_local_file(speech_file_path, self.robot.sound_volume)
             except vex.aim.InvalidSoundFileException:   # file too long
                 print("*** Speech too long. Truncating...")
                 text = text[0:len(text)//2]
