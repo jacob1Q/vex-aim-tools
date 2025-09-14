@@ -34,6 +34,7 @@ class Robot():
         self.robot0.inertial.calibrate()
         self.robot0.inertial.set_heading(0)
         self.robot0.set_xy_position(0,0)
+        self.sound_volume = 100
         self.pose = Pose(0,0,0,0)
         self.loop = loop
         self.holding = None   # object being held
@@ -107,6 +108,12 @@ class Robot():
                                      self.status['touch_y'],
                                      self.status['touch_flags'])
             self.erouter.post(touch_event)
+
+    def set_sound_volume(self, volume):
+        if isinstance(volume,int) and volume >= 0 and volume <= 100:
+            self.sound_volume = volume
+        else:
+            raise ValueError(f'Volume must be an integer from 0 to 100, not \'{volume}\'')
 
     def set_pose(self, x, y, z, theta, reset_particles=True):
         self.pose = PoseEstimate(x, y, z, theta)

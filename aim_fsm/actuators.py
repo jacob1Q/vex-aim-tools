@@ -189,17 +189,17 @@ class SoundActuator(Actuator):
                 continue
             return            
 
-    def play_sound(self, node, sound, volume=100):
+    def play_sound(self, node, sound):
         self.lock(node)
-        self.robot.robot0.sound.play(sound, volume)
+        self.robot.robot0.sound.play(sound, self.robot.sound_volume)
 
     def play_sound_file(self, node, filepath):
         self.lock(node)
-        self.robot.robot0.sound.play_local_file(filepath)
+        self.robot.robot0.sound.play_local_file(filepath, self.robot.sound_volume)
 
     def play_note(self, node, pitch, duration):
         self.lock(node)
-        self.robot.robot0.sound.play_note(pitch, duration)
+        self.robot.robot0.sound.play_note(pitch, duration, self.robot.sound_volume)
 
 
 class KickActuator(Actuator):
