@@ -55,10 +55,11 @@ class PickUp(ActionNode,ObjectSpecNode):
                 robot_radius = 30
                 dx = self.parent.object.pose.x - self.robot.pose.x
                 dy = self.parent.object.pose.y - self.robot.pose.y
-                self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius + 5
+                self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius + 10
+                print(f'Pickup_Forward: robot moving {self.distance_mm :0.1f} mm from {self.robot.pose} to {self.parent.object.pose}')
             else:
-                self.distance_mm = 15
-            print(f'Pickup_Forward: robot moving {self.distance_mm :0.1f} mm from', self.robot.pose)
+                self.distance_mm = 35
+                print(f'Pickup_Forward: robot moving blind {self.distance_mm :0.1f} mm from {self.robot.pose}')
             super().start(event)
 
     $setup{

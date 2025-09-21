@@ -316,9 +316,9 @@ class PilotToObject(PilotBase):
         check =S=> orient
         check =F=> Print("NavPlan failed to reach goal: trying again") =N=> planner
 
-        orient: self.OrientToObject() =C=> StateNode() =T(0.5)=> center
+        orient: self.OrientToObject() =C=> Print("Pilot OrientToObject completes") =T(0.5)=> center
 
-        center: self.CenterTheObject() =C=> ParentCompletes()
+        center: self.CenterTheObject() =C=> Print("Pilot CenterTheObject completes") =N=> ParentCompletes()
     }
 
 #---------------- PilotToPose ----------------

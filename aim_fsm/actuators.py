@@ -60,12 +60,16 @@ class DriveActuator(Actuator):
         self.robot.robot0.stop_all_movement()
 
     def status_update(self):
-        # Bad timing can cause a just-started node to complete prematurely;
-        # must wait until robot is seen to be moving before considering
-        # looking for a stopped-moving status.
+        # Bad timing can cause a just-started motion node to appear to
+        # have completed because the robot isn't moving yet; we must
+        # wait until robot is seen to be moving before considering
+        # looking for a stopped-moving status to detect completion.
         if not self.robot.robot0.is_stopped():
-            self.started = True
-        elif self.holder and self.started:
+            self.started = True  # started moving, not wait for completion
+            if self.holder:
+                print('drive actuator moving robot for', self.holder)
+        elif self.holder and self.started:  # robot has just stopped; signal completion
+            print('drive actuator signaling completion to', self.holder)
             self.holder.complete()
             self.holder = None
             self.started = False
