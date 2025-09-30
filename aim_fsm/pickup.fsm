@@ -40,8 +40,10 @@ class PickUp(ActionNode,ObjectSpecNode):
             if self.robot.robot0.has_any_barrel() or self.robot.robot0.has_sports_ball():
                 self.robot.holding = self.parent.object
                 self.parent.object.held_by = self.robot
+                print('Robot now holding', self.parent.object)
                 self.post_completion()
             else:
+                print('Failed to hold', self.parent.object)
                 self.post_failure()
 
     class Pickup_PilotToObject(PilotToObject):

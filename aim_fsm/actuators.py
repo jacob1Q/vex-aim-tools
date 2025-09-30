@@ -67,7 +67,7 @@ class DriveActuator(Actuator):
         if not self.robot.robot0.is_stopped():
             self.started = True  # started moving, not wait for completion
             if self.holder:
-                print('drive actuator moving robot for', self.holder)
+                pass # print('drive actuator moving robot for', self.holder)
         elif self.holder and self.started:  # robot has just stopped; signal completion
             print('drive actuator signaling completion to', self.holder)
             self.holder.complete()
