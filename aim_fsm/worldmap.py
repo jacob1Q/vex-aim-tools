@@ -104,7 +104,7 @@ class AprilTagObj(WorldObject):
 
 class ArucoMarkerObj(WorldObject):
     def __init__(self, spec, x=0, y=0, z=0, theta=0):
-        super().__init__(x, y, z, theta)
+        super().__init__(x=x, y=x, z=z, theta=theta)
         self.name = spec['name']
         self.marker_id = spec['id']
         self.marker = spec['marker']
@@ -197,7 +197,7 @@ class RoomObj(WorldObject):
         id = 'Room-' + name
         self.name = name
         x,y,z,s = points.mean(1)
-        super().__init__(id,x,y)
+        super().__init__(id=id, x=x, y=y)
         self.points = points
         self.floor = floor
         self.door_ids = door_ids
@@ -206,7 +206,7 @@ class RoomObj(WorldObject):
         self.is_fixed = True
 
     def __repr__(self):
-        return '<RoomObj %s: (%.1f,%.1f) floor=%s>' % (self.id, self.x, self.y, self.floor)
+        return '<RoomObj %s: (%.1f,%.1f) floor=%s>' % (self.id, self.pose.x, self.pose.y, self.floor)
 
     def get_bounding_box(self):
         mins = self.points.min(1)
