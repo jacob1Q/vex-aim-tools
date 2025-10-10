@@ -201,11 +201,11 @@ class Celeste(StateMachineProgram):
             if ',' not in pattern_step:
                 lights = getattr(vex.Color, pattern_step, vex.Color.TRANSPARENT)
             else:
-                numeric_items = [int(i) for i in re.findall('\d+', pattern_step)]
+                numeric_items = [int(i) for i in re.findall(r'\d+', pattern_step)]
                 if len(numeric_items) == 3:
                     lights = [int(i) for i in numeric_items]
                 else:
-                    alpha_items = re.findall('\w+', pattern_step)
+                    alpha_items = re.findall(r'\w+', pattern_step)
                     lights = [getattr(vex.Color, c, vex.Color.TRANSPARENT) for c in alpha_items]
             if isinstance(lights, list):
                 if (len(lights) == 3 and all(isinstance(v,int) for v in lights)) or \
