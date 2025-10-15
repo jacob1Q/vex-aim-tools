@@ -225,6 +225,7 @@ class WorldMap():
         self.missing_objects = []
         self.shared_objects = dict()
         self.name_counts = dict()  # For generating new object names
+        self.last_held_time = -1
         self.visibility_paused = False
 
     def __repr__(self):
