@@ -82,6 +82,7 @@ class DriveActuator(Actuator):
         else:
             turntype = vex.TurnType.RIGHT
         self.robot.world_map.pause_visibility()
+        print(f'actuator turn_for({turntype}, {abs(angle_rads)*180/pi}, {turn_speed}, {vex.TurnVelocityUnits.DPS}, {False})')
         self.robot.robot0.turn_for(turntype, abs(angle_rads)*180/pi,
                                    turn_speed, vex.TurnVelocityUnits.DPS, False)
 
@@ -250,10 +251,10 @@ class LEDsActuator(Actuator):
 
 class DisplayActuator(Actuator):
     EMOJI_NAMES =  [key for (key,value) in vars(vex.EmojiType).items()
-                    if isinstance(value, vex.EmojiType.EmojiType)]
+                    if isinstance(value, vex.EmojiType)]
 
     EMOJI_VALUES = [v for v in vars(vex.EmojiType).values()
-                    if isinstance(v, vex.EmojiType.EmojiType)]
+                    if isinstance(v, vex.EmojiType)]
 
     def __init__(self, robot):
         super().__init__(robot, 'display')
