@@ -120,7 +120,7 @@ class DriveActuator(Actuator):
         self.lock(node)
         self.started = False
         self.robot.world_map.pause_visibility()
-        self.robot.robot0.move_with_vectors(xvel, yvel, rvel)
+        self.robot.robot0.move_with_vectors(xvel, -yvel, -rvel)
 
     def spin_wheels(self, node, left_vel, right_vel, back_vel):
         print('*** spin_wheels is deprecated and is going away ***')
