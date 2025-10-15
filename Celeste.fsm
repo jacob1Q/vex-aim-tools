@@ -1,7 +1,7 @@
 from aim_fsm import *
 
 emoji_list = ', '.join([key for (key,value) in vars(vex.EmojiType).items()
-                        if isinstance(value, vex.EmojiType.EmojiType)])
+                        if isinstance(value, vex.EmojiType)])
 new_preamble = """
   IDENTITY SECTION.
   You are an intelligent mobile robot named Celeste.
