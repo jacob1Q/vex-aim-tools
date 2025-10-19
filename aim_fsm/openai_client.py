@@ -20,8 +20,10 @@ class OpenAIClient():
     def __init__(self, robot, model='gpt-4o'):
         self.robot = robot
         self.model = model
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        if openai.api_key:
+        env_key = os.getenv("OPENAI_API_KEY")
+        if env_key:
+            openai.api_key = env_key
+        if openai.api_key:  # may have been set by parent program if not by env_key
             self.client = openai.OpenAI()
         else:
             print("*** No OPENAI_API_KEY provided.  GPT will not be available.")
