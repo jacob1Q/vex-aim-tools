@@ -3,6 +3,7 @@ import os
 from math import pi
 
 from gtts import gTTS
+import google.cloud
 from google.cloud import texttospeech
 
 import vex
@@ -137,7 +138,11 @@ class SoundActuator(Actuator):
         self.playing = False
         # Google text to speech setup:
         try:
-            self.tts_client = texttospeech.TextToSpeechClient()
+            creds = getattr(google.cloud, 'api_credentials', None)
+            print(f'creds = {creds}')
+            # If no credentials, will look in GOOGLE_APPLICATION_CREDENTIALS environment var
+            self.tts_client = texttospeech.TextToSpeechClient(credentials = creds)
+            print(f'tts_client = {self.tts_client}')
             self.tts_voice = texttospeech.VoiceSelectionParams(
                 language_code="en-US",
                 name="en-US-Journey-F",
