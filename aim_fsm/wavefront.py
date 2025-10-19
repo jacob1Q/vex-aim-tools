@@ -105,7 +105,9 @@ class WaveFront():
             empty_points, goal_points = self.generate_room_goal_points(shape, default_offset)
         elif shape.obstacle_id.startswith('Aruco'):
             empty_points, goal_points = self.generate_aruco_goal_points(shape)
-        else:   # barrels, balls
+        elif shape.obstacle_id.startswith('AprilTag'):
+            empty_points, goal_points = self.generate_rectangular_goal_points(shape)
+        else:   # barrels, sports balls
             empty_points, goal_points = self.generate_round_goal_points(shape)
         for pt in empty_points:
             self.set_empty_cell(*pt)
@@ -113,6 +115,13 @@ class WaveFront():
         for pt in goal_points:
             self.set_goal_cell(*pt)
             #self.set_goal_cell(*rotate_point(point, shape.center[0:2,0], shape.orient))
+
+    def generate_rectangular_goal_points(self, shape):
+        EXTRA_GAP = 15
+        center_x, center_y = shape.center[0,0], shape.center[1,0]
+        empty_points = []
+        goal_points = polygon_fill(Polygon(shape.vertices))
+        return empty_points, goal_points
 
     def generate_round_goal_points(self, shape):
         EXTRA_GAP = 15
