@@ -120,7 +120,7 @@ class WaveFront():
         EXTRA_GAP = 15
         center_x, center_y = shape.center[0,0], shape.center[1,0]
         empty_points = []
-        goal_points = polygon_fill(Polygon(shape.vertices))
+        goal_points = polygon_fill(Polygon(shape.vertices), 10)
         return empty_points, goal_points
 
     def generate_round_goal_points(self, shape):
