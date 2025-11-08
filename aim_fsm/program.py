@@ -23,7 +23,6 @@ from .utils import Pose
 from .particle_viewer import ParticleViewer
 from .rrt import RRT
 from .path_viewer import PathViewer
-from . import opengl
 #from . import custom_objs
 #from .perched import *
 #from .sharedmap import *
@@ -157,7 +156,7 @@ class StateMachineProgram(StateNode):
 
         if self.launch_path_viewer:
             if not self.robot.path_viewer:
-                self.robot.path_viewer = PathViewer(self.robot)
+                self.robot.path_viewer = PathViewer(self.robot, self.robot.rrt)
             self.robot.path_viewer.start()
 
         if self.speech:
