@@ -1,7 +1,7 @@
 numpy
 Pillow
 opencv-python
-PyOpenGL @ git+https://github.com/mcfletch/pyopengl.git@release-3.1.8#egg=PyOpenGL
+pyqt6
 termcolor
 websocket_client
 flask
