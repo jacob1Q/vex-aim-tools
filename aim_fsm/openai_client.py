@@ -17,9 +17,10 @@ default_preamble = """
 """
 
 class OpenAIClient():
-    def __init__(self, robot, model='gpt-4o'):
+    def __init__(self, robot, model='gpt-4o', use_moderation=False):
         self.robot = robot
         self.model = model
+        self.use_moderation = use_moderation
         env_key = os.getenv("OPENAI_API_KEY")
         if env_key:
             openai.api_key = env_key
@@ -75,15 +76,109 @@ class OpenAIClient():
     def launch_openai_query(self):
         self.robot.loop.create_task(self.openai_query())
 
+    def _trim_history(self, max_messages=200):
+        """
+        Keeps the system prompt (index 0) and the last `max_messages`
+        from the history, to prevent context window overflow.
+        """
+        if len(self.messages) > (max_messages + 1):
+            # Preserves the preamble (self.messages[0])
+            # and appends the last `max_messages` from the history.
+            self.messages = [self.messages[0]] + self.messages[-(max_messages):]
+
+    async def _moderate_text(self, text):
+        """
+        Calls the OpenAI Moderation API.
+        Returns True if flagged, False otherwise.
+        Fails safe (returns True) on error.
+        """
+        if not text:
+            return False  # Do not flag empty strings
+        try:
+            response = self.client.moderations.create(
+                model="omni-moderation-latest",
+                input=text
+            )
+            result = response.results[0]
+            return result.flagged
+        except Exception as e:
+            print(f"*** Moderation API call failed: {e}. Failing safe.")
+            return True  # Fail-safe: assume text is flagged if API fails
+
     async def openai_query(self):
         if self.client is None:
             return
-        response = self.client.chat.completions.create(
-            model = self.model,
-            messages = self.messages
-        )
-        answer = response.choices[0].message.content
+
+        # --- 1. Moderate User Input ---
+        user_query_text = ""
+        # Find the last user message to moderate it
+        if self.messages and self.messages[-1]['role'] == 'user':
+            user_query_content = self.messages[-1]['content']
+            # Handle both string and list content (for images)
+            if isinstance(user_query_content, list):
+                # Find the text part in the list
+                for part in user_query_content:
+                    if part.get('type') == 'text':
+                        user_query_text = part.get('text', '')
+                        break
+            elif isinstance(user_query_content, str):
+                user_query_text = user_query_content
+
+        if user_query_text and self.use_moderation:
+            print('moderate input')
+            user_flagged = await self._moderate_text(user_query_text)
+            if user_flagged:
+                print("*** User input flagged by moderation.")
+                # Remove the flagged user message.
+                self.messages.pop()
+                # Also remove the system world_map prompt that preceded it.
+                if self.messages and self.messages[-1]['role'] == 'system':
+                    self.messages.pop()
+                
+                # Post a canned, safe response and stop.
+                safe_answer = "I'm sorry, I can't talk about that topic."
+                event = OpenAIEvent(safe_answer)
+                self.robot.erouter.post(event)
+                return
+
+        # --- 2. Trim History ---
+        # Call trim_history *after* user check, *before* API call.
+        self._trim_history()
+
+        # --- 3. Call Completion API ---
+        try:
+            response = self.client.chat.completions.create(
+                model = self.model,
+                messages = self.messages
+            )
+            answer = response.choices[0].message.content
+        except Exception as e:
+            print(f"*** OpenAI completion call failed: {e}")
+            # Post a generic error and stop.
+            safe_answer = "I'm sorry, I had trouble generating a response."
+            event = OpenAIEvent(safe_answer)
+            self.robot.erouter.post(event)
+            return
+
+        # --- 4. Moderate Assistant Output ---
+        if self.use_moderation:
+            print('moderate output')
+            assistant_flagged =  await self._moderate_text(answer)
+        else:
+            assistant_flagged = False
+        if assistant_flagged:
+            print("*** Assistant output flagged by moderation.")
+            # Do NOT append the flagged answer to history.
+            # Post a canned, safe response and stop.
+            safe_answer = "I'm sorry, I can't generate a response about that."
+            event = OpenAIEvent(safe_answer)
+            self.robot.erouter.post(event)
+            return
+
+        # --- 5. Process Good Response ---
+        # If both checks pass, append the good answer to history.
         self.messages.append({'role': 'assistant', 'content': answer})
+        
         # remove LaTeX brackets from response
         cleaned_answer = re.sub(r'\\[\[\]\(\)]', '', answer)
         event = OpenAIEvent(cleaned_answer)
