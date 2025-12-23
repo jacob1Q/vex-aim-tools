@@ -25,7 +25,7 @@ class OpenAIClient():
         if env_key:
             openai.api_key = env_key
         if openai.api_key:  # may have been set by parent program if not by env_key
-            self.client = openai.OpenAI()
+            self.client = openai.OpenAI(api_key = openai.api_key)
         else:
             print("*** No OPENAI_API_KEY provided.  GPT will not be available.")
             self.client = None
