@@ -136,12 +136,14 @@ class SoundActuator(Actuator):
         super().__init__(robot, 'sound')
         self.use_gcloud = True
         self.playing = False
+        self.tts_client = None
         # Google text to speech setup:
         try:
             creds = getattr(google.cloud, 'api_credentials', None)
-            print(f'creds = {creds}')
+            google_env = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
             # If no credentials, will look in GOOGLE_APPLICATION_CREDENTIALS environment var
-            self.tts_client = texttospeech.TextToSpeechClient(credentials = creds)
+            if creds or google_env:
+                self.tts_client = texttospeech.TextToSpeechClient(credentials = creds)
             print(f'tts_client = {self.tts_client}')
             self.tts_voice = texttospeech.VoiceSelectionParams(
                 language_code="en-US",
@@ -151,7 +153,10 @@ class SoundActuator(Actuator):
             self.tts_audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.MP3
             )
-        except:  # Cloud text-to-speech failed; use gTTs instead
+        except:
+            pass
+        # Cloud text-to-speech failed; use gTTs instead
+        if self.tts_client is None:
             print('No Google Cloud credentials. Reverting to alternate speech synthesizer.')
             self.use_gcloud = False
 
