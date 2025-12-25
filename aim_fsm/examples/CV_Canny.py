@@ -19,9 +19,6 @@ class CV_Canny(StateMachineProgram):
 
     def start(self):
         super().start()
-        print("\n\nType 'running_fsm.demo_start()' to launch the display.\n")
-
-    def demo_start(self):
         dummy = np.array([[0]], dtype='uint8')
         self.thresholded_image = dummy
         self.edges_image = dummy

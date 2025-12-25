@@ -19,9 +19,6 @@ class CV_Contour(StateMachineProgram):
 
     def start(self):
         super().start()
-        print("\n\nType 'running_fsm.demo_start()' to launch the display.\n")
-
-    def demo_start(self):
         self.contour_image = np.array([[0]*320], dtype='uint8')
         cv2.namedWindow('contour')
         cv2.imshow('contour',self.contour_image)

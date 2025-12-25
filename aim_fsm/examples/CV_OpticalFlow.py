@@ -32,9 +32,6 @@ class CV_OpticalFlow(StateMachineProgram):
         self.colors = np.random.randint(0, 255, (100,3), dtype=np.uint8)
 
         super().start()
-        print("\n\nType 'running_fsm.demo_start()' to launch the display.\n")
-
-    def demo_start(self):
         self.prev_gray = None
         self.good_new = None
         self.mask = None

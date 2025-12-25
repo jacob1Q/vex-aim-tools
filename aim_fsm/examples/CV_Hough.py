@@ -24,9 +24,6 @@ class CV_Hough(StateMachineProgram):
 
     def start(self):
         super().start()
-        print("\n\nType 'running_fsm.demo_start()' to launch the display.\n")
-
-    def demo_start(self):
         cv2.namedWindow('gray')
         cv2.namedWindow('edges')
         cv2.namedWindow('Hough')

@@ -19,9 +19,6 @@ class CV_GoodFeatures(StateMachineProgram):
 
     def start(self):
         super().start()
-        print("\n\nType 'running_fsm.demo_start()' to launch the display.\n")
-
-    def demo_start(self):
         self.colors = np.random.randint(0,255,(101,3),dtype=np.uint8)
         self.features_image = np.array([[0]],dtype='uint8')
 
