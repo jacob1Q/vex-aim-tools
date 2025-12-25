@@ -217,6 +217,8 @@ class StateMachineProgram(StateNode):
             self.robot.aruco_detector.process_image(gray)
         # Other image processors can run here if the user supplies them.
         self.user_image(image,gray)
+        if self.force_annotation and not self.robot.cam_viewer:
+            self.user_annotate(image)
 
 ################
 

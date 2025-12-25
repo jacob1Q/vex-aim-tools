@@ -17,7 +17,8 @@ default_preamble = """
 """
 
 class OpenAIClient():
-    def __init__(self, robot, model='gpt-4o', use_moderation=False):
+    DEFAULT_MODEL = 'gpt-4o'
+    def __init__(self, robot, model=DEFAULT_MODEL, use_moderation=False):
         self.robot = robot
         self.model = model
         self.use_moderation = use_moderation

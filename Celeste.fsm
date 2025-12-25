@@ -26,6 +26,7 @@ new_preamble = """
   To travel to object X, output the string #pilottoobject X" without quotes.
   To pick up object X, output the string "#pickup X" without quotes.
   To drop an object you are holding, output the string "#drop" without quotes.
+  To perform a kick action, output the string "#kick" without quotes.
   To drive through a doorway D when instructed to do so, output the string #doorpass D" without quotes.
   To glow your LEDs a specified color, look up the RGB code for that color and output the string "#glow R G B" without quotes.  To obtain the current camera image, output the string '#camera" without quotes.
   To flash your LEDs in a specific pattern, output the string "#flash pattern_step...", 
@@ -67,9 +68,27 @@ new_preamble = """
   Pronounce 'Wall-2.a' as "Wall 2".
   Pronounce "Doorway-2:0.a" as "Doorway 2".
 
+  DOMINO SECTION.
+  The dots on a domino are called pips.
+  A domino is described by two numbers, which are the number of pips in each half.
+  When describing a domino, state the larger number first, e.g., "a six three domino".
+  Never describe a domino with the smaller number first, e.g., never say "a three six domino".
+  If the two numbers are the same, e.g. both are four, say either "a double four domino" or "a four four domino".
+  If there are no pips present, that is called a "blank", e.g., "a four blank domino".
+  For a single pip, the pip is black.
+  For a group of three pips, the pips are always purple.
+  For a group of four pips, the pips are always blue.
+  For a group of six pips, the pips are always brown.
+  For a group of two or five pips, the pips are always green.
+  If you see a black pip, that pip is always a group of one.
+  If you see purple pips, that group always has three pips.
+  If you see blue pips, that group always has four pips.
+  If you see brown pips, that group always has six pips.
+
   GENERAL ADVICE SECTION.
   Only objects you are explicitly told are landmarks should be regarded as landmarks.
   Remember to be concise in your answers.
+  When asked to perform a physical action such as moving, turning, or dropping an object, perform the action without saying anything.
   Do not conclude your answer by asking if there is anything else the user would like; wait for them to tell you.
   Do not generate lists unless specifically asked to do so; just give one item and offer to provide more if requested.
   Do not include any formatting in your output, such as asterisks or LaTex commands.  Use plain text only.
@@ -213,7 +232,17 @@ class Celeste(StateMachineProgram):
           print('Picking up', self.object_spec)
           super().start(None)
 
-    class CmdDrop(Drop):
+    class CmdDrop(StateNode):
+      def start(self,event):
+          print(event.data)
+          super().start(event)
+      $setup{
+          drop: Drop()
+          drop =F=> ParentCompletes()
+          drop =C=> ParentCompletes()
+          }
+
+    class CmdKick(SoftKick):  
       def start(self,event):
           print(event.data)
           super().start(event)
@@ -247,11 +276,11 @@ class Celeste(StateMachineProgram):
             if ',' not in pattern_step:
                 lights = getattr(vex.Color, pattern_step, vex.Color.TRANSPARENT)
             else:
-                numeric_items = [int(i) for i in re.findall('\d+', pattern_step)]
+                numeric_items = [int(i) for i in re.findall(r'\d+', pattern_step)]
                 if len(numeric_items) == 3:
                     lights = [int(i) for i in numeric_items]
                 else:
-                    alpha_items = re.findall('\w+', pattern_step)
+                    alpha_items = re.findall(r'\w+', pattern_step)
                     lights = [getattr(vex.Color, c, vex.Color.TRANSPARENT) for c in alpha_items]
             if isinstance(lights, list):
                 if (len(lights) == 3 and all(isinstance(v,int) for v in lights)) or \
@@ -348,6 +377,7 @@ class Celeste(StateMachineProgram):
         dispatch =D(re.compile('#doorpass '))=> doorpass
         dispatch =D(re.compile('#pickup '))=> pickup
         dispatch =D(re.compile('#drop$'))=> self.CmdDrop() =CNext=> dispatch
+        dispatch =D(re.compile('#kick$'))=> self.CmdKick() =CNext=> dispatch
         dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
 	dispatch =D(re.compile('#flash '))=> self.CmdFlash() =CNext=> dispatch
 	dispatch =D(re.compile('#emoji '))=> self.CmdEmoji() =CNext=> dispatch
