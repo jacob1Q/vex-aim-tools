@@ -11,7 +11,7 @@ from .evbase import Event
 from .events import SpeechEvent
 
 
-app = Flask('VEX AIM')
+app = Flask('VEX AIM Speech Listener')
 CORS(app)  # This will enable CORS for all routes
 
 session_id = None
@@ -85,9 +85,10 @@ class SpeechListener():
         self.paused = False
 
     def handle_utterance(self, utterance):
-        if self.enabled and self.paused:
-                print('Discarded:', utterance, flush=True)
-        if self.paused or not self.enabled:
+        if not self.enabled or len(utterance) == 0:
+            return
+        elif self.paused:
+            print('Discarded:', utterance, flush=True)
             return
         print("Raw utterance: '%s'" % utterance)
         utterance = utterance.strip().lower()

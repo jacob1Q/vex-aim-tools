@@ -33,14 +33,14 @@ class PathPlanner():
 
     # Note: the obstacle inflation parameter is a radius, not a diameter.
 
-    # Fat obstacles for the wavefefront algorithm because the robot
-    # itself is treated as a point.
+    # We need fat obstacles for the wavefefront algorithm because the
+    # robot itself is treated as a point.
     fat_obstacle_inflation = 40  # must be << pilot's escape_distance
     fat_wall_inflation = 35
     fat_doorway_adjustment = -62
 
-    # Skinny obstacles for the RRT are skinny because we model the
-    # robot's shape explicitly.
+    # We use skinny obstacles for the RRT because we model the robot's
+    # shape explicitly, so it's not just a point.
     skinny_obstacle_inflation = 15
     skinny_wall_inflation = 10
     skinny_doorway_adjustment = 0
@@ -104,8 +104,10 @@ class PathPlanner():
         else:
             raise ValueError("Can't convert path planner goal %s to shape." % goal_object)
 
-        robot_parts = robot.rrt.make_robot_parts(robot)
+        robot.rrt.goal_obstacle = goal_shape
         bbox = robot.rrt.compute_bounding_box()
+
+        robot_parts = robot.rrt.make_robot_parts(robot)
 
         if use_doorways:
             doorway_list = robot.world_map.generate_doorway_list()
@@ -311,7 +313,7 @@ class PathPlanner():
         plan = NavPlan([step1, step2])
         return plan
 
-class PathPlanToObjectNode(StateNode):
+class PathPlanToObject(StateNode):
     "goal_spec is either a WorldObject or a string (object id)"
     def __init__(self, goal_spec=None):
         super().__init__()
@@ -320,7 +322,7 @@ class PathPlanToObjectNode(StateNode):
     def start(self,event=None):
         super().start(event)
         if isinstance(event, DataEvent):
-            print('PathPlanToObjectNode got', event)
+            print('PathPlanToObject got', event)
             if isinstance(event.data, (WorldObject, str)):
                 self.goal_spec = event.data
             else:

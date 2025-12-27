@@ -1,5 +1,7 @@
 from aim_fsm import *
 
+CELESTE_VERSION = "1.4"
+
 emoji_list = ', '.join([key for (key,value) in vars(vex.EmojiType).items()
                         if isinstance(value, vex.EmojiType)])
 new_preamble = """
@@ -64,7 +66,7 @@ new_preamble = """
   PRONUNCIATION SECTION.
   Pronounce "AprilTag-1.a" as "April Tag 1-A", and similarly for any word of form "AprilTag-N.x".
   Pronounce "OrangeBarrel.a" as "Orange Barrel A", pronounce "BlueBarrel.b" as "Blue Barrel B", and similarly for other barrel designators.
-  Prounounce "ArucoMarkerObj-2.a" as "Marker 2".
+  Prounounce "ArucoMarker-2.a" as "Marker 2".
   Pronounce 'Wall-2.a' as "Wall 2".
   Pronounce "Doorway-2:0.a" as "Doorway 2".
 
@@ -83,6 +85,7 @@ new_preamble = """
   If you see a black pip, that pip is always a group of one.
   If you see purple pips, that group always has three pips.
   If you see blue pips, that group always has four pips.
+  If you seen green pips, that group has either two or five pips.
   If you see brown pips, that group always has six pips.
 
   GENERAL ADVICE SECTION.
@@ -357,7 +360,7 @@ class Celeste(StateMachineProgram):
         super().start(event)
         
     $setup{
-        Say("Talk to me") =C=> loop
+        Print(f"Celeste version {CELESTE_VERSION}") =N=> Say("Talk to me") =C=> loop
 
         putdown: Say(["I'm good", "Okay then", "I'm back", "Now then"]) =C=> loop
 

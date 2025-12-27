@@ -10,7 +10,7 @@ from .nodes import *
 from .events import PilotEvent
 from .transitions import *
 from .worldmap import WorldObject, DoorwayObj
-from .path_planner import PathPlanner, PathPlanToObjectNode #, PathPlannerProcess
+from .path_planner import PathPlanner, PathPlanToObject #, PathPlannerProcess
 from .particle import *
 from .geometry import *
 from .pilot0 import *
@@ -303,7 +303,7 @@ class PilotToObject(PilotBase):
         launch: self.ClearDisplays() =N=> self.SendObject() =D=> planner
 
         #planner: PathPlannerProcess() =D=> recv
-        planner: PathPlanToObjectNode() =D=> recv
+        planner: PathPlanToObject() =D=> recv
         planner =PILOT=> ParentPilotEvent() =N=> Print('Path planner failed')
 
         recv: self.ReceivePlan() =D=> exec

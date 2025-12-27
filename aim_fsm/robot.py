@@ -12,7 +12,7 @@ from .aim_kin import *
 from .evbase import EventRouter
 from .events import *
 from .actuators import *
-from .speech import SpeechListener
+from .speech_rec import SpeechListener
 from .thesaurus import Thesaurus
 from .openai_client import OpenAIClient
 from .aruco import *

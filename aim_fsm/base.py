@@ -151,7 +151,6 @@ class StateNode(EventListener):
         if not program.running_fsm.running:
             print('Restarting StateMachineProgram')
             program.running_fsm.start()
-        program.running_fsm.children = dict()
         program.running_fsm.children[self.name] = self
         self.robot.loop.call_soon_threadsafe(self.start)
         return self

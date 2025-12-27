@@ -66,9 +66,9 @@ class DriveActuator(Actuator):
         # wait until robot is seen to be moving before considering
         # looking for a stopped-moving status to detect completion.
         if not self.robot.robot0.is_stopped():
-            self.started = True  # started moving, not wait for completion
-            if self.holder:
-                pass # print('drive actuator moving robot for', self.holder)
+            if not self.started:
+                print('drive actuator: robot started moving for', self.holder)
+                self.started = True  # started moving, now wait for completion
         elif self.holder and self.started:  # robot has just stopped; signal completion
             print('drive actuator signaling completion to', self.holder)
             self.holder.complete()
@@ -83,7 +83,7 @@ class DriveActuator(Actuator):
         else:
             turntype = vex.TurnType.RIGHT
         self.robot.world_map.pause_visibility()
-        print(f'actuator turn_for({turntype}, {abs(angle_rads)*180/pi}, {turn_speed}, {vex.TurnVelocityUnits.DPS}, {False})')
+        print(f'actuator turn_for({turntype}, {abs(angle_rads)*180/pi}, {turn_speed}, {vex.TurnVelocityUnits.DPS}, {False}) for {self.holder}')
         self.robot.robot0.turn_for(turntype, abs(angle_rads)*180/pi,
                                    turn_speed, vex.TurnVelocityUnits.DPS, False)
 
@@ -144,7 +144,6 @@ class SoundActuator(Actuator):
             # If no credentials, will look in GOOGLE_APPLICATION_CREDENTIALS environment var
             if creds or google_env:
                 self.tts_client = texttospeech.TextToSpeechClient(credentials = creds)
-            print(f'tts_client = {self.tts_client}')
             self.tts_voice = texttospeech.VoiceSelectionParams(
                 language_code="en-US",
                 name="en-US-Journey-F",

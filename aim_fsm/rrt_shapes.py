@@ -61,7 +61,8 @@ class Circle(Shape):
         xmax = self.center[0,0] + self.radius
         ymin = self.center[1,0] - self.radius
         ymax = self.center[1,0] + self.radius
-        return ((xmin,ymin), (xmax,ymax))
+        return ((float(xmin), float(ymin)), (float(xmax), float(ymax)))
+
 
 class Polygon(Shape):
     def __init__(self, vertices=None, orient=0, obstacle_id=None):
@@ -81,7 +82,7 @@ class Polygon(Shape):
         ymin = mins[1]
         xmax = maxs[0]
         ymax = maxs[1]
-        return ((xmin,ymin), (xmax,ymax))
+        return ((float(xmin), float(ymin)), (float(xmax), float(ymax)))
 
     def collides_poly(self,poly):
         raise NotImplementedError()
