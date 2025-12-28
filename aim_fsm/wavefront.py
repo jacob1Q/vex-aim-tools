@@ -9,12 +9,12 @@ from math import floor, ceil, cos, sin
 from .geometry import wrap_angle, point, rotate_point, aboutZ, polygon_fill, check_concave
 from .rrt import StartCollides
 from .rrt_shapes import *
-from . import aim_kin
 
 class WaveFront():
     goal_marker = 2**31 - 1
 
-    def __init__(self, square_size=5, bbox=None, grid_shape=(150,150), inflate_size=40):
+    def __init__(self, robot, square_size=5, bbox=None, grid_shape=(150,150), inflate_size=40):
+        self.robot = robot
         self.square_size = square_size  # in mm
         self.bbox = bbox  # in mm
         self.inflate_size = inflate_size  # in mm
@@ -126,7 +126,7 @@ class WaveFront():
     def generate_round_goal_points(self, shape):
         EXTRA_GAP = 15
         center_x, center_y = shape.center[0,0], shape.center[1,0]
-        radius = shape.radius + aim_kin.body_diameter/2 + EXTRA_GAP # extra gap so we don't grab the object
+        radius = shape.radius + self.robot.kine.body_diameter/2 + EXTRA_GAP # extra gap so we don't grab the object
         divisions = 24
         empty_points = []
         goal_points = []
@@ -137,7 +137,7 @@ class WaveFront():
 
     def generate_aruco_goal_points(self, shape):
         EXTRA_GAP = 60
-        basic_offset = point(aim_kin.body_diameter/2 + EXTRA_GAP, 0)
+        basic_offset = point(self.robot.kine.body_diameter/2 + EXTRA_GAP, 0)
         rotated_offset = aboutZ(shape.orient).dot(basic_offset)
         offset_center = shape.center + rotated_offset
         center_x, center_y = offset_center[0,0], offset_center[1,0]

@@ -54,7 +54,7 @@ class PickUp(ActionNode,ObjectSpecNode):
     class Pickup_Forward(Forward):
         def start(self, event=None):
             if self.parent.object.is_visible:
-                robot_radius = 30
+                robot_radius = self.robot.kine.body_diameter / 2
                 dx = self.parent.object.pose.x - self.robot.pose.x
                 dy = self.parent.object.pose.y - self.robot.pose.y
                 self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius + 10

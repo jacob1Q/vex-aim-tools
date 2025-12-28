@@ -18,7 +18,7 @@ class PilotCheckStart(StateNode):
         pose = self.robot.pose
         start_node = RRTNode(x=pose.x, y=pose.y, q=pose.theta)
         try:
-            self.robot.rrt.plan_path(start_node,start_node)
+            self.robot.rrt.plan_path(start_node, None)
         except StartCollides as e:
             print('PilotCheckStart: Start collides!',e)
             self.post_event(PilotEvent(StartCollides, args=e.args))

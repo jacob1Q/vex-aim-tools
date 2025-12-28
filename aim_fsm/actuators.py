@@ -70,7 +70,7 @@ class DriveActuator(Actuator):
                 print('drive actuator: robot started moving for', self.holder)
                 self.started = True  # started moving, now wait for completion
         elif self.holder and self.started:  # robot has just stopped; signal completion
-            print('drive actuator signaling completion to', self.holder)
+            # print('drive actuator signaling completion to', self.holder)
             self.holder.complete()
             self.holder = None
             self.started = False

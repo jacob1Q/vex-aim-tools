@@ -7,23 +7,31 @@ from .rrt_shapes import *
 
 # ================ Constants ================
 
-body_diameter = 57 # mm
-robot_height = 72 # mm
-kicker_extension = 15 # mm
 camera_tilt = 18 # degrees downward (design spec)
-camera_tilt = 26.032 # degrees downward (measured for DST's robot)
 camera_tilt = 25 # degrees downward (estimated)
-camera_height = 43.47 # mm
-camera_from_origin = 27 # mm (approx distance from robot's center)
+camera_tilt = 19.2 # degrees downward (measured for AIM-5A888218)
+
+# Camera tilt Measurement procedure:
+#  1. Abut ruler to front edge of robot; align edge of ruler with vertical crosshair.
+#  2. Measure distance d to horizontal crosshair; measure on the ruler surface, not on the table.
+#  3. Calculate camera_tilt = atan2(43.47, d + 30) * 180/pi
+
 
 # ================================================================
 
 class AIMKinematics(Kinematics):
+    body_diameter = 57 # mm
+    robot_height = 72 # mm
+    kicker_extension = 15 # mm
+
+    camera_height = 43.47 # mm
+    camera_from_origin = 27 # mm (approx distance from robot's center)
+
     def __init__(self,robot):
         base_frame = Joint('base',
                            description='Base frame: the root of the kinematic tree',
                            collision_model = Circle(geometry.point(),
-                                                    radius=body_diameter/2,
+                                                    radius = self.body_diameter / 2,
                                                     obstacle_id = 'robot'))
 
         # Use link instead of joint for world_frame
@@ -36,7 +44,7 @@ class AIMKinematics(Kinematics):
                   description='The kicker',
                   d = 0, theta = 0, r = 31, alpha = 0,
                   qmin = 0,
-                  qmax = kicker_extension,
+                  qmax = self.kicker_extension,
                   #collision_model=Circle(geometry.point(), radius=10))
             )
 
@@ -46,9 +54,9 @@ class AIMKinematics(Kinematics):
         # camera_height and camera_tilt; its apex is located at the
         # camera.  The larger triangle's apex is directly above the
         # base frame origin.
-        y1 = camera_height
+        y1 = self.camera_height
         x1 =  y1 / tan(camera_tilt*pi/180)
-        x2 = x1 + camera_from_origin
+        x2 = x1 + self.camera_from_origin
         y2 = x2 * tan(camera_tilt*pi/180)
         camera_dummy = Joint('camera_dummy', parent=base_frame,
                              description='Camera dummy joint located above base frame',

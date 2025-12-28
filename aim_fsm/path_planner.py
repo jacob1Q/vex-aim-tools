@@ -140,7 +140,7 @@ class PathPlanner():
         rrt_instance.obstacles = skinny_obstacles
         start_escape_move = None
 
-        wf = WaveFront(bbox=rrt_instance.bbox)
+        wf = WaveFront(rrt_instance.robot, bbox=rrt_instance.bbox)
         rrt_instance.robot.path_planner.wf = wf
         for obstacle in fat_obstacles:
             wf.add_obstacle(obstacle)
@@ -190,7 +190,7 @@ class PathPlanner():
         for i in range(len(offsets)):
             offset = offsets[i]
             if i > 0:
-                wf = WaveFront(bbox=rrt_instance.bbox)  # need a fresh grid
+                wf = WaveFront(rrt_instance.robot, bbox=rrt_instance.bbox)  # need a fresh grid
             # obstacles come after the goal so they can overwrite goal pixels
             for obstacle in fat_obstacles:
                 wf.add_obstacle(obstacle)

@@ -58,7 +58,7 @@ class RRT():
     def __init__(self, robot=None, robot_parts=None, bbox=None,
                  max_iter=DEFAULT_MAX_ITER, step_size=10, arc_radius=40,
                  xy_tolsq=90, q_tol=5*pi/180,
-                 obstacles=[], auto_obstacles=True,
+                 obstacles=[], auto_obstacles=False,
                  bounds=(range(-500,500), range(-500,500))):
         self.robot = robot
         self.max_iter = max_iter
@@ -179,13 +179,16 @@ class RRT():
             self.generate_obstacles(goal_object, obstacle_inflation, doorway_adjustment)
         self.start = start
         self.goal = goal
-        self.target_heading = goal.q
-        self.compute_bounding_box()
 
         # Check for StartCollides
         collider = self.collides(start)
         if collider:
             raise StartCollides(start,collider,collider.obstacle_id)
+        elif goal is None:
+            return
+
+        self.target_heading = goal.q
+        self.compute_bounding_box()
 
         # Set up treeA with start node
         treeA = [start.copy()]

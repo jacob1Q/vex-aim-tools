@@ -30,7 +30,7 @@ class Robot():
                  launch_speech_listener=True):
         if robot0 is None:
             robot0 = vex.Robot(host=host)
-        signal.signal(signal.SIGINT, lambda : 0)
+        signal.signal(signal.SIGINT, lambda x,y : print(f"--->>> Signal SIGINT"))
         self.robot0 = robot0
         self.robot0.inertial.calibrate()
         self.robot0.inertial.set_heading(0)

@@ -14,15 +14,15 @@ from . import evbase
 
 from .evbase import EventRouter
 from .base import StateNode
-from .cam_viewer import CamViewer
-from .worldmap_viewer import WorldMapViewer
+from viewer.cam_viewer import CamViewer
+from viewer.worldmap_viewer import WorldMapViewer
 from .aruco import *
 from .worldmap import WorldMap
 from .particle import *
 from .utils import Pose
-from .particle_viewer import ParticleViewer
+from viewer.particle_viewer import ParticleViewer
 from .rrt import RRT
-from .path_viewer import PathViewer
+from viewer.path_viewer import PathViewer
 #from . import custom_objs
 #from .perched import *
 #from .sharedmap import *

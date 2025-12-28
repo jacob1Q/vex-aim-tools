@@ -4,7 +4,6 @@ import time
 import datetime
 import cv2
 
-from . import aim_kin
 from .geometry import *
 from .utils import *
 from .camera import AIVISION_RESOLUTION_SCALE
@@ -327,7 +326,7 @@ class WorldMap():
             self.candidates.append(obj)
 
     def make_new_aruco_objects(self):
-        camera_offset_vector = np.array([0, 0, aim_kin.camera_from_origin])
+        camera_offset_vector = np.array([0, 0, self.robot.kine.camera_from_origin])
         for (id,marker) in self.robot.aruco_detector.seen_marker_objects.copy().items():
             name = f'ArucoMarker-{id}'
             spec = {'name': name, 'id': id, 'marker': marker}
@@ -427,7 +426,7 @@ class WorldMap():
         rotationm, jacob = cv2.Rodrigues(rvec)
         euler_angles = rotation_matrix_to_euler_angles(rotationm)
         wall_orient = euler_angles[1]
-        tvec[2][0] += aim_kin.camera_from_origin  # want distance from base frame not camera
+        tvec[2][0] += self.robot.kine.camera_from_origin  # want distance from base frame not camera
 
         sensor_coords = (-tvec[0], -tvec[1], tvec[2])
         sensor_distance = math.sqrt(sensor_coords[0]**2 + sensor_coords[2]**2)
@@ -666,7 +665,7 @@ class WorldMap():
 
     def update_held_object(self):
         if self.robot.holding:
-            r = aim_kin.body_diameter/2 + self.robot.holding.diameter/2
+            r = self.robot.kine.body_diameter/2 + self.robot.holding.diameter/2
             pt = aboutZ(self.robot.pose.theta).dot(point(r,0))
             self.robot.holding.pose.x = self.robot.pose.x + pt[0,0]
             self.robot.holding.pose.y = self.robot.pose.y + pt[1,0]

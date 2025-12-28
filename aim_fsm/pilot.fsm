@@ -426,7 +426,7 @@ class PilotToPose(PilotBase):
             if self.parent.verbose:
                 print('Path planner generated',len(treeA)+len(treeB),'nodes.')
             if self.parent.robot.path_viewer:
-                self.parent.robot.path_viewer.add_tree(path, (1,0,0,0.75))
+                self.parent.robot.path_viewer.add_tree(path, (1, 0, 0, 0.75))
 
             self.robot.rrt.draw_path = path
 
