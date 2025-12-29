@@ -199,7 +199,7 @@ class PathPlanner():
             goal_found = wf.propagate(*wf_start)
             if goal_found: break
             print('Wavefront planning failed with offset', offset)
-        grid_display = None if not need_grid_display else wf.grid
+        grid_display = wf.grid if need_grid_display else None
         if goal_found is None:
             print('PathPlanner wavefront: goal unreachable!')
             return PilotEvent(GoalUnreachable, grid_display=grid_display, text='unreachable')

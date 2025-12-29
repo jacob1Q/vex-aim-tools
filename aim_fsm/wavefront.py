@@ -124,7 +124,7 @@ class WaveFront():
         return empty_points, goal_points
 
     def generate_round_goal_points(self, shape):
-        EXTRA_GAP = 15
+        EXTRA_GAP = 50
         center_x, center_y = shape.center[0,0], shape.center[1,0]
         radius = shape.radius + self.robot.kine.body_diameter/2 + EXTRA_GAP # extra gap so we don't grab the object
         divisions = 24
