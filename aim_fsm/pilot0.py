@@ -10,6 +10,9 @@ from .base import *
 from .rrt import *
 from .events import PilotEvent
 
+
+#---------------- Pilot Exceptions ----------------
+
 class PilotException(Exception):
     def __str__(self):
         return self.__repr__()
@@ -17,6 +20,12 @@ class PilotException(Exception):
 class InvalidPose(PilotException): pass
 class CollisionDetected(PilotException): pass
 class NotLocalized(PilotException): pass
+
+# Note: StartCollides, GoalCollides, and MaxIterations exceptions are defined in rrt.py.
+
+
+
+#---------------- Pilot Utility Nodes ----------------
 
 class PilotCheckStart(StateNode):
     "Fails if rrt planner indicates start_collides"

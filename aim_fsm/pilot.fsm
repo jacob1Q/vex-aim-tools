@@ -16,9 +16,7 @@ from .geometry import *
 from .pilot0 import *
 from .camera import AIVISION_RESOLUTION_SCALE
 
-#---------------- Pilot Exceptions and Events ----------------
-
-# Note: StartCollides, GoalCollides, and MaxIterations exceptions are defined in rrt.py.
+#---------------- Pilot Events ----------------
 
 class ParentPilotEvent(StateNode):
     """Receive a PilotEvent and repost it from the receiver's parent. This allows
