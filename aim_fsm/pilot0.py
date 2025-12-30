@@ -10,6 +10,14 @@ from .base import *
 from .rrt import *
 from .events import PilotEvent
 
+class PilotException(Exception):
+    def __str__(self):
+        return self.__repr__()
+
+class InvalidPose(PilotException): pass
+class CollisionDetected(PilotException): pass
+class NotLocalized(PilotException): pass
+
 class PilotCheckStart(StateNode):
     "Fails if rrt planner indicates start_collides"
 

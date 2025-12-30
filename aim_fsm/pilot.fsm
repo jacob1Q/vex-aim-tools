@@ -18,14 +18,6 @@ from .camera import AIVISION_RESOLUTION_SCALE
 
 #---------------- Pilot Exceptions and Events ----------------
 
-class PilotException(Exception):
-    def __str__(self):
-        return self.__repr__()
-
-class InvalidPose(PilotException): pass
-class CollisionDetected(PilotException): pass
-class NotLocalized(PilotException): pass
-
 # Note: StartCollides, GoalCollides, and MaxIterations exceptions are defined in rrt.py.
 
 class ParentPilotEvent(StateNode):

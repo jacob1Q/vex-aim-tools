@@ -47,7 +47,7 @@ class Robot():
         self.particle_filter = SLAMParticleFilter(self)
         self.particle_viewer = None
         self.rrt = RRT(self)
-        self.path_planner= PathPlanner()
+        self.path_planner= PathPlanner(self)
         self.path_viewer = None
         self.aruco_detector = None
         acts = [DriveActuator(self), SoundActuator(self), KickActuator(self),

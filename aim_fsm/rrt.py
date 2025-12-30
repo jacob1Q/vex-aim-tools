@@ -575,49 +575,49 @@ class RRT():
         return obst
 
     @staticmethod
-    def generate_barrel_obstacle(barrel, obstacle_inflation):
+    def generate_barrel_obstacle(barrel, inflation=0):
         s = Circle(center=geometry.point(barrel.pose.x, barrel.pose.y),
-                   radius = barrel.diameter/2 + obstacle_inflation)
+                   radius = barrel.diameter/2 + inflation)
         s.obstacle_id = barrel.id
         return s
 
     @staticmethod
-    def generate_doorway_obstacle(doorway, obstacle_inflation):
+    def generate_doorway_obstacle(doorway, inflation=0):
         DOORWAY_THICKNESS = 5
         s = Rectangle(center=geometry.point(doorway.pose.x, doorway.pose.y),
-                      dimensions=[doorway.door_width+2*obstacle_inflation, DOORWAY_THICKNESS+2*obstacle_inflation],
+                      dimensions=[doorway.door_width+2*inflation, DOORWAY_THICKNESS+2*inflation],
                       orient=doorway.pose.theta)
         s.obstacle_id = doorway.id
         return s
 
     @staticmethod
-    def generate_ball_obstacle(ball, obstacle_inflation):
+    def generate_ball_obstacle(ball, inflation=0):
         s = Circle(center=geometry.point(ball.pose.x, ball.pose.y),
-                   radius = ball.diameter/2 + obstacle_inflation)
+                   radius = ball.diameter/2 + inflation)
         s.obstacle_id = ball.id
         return s
 
     @staticmethod
-    def generate_aruco_obstacle(aruco, obstacle_inflation):
+    def generate_aruco_obstacle(aruco, inflation=0):
         r = Rectangle(center=geometry.point(aruco.pose.x, aruco.pose.y),
-                      dimensions=[5+obstacle_inflation, ARUCO_MARKER_SIZE+obstacle_inflation],
+                      dimensions=[5+inflation, ARUCO_MARKER_SIZE+inflation],
                       orient=aruco.pose.theta)
         r.obstacle_id = aruco.id
         return r
 
     @staticmethod
-    def generate_apriltag_obstacle(apriltag, obstacle_inflation):
+    def generate_apriltag_obstacle(apriltag, inflation=0):
         r = Rectangle(center=geometry.point(apriltag.pose.x, apriltag.pose.y),
-                      dimensions=[apriltag.base_diameter+2*obstacle_inflation, apriltag.width+2*obstacle_inflation],
+                      dimensions=[apriltag.base_diameter+2*inflation, apriltag.width+2*inflation],
                       orient=apriltag.pose.theta)
         r.obstacle_id = apriltag.id
         return r
 
     @staticmethod
-    def generate_marker_obstacle(obj, obstacle_inflation=0):
+    def generate_marker_obstacle(obj, inflation=0):
         sx,sy,sz = obj.size
         r = Rectangle(center=geometry.point(obj.x+sx/2, obj.y),
-                      dimensions=(sx+2*obstacle_inflation,sy+2*obstacle_inflation),
+                      dimensions=(sx+2*inflation,sy+2*inflation),
                       orient=obj.theta)
         r.obstacle_id = obj.id
         return r
@@ -630,9 +630,9 @@ class RRT():
         return r
 
     @staticmethod
-    def generate_chip_obstacle(obj, obstacle_inflation=0):
-        r = Circle(center=geometry.point(obj.x,obj.y),
-                   radius=obj.radius+obstacle_inflation)
+    def generate_chip_obstacle(obj, inflation=0):
+        r = Circle(center = geometry.point(obj.x,obj.y),
+                   radius= obj.radius + inflation)
         r.obstacle_id = obj.id
         return r
 
@@ -645,9 +645,9 @@ class RRT():
         return r
 
     @staticmethod
-    def generate_mapFace_obstacle(obj, obstacle_inflation=0):
+    def generate_mapFace_obstacle(obj, inflation=0):
         r = Rectangle(center=geometry.point(obj.x,obj.y),
-                      dimensions=[obj.size[0]+2*obstacle_inflation, obj.size[1]+2*obstacle_inflation])
+                      dimensions=[obj.size[0]+2*inflation, obj.size[1]+2*inflation])
         r.obstacle_id = obj.id
         return r
 
@@ -667,12 +667,14 @@ class RRT():
         xmax = xmin
         ymax = ymin
         objs =  self.robot.world_map.objects.values()
-        # Rooms and Aruco markers aren't obstacles, so include them separately.
-        others = [] # [obj for obj in objs if isinstance(obj,(RoomObj, ArucoMarkerObj)]
+        # Rooms and Aruco markers aren't obstacles, so compute them separately.
+        rooms = [self.generate_room_obstacle(obj) for obj in objs if isinstance(obj, RoomObj)]
+        arucos = [self.generate_aruco_obstacle(obj, inflation=0) for obj in objs if isinstance(obj, ArucoMarkerObj)]
+        non_obstacles = rooms + arucos
         # Objects may not be obstacles if they are goal locations, so include them again.
         goals = [self.goal_obstacle] if self.goal_obstacle else []
-        for obj in self.obstacles +  others + goals:
-            ((x0,y0),(x1,y1)) = obj.get_bounding_box()
+        for shape in self.obstacles +  non_obstacles + goals:
+            ((x0,y0),(x1,y1)) = shape.get_bounding_box()
             xmin = min(xmin, x0)
             ymin = min(ymin, y0)
             xmax = max(xmax, x1)

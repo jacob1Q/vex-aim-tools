@@ -9,7 +9,7 @@ from multiprocessing import Process
 from .base import StateNode
 from .utils import Pose
 from .events import DataEvent, PilotEvent
-from .pilot0 import NavPlan, NavStep
+from .pilot0 import NavPlan, NavStep, NotLocalized
 from .worldmap import WorldObject, BarrelObj, SportsBallObj, AprilTagObj, DoorwayObj, ArucoMarkerObj, RoomObj
 from .rrt import RRT, RRTNode, StartCollides, GoalCollides, GoalUnreachable
 from .wavefront import WaveFront
@@ -45,7 +45,8 @@ class PathPlanner():
     skinny_wall_inflation = 10
     skinny_doorway_adjustment = 0
 
-    def __init__(self):
+    def __init__(self, robot):
+        self.robot = robot
         self.wf = None
 
     @staticmethod
@@ -140,8 +141,8 @@ class PathPlanner():
         rrt_instance.obstacles = skinny_obstacles
         start_escape_move = None
 
-        wf = WaveFront(rrt_instance.robot, bbox=rrt_instance.bbox)
-        rrt_instance.robot.path_planner.wf = wf
+        wf = WaveFront(self.robot, bbox=rrt_instance.bbox)
+        self.wf = wf
         for obstacle in fat_obstacles:
             wf.add_obstacle(obstacle)
 
@@ -190,7 +191,7 @@ class PathPlanner():
         for i in range(len(offsets)):
             offset = offsets[i]
             if i > 0:
-                wf = WaveFront(rrt_instance.robot, bbox=rrt_instance.bbox)  # need a fresh grid
+                wf = WaveFront(self.robot, bbox=rrt_instance.bbox)  # need a fresh grid
             # obstacles come after the goal so they can overwrite goal pixels
             for obstacle in fat_obstacles:
                 wf.add_obstacle(obstacle)
