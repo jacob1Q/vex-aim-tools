@@ -23,4 +23,14 @@ from viewer.worldmap_viewer import WorldMapViewer
 from viewer.particle_viewer import ParticleViewer
 from viewer.path_viewer import PathViewer
 
+# PyQt6 imshow() API - cv2-compatible functions
+from viewer import (
+    namedWindow,
+    imshow,
+    waitKey,
+    destroyWindow,
+    destroyAllWindows,
+)
+
+
 del base
