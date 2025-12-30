@@ -22,4 +22,13 @@ from .pickup import *
 from .pilot import *
 from .macros import *
 
+# PyQt6 imshow() API - cv2-compatible functions
+from viewer import (
+    namedWindow,
+    imshow,
+    waitKey,
+    destroyWindow,
+    destroyAllWindows,
+)
+
 del base
