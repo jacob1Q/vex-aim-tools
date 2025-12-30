@@ -141,8 +141,8 @@ class PathPlanner():
         rrt_instance.obstacles = skinny_obstacles
         start_escape_move = None
 
-        wf = WaveFront(self.robot, bbox=rrt_instance.bbox)
-        self.wf = wf
+        wf = WaveFront(rrt_instance.robot, bbox=rrt_instance.bbox)
+        rrt_instance.robot.path_planner.wf = wf
         for obstacle in fat_obstacles:
             wf.add_obstacle(obstacle)
 
