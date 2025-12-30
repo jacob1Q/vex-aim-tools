@@ -19,6 +19,15 @@ __all__ = [
     "SnapshotService",
     "WorldMapModel",
     "WorldMapViewer",
+    # PyQt6 imshow() API
+    "namedWindow",
+    "imshow",
+    "waitKey",
+    "destroyWindow",
+    "destroyAllWindows",
+    "ImshowImageProvider",
+    "ImshowWindow",
+    "WindowManager",
 ]
 
 
@@ -36,6 +45,15 @@ _MODULE_MAP = {
     "SnapshotService": ("viewer.snapshot_service", "SnapshotService"),
     "WorldMapModel": ("viewer.worldmap_model", "WorldMapModel"),
     "WorldMapViewer": ("viewer.worldmap_viewer", "WorldMapViewer"),
+    # PyQt6 imshow() API
+    "namedWindow": ("viewer.imshow_manager", "namedWindow"),
+    "imshow": ("viewer.imshow_manager", "imshow"),
+    "waitKey": ("viewer.imshow_manager", "waitKey"),
+    "destroyWindow": ("viewer.imshow_manager", "destroyWindow"),
+    "destroyAllWindows": ("viewer.imshow_manager", "destroyAllWindows"),
+    "ImshowImageProvider": ("viewer.imshow_provider", "ImshowImageProvider"),
+    "ImshowWindow": ("viewer.imshow_window", "ImshowWindow"),
+    "WindowManager": ("viewer.imshow_manager", "WindowManager"),
 }
 
 
