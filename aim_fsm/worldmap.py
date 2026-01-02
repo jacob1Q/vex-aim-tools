@@ -15,12 +15,12 @@ class WorldObject():
         self.name = name or self.__class__.__name__
         self.matched = None  # matching object from data association
         self.is_fixed = False   # True for walls and markers in predefined maps
-        self.is_obstacle = True
+        self.is_obstacle = True # for path planning
         self.is_visible = is_visible
-        self.is_missing = False
+        self.is_missing = False # expect to see it but we don't
         self.is_valid = True
         self.held_by = None
-        self.is_foreign = False
+        self.is_foreign = False # for shared maps; unused for now
         if is_visible:
             self.pose_confidence = +1
         else:
@@ -43,7 +43,8 @@ class WorldObject():
             return
         MIN_MEASUREMENT_NOISE = 5
         measurement_noise = max(MIN_MEASUREMENT_NOISE, math.sqrt(self.sensor_distance)/2)
-        self.matched.pose.update(self.pose, measurement_noise)
+        if self.matched is not robot.holding:  # pose update will be done by update_held_object()
+            self.matched.pose.update(self.pose, measurement_noise)
         if hasattr(self, 'spec'):
             self.matched.spec = self.spec
         if hasattr(self, 'marker'):
@@ -65,7 +66,7 @@ class BarrelObj(WorldObject):
         self.spec = spec
         self.name = spec['name']
         self.diameter = 22 # mm
-        self.height = 25
+        self.height = 25 # mm
 
 class OrangeBarrelObj(BarrelObj):
     pass
@@ -625,7 +626,7 @@ class WorldMap():
             self.confirm_not_holding()
 
     def confirm_still_holding(self):
-        MIN_UNHOLDING_TIME = 0.5  # seconds
+        MIN_UNHOLDING_TIME = 0.75  # seconds
         t = time.time()
         if (isinstance(self.robot.holding, BarrelObj) and self.robot.robot0.has_any_barrel()) or \
             (isinstance(self.robot.holding, SportsBallObj) and self.robot.robot0.has_sports_ball()):
