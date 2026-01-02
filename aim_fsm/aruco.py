@@ -53,6 +53,7 @@ class RobotArucoDetector(object):
         self.disabled_ids = disabled_ids  # disable markers with high false detection rates
         self.ids = []
         self.corners = []
+        self._last_image_shape = None
         self.marker_size = marker_size #these units will be pose est units!!
         self.object_corners = np.array([
             [-marker_size / 2, marker_size / 2, 0],  # Top left
@@ -64,6 +65,7 @@ class RobotArucoDetector(object):
     def process_image(self,gray):
         self.seen_marker_ids = []
         self.seen_marker_objects = dict()
+        self._last_image_shape = gray.shape[:2]
         (self.corners, self.ids, _) = self.detector.detectMarkers(gray)
         if self.ids is None: return
 
@@ -89,9 +91,45 @@ class RobotArucoDetector(object):
             self.seen_marker_ids.append(id)
             self.seen_marker_objects[id] = marker
 
-    def annotate(self, image, scale_factor):
-        scaled_corners = [ np.multiply(corner, scale_factor) for corner in self.corners ]
-        displayim = cv2.aruco.drawDetectedMarkers(image, scaled_corners, self.ids)
+    def _scale_corners(self, scale_x, scale_y):
+        if scale_x == 1.0 and scale_y == 1.0:
+            return self.corners
+        scaled = []
+        for corner in self.corners:
+            scaled_corner = corner.copy()
+            scaled_corner[..., 0] = scaled_corner[..., 0] * scale_x
+            scaled_corner[..., 1] = scaled_corner[..., 1] * scale_y
+            scaled.append(scaled_corner)
+        return scaled
+
+    def annotate(self, image, scale_factor=1):
+        if image is None or self.ids is None or not self.corners:
+            return image
+        if not hasattr(cv2, "aruco"):
+            return image
+
+        height, width = image.shape[:2]
+        scale_x = 1.0
+        scale_y = 1.0
+        if self._last_image_shape is not None:
+            src_h, src_w = self._last_image_shape
+            if src_h and src_w and (src_h != height or src_w != width):
+                scale_x = width / src_w
+                scale_y = height / src_h
+        elif scale_factor not in (None, 1, 1.0):
+            scale_x = float(scale_factor)
+            scale_y = float(scale_factor)
+
+        scaled_corners = self._scale_corners(scale_x, scale_y)
+
+        base = image.copy()
+        overlay = np.zeros_like(base)
+        overlay_bgr = cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
+        cv2.aruco.drawDetectedMarkers(overlay_bgr, scaled_corners, self.ids)
+        overlay_rgb = cv2.cvtColor(overlay_bgr, cv2.COLOR_BGR2RGB)
+        mask = np.any(overlay_rgb != 0, axis=2)
+        base[mask] = overlay_rgb[mask]
+        displayim = base
 
         #add poses currently fails since image is already scaled. How to scale camMat?
         #if(self.ids is not None):

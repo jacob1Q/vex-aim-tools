@@ -14,11 +14,13 @@ from aim_fsm.rrt import RRT
 
 from .help_texts import PATH_HELP_TEXT
 from .path_model import (
+    CircleItem,
     PathNodeModel,
     PathObstacleModel,
     PathPolylineModel,
     PathSceneProvider,
     PathSceneSnapshot,
+    RectangleItem,
     WavefrontTextureProvider,
 )
 
@@ -110,6 +112,8 @@ class PathViewer(QObject):
         self._wavefront_provider = WavefrontTextureProvider()
         self._wavefront_source = ""
         self._wavefront_square_size = 5.0
+        self._wavefront_origin_x = 0.0
+        self._wavefront_origin_y = 0.0
         self._scene_snapshot: PathSceneSnapshot = PathSceneSnapshot.empty()
         self._view_state = PathViewState()
         self._help_text = PATH_HELP_TEXT
@@ -144,6 +148,14 @@ class PathViewer(QObject):
     def wavefrontSquareSize(self) -> float:
         return self._wavefront_square_size
 
+    @pyqtProperty(float, notify=sceneChanged)
+    def wavefrontOriginX(self) -> float:
+        return self._wavefront_origin_x
+
+    @pyqtProperty(float, notify=sceneChanged)
+    def wavefrontOriginY(self) -> float:
+        return self._wavefront_origin_y
+
     @pyqtProperty(str, notify=sceneChanged)
     def statusText(self) -> str:
         return self._scene_snapshot.status_text or ""
@@ -166,6 +178,22 @@ class PathViewer(QObject):
 
     def clear(self) -> None:
         self._scene_provider.clear_extra_trees()
+        rrt = self._rrt or getattr(self._robot, "rrt", None)
+        if rrt is not None:
+            rrt.treeA = []
+            rrt.treeB = []
+            rrt.path = []
+            rrt.draw_path = []
+            rrt.obstacles = []
+            rrt.goal_obstacle = None
+            rrt.grid_display = None
+            rrt.text = None
+        path_planner = getattr(self._robot, "path_planner", None)
+        if path_planner is not None:
+            try:
+                path_planner.wf = None
+            except Exception:
+                pass
         self.refresh()
 
     def add_tree(self, tree, color) -> None:
@@ -195,6 +223,12 @@ class PathViewer(QObject):
         source_key, square_size = self._wavefront_provider.update_frame(snapshot.wavefront)
         self._wavefront_source = f"image://wavefront/{source_key}" if source_key else ""
         self._wavefront_square_size = square_size
+        if snapshot.wavefront is not None:
+            self._wavefront_origin_x = float(snapshot.wavefront.origin_x)
+            self._wavefront_origin_y = float(snapshot.wavefront.origin_y)
+        else:
+            self._wavefront_origin_x = 0.0
+            self._wavefront_origin_y = 0.0
 
         self.sceneChanged.emit()
 
@@ -299,6 +333,36 @@ class PathViewer(QObject):
             return
         if root is not None and hasattr(root, "forceActiveFocus"):
             root.forceActiveFocus()
+
+    @staticmethod
+    def _shape_dict(item: CircleItem | RectangleItem) -> dict:
+        if isinstance(item, CircleItem):
+            return {
+                "type": "circle",
+                "x": float(item.x),
+                "y": float(item.y),
+                "radius": float(item.radius_mm),
+                "width": 0.0,
+                "height": 0.0,
+                "rotation": 0.0,
+                "color": list(item.color_rgba),
+                "filled": bool(item.filled),
+                "tag": item.tag or "",
+            }
+        if isinstance(item, RectangleItem):
+            return {
+                "type": "rectangle",
+                "x": float(item.x),
+                "y": float(item.y),
+                "radius": 0.0,
+                "width": float(item.width_mm),
+                "height": float(item.height_mm),
+                "rotation": float(item.rotation_deg),
+                "color": list(item.color_rgba),
+                "filled": bool(item.filled),
+                "tag": item.tag or "",
+            }
+        return {}
 
     # ------------------------------------------------------------------
     # Data access for QML (temporary getters until models exist)
