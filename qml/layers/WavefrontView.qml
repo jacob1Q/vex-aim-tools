@@ -7,6 +7,8 @@ Item {
     property string source: ""
     property real squareSizeMm: 5.0
     property var viewState: null
+    property real originX: 0.0
+    property real originY: 0.0
     property color backgroundColor: "#0f161f"
     property color borderColor: "#203041"
 
@@ -18,45 +20,74 @@ Item {
         color: backgroundColor
         border.color: borderColor
         border.width: 1
+    }
+
+    Item {
+        id: viewport
+        anchors.fill: parent
+        anchors.margins: 8
+        clip: true
 
         Image {
             id: wavefrontImage
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.verticalCenter: parent.verticalCenter
             source: root.source
-            fillMode: Image.PreserveAspectFit
             smooth: false
             visible: root.source.length > 0
-            width: contentWidth()
-            height: contentHeight()
-
-            function contentWidth() {
-                if (!visible)
-                    return 0;
-                var pxPerMm = root.viewState && root.viewState.zoom !== undefined ? root.viewState.zoom : 0.64;
-                var cellMm = Math.max(1.0, root.squareSizeMm);
-                var imageWidth = sourceSize.width > 0 ? sourceSize.width : implicitWidth;
-                var widthPx = imageWidth * cellMm * pxPerMm;
-                return Math.min(parent.width - 16, widthPx);
-            }
-
-            function contentHeight() {
-                if (!visible)
-                    return 0;
-                var pxPerMm = root.viewState && root.viewState.zoom !== undefined ? root.viewState.zoom : 0.64;
-                var cellMm = Math.max(1.0, root.squareSizeMm);
-                var imageHeight = sourceSize.height > 0 ? sourceSize.height : implicitHeight;
-                var heightPx = imageHeight * cellMm * pxPerMm;
-                return Math.min(parent.height - 16, heightPx);
-            }
+            fillMode: Image.Stretch
+            width: root.imageWidth()
+            height: root.imageHeight()
+            x: root.imageX()
+            y: root.imageY()
         }
+    }
 
-        Label {
-            anchors.centerIn: parent
-            visible: root.source.length === 0
-            text: qsTr("Wavefront\nunavailable")
-            horizontalAlignment: Text.AlignHCenter
-            color: "#54657a"
-        }
+    Label {
+        anchors.centerIn: parent
+        visible: root.source.length === 0
+        text: qsTr("Wavefront\nunavailable")
+        horizontalAlignment: Text.AlignHCenter
+        color: "#54657a"
+    }
+
+    function pixelsPerMm() {
+        if (!root.viewState || root.viewState.zoom === undefined || root.viewState.zoom === null)
+            return 0.64;
+        return Math.max(0.01, root.viewState.zoom);
+    }
+
+    function centerX() {
+        if (!root.viewState || root.viewState.centerX === undefined)
+            return 0;
+        return root.viewState.centerX;
+    }
+
+    function centerY() {
+        if (!root.viewState || root.viewState.centerY === undefined)
+            return 0;
+        return root.viewState.centerY;
+    }
+
+    function imageScale() {
+        return pixelsPerMm() * Math.max(1.0, root.squareSizeMm);
+    }
+
+    function imageWidth() {
+        if (!wavefrontImage.visible || wavefrontImage.sourceSize.width <= 0)
+            return 0;
+        return wavefrontImage.sourceSize.width * imageScale();
+    }
+
+    function imageHeight() {
+        if (!wavefrontImage.visible || wavefrontImage.sourceSize.height <= 0)
+            return 0;
+        return wavefrontImage.sourceSize.height * imageScale();
+    }
+
+    function imageX() {
+        return (root.originX - centerX()) * pixelsPerMm() + viewport.width / 2;
+    }
+
+    function imageY() {
+        return (centerY() - root.originY) * pixelsPerMm() + viewport.height / 2;
     }
 }

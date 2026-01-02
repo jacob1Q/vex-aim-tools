@@ -47,6 +47,8 @@ FocusScope {
             implicitWidth: 280
             source: viewerApp ? viewerApp.wavefrontSource : ""
             squareSizeMm: viewerApp ? viewerApp.wavefrontSquareSize : 5.0
+            originX: viewerApp ? viewerApp.wavefrontOriginX : 0.0
+            originY: viewerApp ? viewerApp.wavefrontOriginY : 0.0
             viewState: root.viewStateRef
         }
     }
