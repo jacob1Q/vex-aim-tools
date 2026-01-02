@@ -1,4 +1,6 @@
 from math import pi
+import time
+from typing import Any, Callable, Optional
 import re
 from importlib import __import__, reload
 try:
@@ -23,6 +25,8 @@ from .utils import Pose
 from viewer.particle_viewer import ParticleViewer
 from .rrt import RRT
 from viewer.path_viewer import PathViewer
+from viewer.camera_overlay import apply_overlays
+from .camera import AIVISION_RESOLUTION_SCALE
 #from . import custom_objs
 #from .perched import *
 #from .sharedmap import *
@@ -36,6 +40,7 @@ class StateMachineProgram(StateNode):
                  force_annotation = False,   # set to True for annotation even without cam_viewer
                  annotate_sdk = True,        # include annotations for SDK's object detections
                  annotated_scale_factor = 1, # set to 1 to avoid cost of resizing images
+                 annotated_image_callback: Optional[Callable[[Any, dict], None]] = None,
                  viewer_crosshairs = False,  # set to True to draw viewer crosshairs
                  speech = True,
 
@@ -74,6 +79,7 @@ class StateMachineProgram(StateNode):
         self.annotate_sdk = annotate_sdk
         self.force_annotation = force_annotation
         self.annotated_scale_factor = annotated_scale_factor
+        self.annotated_image_callback = annotated_image_callback
         self.viewer_crosshairs = viewer_crosshairs
         self.speech = speech
         self.num_particles = num_particles
@@ -210,6 +216,45 @@ class StateMachineProgram(StateNode):
     def user_annotate(self,image):
         return image
 
+    def _annotated_metadata(self, status: Optional[dict]) -> dict:
+        meta = {
+            "timestamp": time.time(),
+            "frame_count": getattr(self.robot, "frame_count", None),
+            "status": status,
+            "pose": getattr(self.robot, "pose", None),
+            "camera_resolution": getattr(getattr(self.robot, "camera", None), "resolution", None),
+            "annotate_sdk": bool(self.annotate_sdk),
+            "scale": int(AIVISION_RESOLUTION_SCALE) or 1,
+        }
+        try:
+            meta["aivision"] = (status or {}).get("aivision")
+        except Exception:
+            meta["aivision"] = None
+        return meta
+
+    def _emit_annotated_frame(self, image):
+        callback = getattr(self, "annotated_image_callback", None)
+        if callback is None:
+            return
+        status = getattr(self.robot, "status", None)
+        overlay_status = status if self.annotate_sdk else None
+        annotated = apply_overlays(
+            image,
+            overlay_status,
+            int(AIVISION_RESOLUTION_SCALE) or 1,
+            getattr(self.robot, "aruco_detector", None),
+            self.user_annotate,
+        )
+        try:
+            self.robot.annotated_image = annotated.copy()
+        except Exception:
+            pass
+        meta = self._annotated_metadata(status)
+        try:
+            callback(annotated, meta)
+        except Exception:
+            pass
+
     def process_image(self,image):
         # Aruco image processing
         gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
@@ -217,7 +262,9 @@ class StateMachineProgram(StateNode):
             self.robot.aruco_detector.process_image(gray)
         # Other image processors can run here if the user supplies them.
         self.user_image(image,gray)
-        if self.force_annotation and not self.robot.cam_viewer:
+        if self.annotated_image_callback is not None:
+            self._emit_annotated_frame(image)
+        elif self.force_annotation and not self.robot.cam_viewer:
             self.user_annotate(image)
 
 ################
@@ -280,4 +327,3 @@ def runfsm(module_name, running_modules=dict()):
     running_fsm = the_class()
     evbase.robot_for_loading.loop.call_soon_threadsafe(running_fsm.start)
     return running_fsm
-
