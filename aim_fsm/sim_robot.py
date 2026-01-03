@@ -24,14 +24,14 @@ class SimRobot0():
 class SimRobot():
     def __init__(self, run_in_cloud=False):
         robot = self
-        robot.loop = asyncio.get_event_loop()
         robot.robot0 = SimRobot0()
 
         robot.pose = Pose(0, 0, 0, 0)
+        robot.holding = None
 
         if not run_in_cloud:
+            robot.loop = asyncio.get_event_loop()
             robot.erouter = EventRouter(robot)
-            robot.holding = None
 
         robot.world_map = WorldMap(robot)
         robot.particle_filter = SLAMParticleFilter(robot)
