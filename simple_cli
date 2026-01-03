@@ -16,6 +16,7 @@ import logging
 import os
 import platform
 import re
+import signal
 import readline
 import rlcompleter
 import subprocess
@@ -42,10 +43,18 @@ import aim_fsm
 from aim_fsm import *
 from aim_fsm.program import runfsm as _program_runfsm
 
+try:
+    from viewer.imshow_manager import imshow_pump
+except Exception:
+    imshow_pump = None
+
 ################ Configuration
 
 # tab completion
 readline.parse_and_bind('tab: complete')
+
+# Qt event processing flag (set by SIGALRM handler)
+_qt_needs_processing = False
 
 # history file
 if 'HOME' in os.environ:  # Linux
@@ -67,6 +76,21 @@ os_version = platform.system()
 # Put current directory on search path.
 if '.' not in sys.path:
     sys.path.append('.')
+
+
+def _qt_event_handler(signum, frame):
+    """Signal handler - only set flag, never call Qt here."""
+    global _qt_needs_processing
+    _qt_needs_processing = True
+
+
+if hasattr(signal, "SIGALRM") and hasattr(signal, "setitimer"):
+    try:
+        signal.signal(signal.SIGALRM, _qt_event_handler)
+        signal.setitimer(signal.ITIMER_REAL, 0.05, 0.05)
+    except ValueError:
+        # Signals only work in the main thread; ignore if not available.
+        pass
 
 ################ CLI functions
 
@@ -165,6 +189,8 @@ def _drain_pending_viewer_launches_once():
             break
         _prime_default_viewers(program, launch_flags)
         processed = True
+    if imshow_pump is not None:
+        imshow_pump()
     return processed
 
 
@@ -182,6 +208,19 @@ def _process_pending_viewer_launches(timeout=0.0):
         if remaining <= 0.0:
             break
         time.sleep(min(0.01, remaining))
+
+def _process_qt_events_if_needed():
+    global _qt_needs_processing
+    if not _qt_needs_processing:
+        return
+    _qt_needs_processing = False
+    try:
+        from PyQt6.QtGui import QGuiApplication
+    except ImportError:
+        return
+    app = QGuiApplication.instance()
+    if app:
+        app.processEvents()
 
 def cli_loop(_robot):
     global ans, RUNNING, robot, file_to_run, running_fsm
@@ -210,6 +249,7 @@ def cli_loop(_robot):
         cli_loop._line = ''
         while cli_loop._line == '':
             running_fsm = aim_fsm.program.running_fsm
+            _process_qt_events_if_needed()
             _process_pending_viewer_launches()
             readline.write_history_file(histfile)
             try:
