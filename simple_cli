@@ -283,6 +283,8 @@ def cli_loop(_robot):
                 traceback.print_exc()
                 print()
             continue
+        elif cli_loop._line == '/oa':
+            cli_loop._line = "oa = robot.world_map.objects['OrangeBarrel.a']"
         elif cli_loop._line[0:7] == 'reload ':
             do_reload(cli_loop._line[7:])
             continue

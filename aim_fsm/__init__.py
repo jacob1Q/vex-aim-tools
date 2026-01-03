@@ -17,6 +17,7 @@ from .program import StateMachineProgram, runfsm
 from .pickup import *
 from .pilot import *
 from .macros import *
+from .sim_robot import *
 
 from viewer.cam_viewer import CamViewer
 from viewer.worldmap_viewer import WorldMapViewer

@@ -98,7 +98,13 @@ class AprilTagObj(WorldObject):
         self.width = 38 # mm
 
     def __repr__(self):
-        vis = "visible" if self.is_visible else "unseen"
+        vis = visible if self.is_visible else "missing" if self.is_missing else "unseen"
+        if self.is_visible:
+            vis = "visible"
+        elif self.is_missing:
+            vis = "missing"
+        else:
+            vis = "unseen"
         return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f}) @ {self.pose.theta*180/pi:.1f} deg.>'
     
 
@@ -247,6 +253,8 @@ class WorldMap():
             self.visibility_paused = value
 
     def update(self):
+        if self.visibility_paused:
+            return
         self.updated_objects = []
         self.make_new_objects_from_vision()
         self.associate_objects()
@@ -538,7 +546,7 @@ class WorldMap():
                     obj.is_visible = False
                     obj.is_missing = True
                     self.missing_objects.append(obj)
-                    #print('missing object:', obj)
+                    print(f'missing object: {obj}, visibility_paused={self.visibility_paused}')
 
     def process_unassociated_objects(self):
         """

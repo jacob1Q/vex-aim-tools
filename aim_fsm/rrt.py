@@ -541,7 +541,6 @@ class RRT():
                 obstacles.append(obst)
         self.obstacles = obstacles
 
-
     @staticmethod
     def generate_wall_obstacles(wall, wall_inflation, doorway_adjustment):
         wall_spec = wall.wall_spec
