@@ -10,6 +10,7 @@ except:
         print(string)
 
 import cv2
+import numpy as _np
 
 import vex
 from . import evbase
@@ -243,8 +244,13 @@ class StateMachineProgram(StateNode):
             overlay_status,
             int(AIVISION_RESOLUTION_SCALE) or 1,
             getattr(self.robot, "aruco_detector", None),
-            self.user_annotate,
         )
+        try:
+            maybe = self.user_annotate(annotated)
+            if isinstance(maybe, _np.ndarray) and maybe.ndim == 3:
+                annotated = maybe
+        except Exception:
+            pass
         try:
             self.robot.annotated_image = annotated.copy()
         except Exception:
@@ -257,7 +263,7 @@ class StateMachineProgram(StateNode):
 
     def process_image(self,image):
         # Aruco image processing
-        gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
         if self.aruco:
             self.robot.aruco_detector.process_image(gray)
         # Other image processors can run here if the user supplies them.
@@ -265,7 +271,24 @@ class StateMachineProgram(StateNode):
         if self.annotated_image_callback is not None:
             self._emit_annotated_frame(image)
         elif self.force_annotation and not self.robot.cam_viewer:
-            self.user_annotate(image)
+            status = getattr(self.robot, "status", None)
+            overlay_status = status if self.annotate_sdk else None
+            annotated = apply_overlays(
+                image,
+                overlay_status,
+                int(AIVISION_RESOLUTION_SCALE) or 1,
+                getattr(self.robot, "aruco_detector", None),
+            )
+            try:
+                maybe = self.user_annotate(annotated)
+                if isinstance(maybe, _np.ndarray) and maybe.ndim == 3:
+                    annotated = maybe
+            except Exception:
+                pass
+            try:
+                self.robot.annotated_image = annotated.copy()
+            except Exception:
+                pass
 
 ################
 

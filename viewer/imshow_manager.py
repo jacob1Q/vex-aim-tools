@@ -1,4 +1,4 @@
-"""Global window manager and cv2-compatible API for PyQt6 imshow()."""
+"""Global window manager and cv2-style API for PyQt6 imshow()."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ class WindowManager:
 
         Args:
             window_name: Name of the window
-            image: HxW grayscale, HxWx3 BGR, or HxWx4 BGRA numpy array (uint8)
+            image: HxW grayscale, HxWx3 RGB, or HxWx4 RGBA numpy array (uint8)
         """
         if not self._on_main_thread():
             window = self.get_window(window_name)
@@ -100,20 +100,6 @@ class WindowManager:
             return
         self._imshow_main_thread(window_name, image)
         self._process_events()
-
-    def wait_key(self, delay_ms: int = 0) -> int:
-        """Process Qt events briefly.
-
-        Args:
-            delay_ms: Delay in milliseconds (0 = single event pass)
-
-        Returns:
-            -1 (key support not implemented)
-        """
-        if self._on_main_thread():
-            self.process_pending()
-        self._process_events(delay_ms)
-        return -1  # No key support
 
     def process_pending(self, process_events: bool = True) -> None:
         if not self._on_main_thread():
@@ -201,7 +187,7 @@ class WindowManager:
 _manager = WindowManager()
 
 
-# cv2-compatible API functions
+# cv2-style API functions
 def namedWindow(window_name: str, flags: int = 0) -> None:
     """Create a named window (cv2-compatible API).
 
@@ -220,25 +206,9 @@ def imshow(window_name: str, image: np.ndarray) -> None:
 
     Args:
         window_name: Name of the window
-        image: HxW grayscale, HxWx3 BGR, or HxWx4 BGRA numpy array (uint8)
-
-    Note:
-        Assumes input is BGR (matching cv2 behavior).
-        If input is already RGB, colors will be swapped (red<->blue).
+        image: HxW grayscale, HxWx3 RGB, or HxWx4 RGBA numpy array (uint8)
     """
     _manager.imshow(window_name, image)
-
-
-def waitKey(delay: int = 0) -> int:
-    """Process GUI events for specified milliseconds (cv2-compatible API).
-
-    Args:
-        delay: Delay in milliseconds (0 = single event pass)
-
-    Returns:
-        -1 (key support not implemented)
-    """
-    return _manager.wait_key(delay)
 
 
 def destroyWindow(window_name: str) -> None:
@@ -263,7 +233,6 @@ def imshow_pump() -> None:
 __all__ = [
     "namedWindow",
     "imshow",
-    "waitKey",
     "destroyWindow",
     "destroyAllWindows",
     "imshow_pump",

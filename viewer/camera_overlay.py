@@ -121,7 +121,6 @@ def apply_overlays(
     status: Optional[dict],
     scale: int,
     aruco_detector: Optional[object],
-    user_hook: Optional[object],
 ) -> _np.ndarray:
     if image_rgb is None or image_rgb.ndim != 3:
         return image_rgb
@@ -160,14 +159,6 @@ def apply_overlays(
                 maybe = aruco_detector.annotate(out, scale)
                 if isinstance(maybe, _np.ndarray) and maybe.ndim == 3:
                     out = maybe
-        except Exception:
-            pass
-
-    if user_hook is not None:
-        try:
-            maybe = user_hook(out)
-            if isinstance(maybe, _np.ndarray) and maybe.ndim == 3:
-                out = maybe
         except Exception:
             pass
 

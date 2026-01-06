@@ -22,7 +22,6 @@ __all__ = [
     # PyQt6 imshow() API
     "namedWindow",
     "imshow",
-    "waitKey",
     "destroyWindow",
     "destroyAllWindows",
     "ImshowImageProvider",
@@ -48,7 +47,6 @@ _MODULE_MAP = {
     # PyQt6 imshow() API
     "namedWindow": ("viewer.imshow_manager", "namedWindow"),
     "imshow": ("viewer.imshow_manager", "imshow"),
-    "waitKey": ("viewer.imshow_manager", "waitKey"),
     "destroyWindow": ("viewer.imshow_manager", "destroyWindow"),
     "destroyAllWindows": ("viewer.imshow_manager", "destroyAllWindows"),
     "ImshowImageProvider": ("viewer.imshow_provider", "ImshowImageProvider"),
