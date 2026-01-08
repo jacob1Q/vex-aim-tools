@@ -285,6 +285,12 @@ def cli_loop(_robot):
             continue
         elif cli_loop._line == '/oa':
             cli_loop._line = "oa = robot.world_map.objects['OrangeBarrel.a']"
+        elif cli_loop._line == '/ob':
+            cli_loop._line = "ob = robot.world_map.objects['OrangeBarrel.b']"
+        elif cli_loop._line == '/ba':
+            cli_loop._line = "ba = robot.world_map.objects['BlueBarrel.a']"
+        elif cli_loop._line == '/bb':
+            cli_loop._line = "bb = robot.world_map.objects['BlueBarrel.b']"
         elif cli_loop._line[0:7] == 'reload ':
             do_reload(cli_loop._line[7:])
             continue

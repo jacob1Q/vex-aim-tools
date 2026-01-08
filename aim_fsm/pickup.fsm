@@ -87,7 +87,7 @@ class PickUp(ActionNode,ObjectSpecNode):
         plan =PILOT(GoalCollides)=> ParentPilotEvent()
 
         forward: self.Pickup_Forward()
-        forward =C=> set_hold
+        forward =C=> StateNode() =T(0.5)=> set_hold
         forward =F=> ParentFails()
 
         set_hold: self.SetHolding()

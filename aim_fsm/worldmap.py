@@ -98,7 +98,7 @@ class AprilTagObj(WorldObject):
         self.width = 38 # mm
 
     def __repr__(self):
-        vis = visible if self.is_visible else "missing" if self.is_missing else "unseen"
+        vis = 'visible' if self.is_visible else 'missing' if self.is_missing else 'unseen'
         if self.is_visible:
             vis = "visible"
         elif self.is_missing:
@@ -118,7 +118,7 @@ class ArucoMarkerObj(WorldObject):
 
     def __repr__(self):
         if self.pose_confidence >= 0:
-            vis = ' visible' if self.is_visible else ''
+            vis = 'visible' if self.is_visible else 'missing' if self.is_missing else 'unseen'
             fix = ' fixed' if self.is_fixed else ''
             return '<ArucoMarkerObj %s: (%.1f, %.1f, %.1f) @ %d deg.%s%s>' % \
                 (self.id, self.pose.x, self.pose.y, self.pose.z, self.pose.theta*180/pi, fix, vis)
@@ -301,6 +301,8 @@ class WorldMap():
                     continue
             else:
                 print(f'*** Unknown: spec={spec}')
+                continue
+            if spec['name'] == 'Robot':   # avoid spurious robot creation for now
                 continue
             obj = self.make_vision_object(spec)
             obj.is_visible = True
@@ -546,7 +548,7 @@ class WorldMap():
                     obj.is_visible = False
                     obj.is_missing = True
                     self.missing_objects.append(obj)
-                    print(f'missing object: {obj}, visibility_paused={self.visibility_paused}')
+                    #print(f'missing object: {obj}, visibility_paused={self.visibility_paused}')
 
     def process_unassociated_objects(self):
         """
@@ -657,13 +659,15 @@ class WorldMap():
                 if isinstance(obj, (BarrelObj,SportsBallObj)):
                     spec = obj.spec
                     if isinstance(obj, BarrelObj):
-                        width_margin = 130
+                        width_margin = 145
                     else:
                         width_margin = 120
                     if spec['originx']*AIVISION_RESOLUTION_SCALE < width_margin and \
                        (spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE > (self.robot.camera.resolution[0] - width_margin):
                         held = obj
                         break
+                    else:
+                        print('holding failed:', obj, spec)
             if held:
                 print('Robot now holding', held)
                 self.robot.holding = held

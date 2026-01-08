@@ -245,21 +245,12 @@ class StateMachineProgram(StateNode):
             int(AIVISION_RESOLUTION_SCALE) or 1,
             getattr(self.robot, "aruco_detector", None),
         )
-        try:
-            maybe = self.user_annotate(annotated)
-            if isinstance(maybe, _np.ndarray) and maybe.ndim == 3:
-                annotated = maybe
-        except Exception:
-            pass
-        try:
-            self.robot.annotated_image = annotated.copy()
-        except Exception:
-            pass
+        maybe = self.user_annotate(annotated)
+        if isinstance(maybe, _np.ndarray) and maybe.ndim == 3:
+            annotated = maybe
+        self.robot.annotated_image = annotated.copy()
         meta = self._annotated_metadata(status)
-        try:
-            callback(annotated, meta)
-        except Exception:
-            pass
+        callback(annotated, meta)
 
     def process_image(self,image):
         # Aruco image processing

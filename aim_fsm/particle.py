@@ -10,9 +10,7 @@ import numpy as np
 from math import pi, sqrt, sin, cos, atan2, exp
 from .geometry import wrap_angle, wrap_selected_angles
 from .aruco import ArucoMarker
-from .worldmap import WorldObject, ArucoMarkerObj, WallObj
-
-wall_marker_dict = dict()
+from .worldmap import WorldObject, ArucoMarkerObj, WallObj, wall_marker_dict
 
 class Particle():
     def __init__(self, index=-1):
@@ -29,12 +27,11 @@ class Particle():
     
 #================ Particle Initializers ================
 
-#to create a particle filter initialisation
 class ParticleInitializer():
     def __init__(self):
         self.pf = None   # must be filled in after creation
 
-#random initialisation of particles within a certain radius
+# Random initialization of particles within a certain radius
 class RandomWithinRadius(ParticleInitializer):
     """ Normally distribute particles within a radius, with random heading. """
     def __init__(self,radius=200):
