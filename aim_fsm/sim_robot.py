@@ -9,6 +9,7 @@ from .aim_kin import AIMKinematics
 from .evbase import EventRouter
 from .particle import SLAMParticleFilter
 from .rrt import RRT
+from .path_planner import PathPlanner
 from .utils import Pose
 from .worldmap import WorldMap
 
@@ -24,6 +25,10 @@ class SimRobot0():
 class SimRobot():
     def __init__(self, run_in_cloud=False):
         robot = self
+        robot.use_shared_map = False
+        robot.particle_viewer = None
+        robot.path_viewer = None
+        robot.path_planner = PathPlanner(robot)
         robot.robot0 = SimRobot0()
 
         robot.pose = Pose(0, 0, 0, 0)

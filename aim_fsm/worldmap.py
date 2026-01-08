@@ -27,12 +27,7 @@ class WorldObject():
             self.pose_confidence = -1
 
     def __repr__(self):
-        if self.is_visible:
-            vis = "visible"
-        elif self.is_missing:
-            vis = "missing"
-        else:
-            vis = "unseen"
+        vis = 'visible' if self.is_visible else 'missing' if self.is_missing else 'unseen'
         held = " held" if self.held_by else ""
         return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f}){held}>'
 
@@ -61,8 +56,10 @@ class WorldObject():
             self.matched.wall = self.wall.matched
 
 class BarrelObj(WorldObject):
-    def __init__(self, spec):
-        super().__init__()
+    def __init__(self, spec=None, id=None, x=0, y=0):
+        if id is None and spec and 'id' in spec:
+            id = spec['id']
+        super().__init__(id=id, x=x, y=y)
         self.spec = spec
         self.name = spec['name']
         self.diameter = 22 # mm
@@ -75,22 +72,26 @@ class BlueBarrelObj(BarrelObj):
     pass
 
 class SportsBallObj(WorldObject):
-    def __init__(self, spec):
-        super().__init__()
+    def __init__(self, spec=None, id=None, x=0, y=0):
+        if id is None and spec and 'id' in spec:
+            id = spec['id']
+        super().__init__(id=id, x=x, y=y)
         self.spec = spec
         self.name = spec['name']
         self.diameter = 25.0 # mm
         self.z = self.diameter / 2
 
 class RobotObj(WorldObject):
-    def __init__(self, spec):
-        super().__init__()
+    def __init__(self, spec=None, id=None, x=0, y=0, theta=0):
+        super().__init__(id=id, x=x, y=y, theta=theta)
         self.spec = spec
         self.name = spec['name']
 
 class AprilTagObj(WorldObject):
-    def __init__(self, spec):
-        super().__init__()
+    def __init__(self, spec=None, id=None, x=0, y=0, theta=0):
+        if id is None and spec and 'id' in spec:
+            id = spec['id']
+        super().__init__(id=id, x=x, y=y, theta=theta)
         self.spec = spec
         self.name = spec['name']
         self.tag_id = spec['id']
@@ -99,14 +100,23 @@ class AprilTagObj(WorldObject):
 
     def __repr__(self):
         vis = 'visible' if self.is_visible else 'missing' if self.is_missing else 'unseen'
-        if self.is_visible:
-            vis = "visible"
-        elif self.is_missing:
-            vis = "missing"
-        else:
-            vis = "unseen"
         return f'<{self.id or self.name} {vis} at ({self.pose.x:.1f}, {self.pose.y:.1f}) @ {self.pose.theta*180/pi:.1f} deg.>'
     
+
+class AprilTag0Obj(AprilTagObj):
+    pass
+
+class AprilTag1Obj(AprilTagObj):
+    pass
+
+class AprilTag2Obj(AprilTagObj):
+    pass
+
+class AprilTag3Obj(AprilTagObj):
+    pass
+
+class AprilTag4Obj(AprilTagObj):
+    pass
 
 class ArucoMarkerObj(WorldObject):
     def __init__(self, spec, x=0, y=0, z=0, theta=0):
@@ -666,8 +676,6 @@ class WorldMap():
                        (spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE > (self.robot.camera.resolution[0] - width_margin):
                         held = obj
                         break
-                    else:
-                        print('holding failed:', obj, spec)
             if held:
                 print('Robot now holding', held)
                 self.robot.holding = held
