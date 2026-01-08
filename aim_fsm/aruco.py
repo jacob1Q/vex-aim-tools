@@ -125,7 +125,29 @@ class RobotArucoDetector(object):
         base = image.copy()
         overlay = np.zeros_like(base)
         overlay_bgr = cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
-        cv2.aruco.drawDetectedMarkers(overlay_bgr, scaled_corners, self.ids)
+        cv2.aruco.drawDetectedMarkers(overlay_bgr, scaled_corners)
+        if self.ids is not None:
+            try:
+                for idx, marker_id in enumerate(self.ids):
+                    corners = np.asarray(scaled_corners[idx]).reshape(-1, 2)
+                    if corners.size == 0:
+                        continue
+                    x, y = corners[0]
+                    x = max(0, int(round(x)) + 4)
+                    y = max(0, int(round(y)) - 6)
+                    marker_id = int(np.asarray(marker_id).reshape(-1)[0])
+                    cv2.putText(
+                        overlay_bgr,
+                        str(marker_id),
+                        (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (0, 0, 255),
+                        thickness=2,
+                        lineType=cv2.LINE_AA,
+                    )
+            except Exception:
+                pass
         overlay_rgb = cv2.cvtColor(overlay_bgr, cv2.COLOR_BGR2RGB)
         mask = np.any(overlay_rgb != 0, axis=2)
         base[mask] = overlay_rgb[mask]

@@ -1,4 +1,4 @@
-"""Qt Quick image provider for displaying OpenCV images via imshow()."""
+"""Qt Quick image provider for displaying RGB numpy images via imshow()."""
 
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ class ImshowImageProvider(QQuickImageProvider):
         """Update the displayed image.
 
         Args:
-            image: HxW grayscale, HxWx3 BGR, or HxWx4 BGRA numpy array (uint8).
-                   BGR color order matches OpenCV convention.
+            image: HxW grayscale, HxWx3 RGB, or HxWx4 RGBA numpy array (uint8).
+                   RGB color order matches the rest of vex-aim-tools.
         """
         if image is None or image.size == 0:
             return  # Silently ignore like cv2
@@ -63,10 +63,9 @@ class ImshowImageProvider(QQuickImageProvider):
         return image
 
     def _ensure_rgb(self, arr: np.ndarray) -> np.ndarray:
-        """Convert HxW grayscale or HxWx3 BGR to HxWx3 RGB.
+        """Convert HxW grayscale or HxWx3 RGB to HxWx3 RGB.
 
-        NOTE: Assumes input is BGR (matching cv2 behavior).
-        If input is already RGB, colors will be swapped (red<->blue).
+        NOTE: Assumes input is RGB.
 
         Args:
             arr: Input numpy array
@@ -83,12 +82,11 @@ class ImshowImageProvider(QQuickImageProvider):
             # Grayscale HxW -> RGB HxWx3
             rgb = np.stack([arr, arr, arr], axis=-1)
         elif arr.ndim == 3 and arr.shape[2] >= 3:
-            # BGR -> RGB (OpenCV uses BGR!)
-            # Also handles BGRA (HxWx4) by taking first 3 channels
-            rgb = arr[..., :3][..., ::-1]
+            # RGB (or RGBA -> RGB by dropping alpha)
+            rgb = arr[..., :3]
         else:
             raise ValueError(
-                f"Expected HxW grayscale or HxWx3/HxWx4 BGR array, "
+                f"Expected HxW grayscale or HxWx3/HxWx4 RGB array, "
                 f"got shape {arr.shape}"
             )
 

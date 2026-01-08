@@ -1,4 +1,4 @@
-"""QtQuick-based window for displaying OpenCV images via imshow()."""
+"""QtQuick-based window for displaying RGB numpy images via imshow()."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ class ImshowWindow(QObject):
         """Update displayed image.
 
         Args:
-            image: HxW grayscale, HxWx3 BGR, or HxWx4 BGRA numpy array (uint8)
+            image: HxW grayscale, HxWx3 RGB, or HxWx4 RGBA numpy array (uint8)
         """
         self._provider.update_image(image)
 
