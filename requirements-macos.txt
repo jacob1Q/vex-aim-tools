@@ -1,7 +1,8 @@
 numpy
 Pillow
 opencv-python
-pyqt6
+PyOpenGL
+PyQt6
 termcolor
 websocket_client
 flask
