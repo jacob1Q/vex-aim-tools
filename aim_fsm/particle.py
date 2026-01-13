@@ -421,7 +421,7 @@ class ParticleFilter():
 
     def resample(self):
         # Compute and normalize the cdf; make local pointers for faster access.
-        print('resampling...')
+        #print('resampling...')
         exp_weights = self.exp_weights
         cdf = self.cdf
         cumsum = 0
@@ -469,9 +469,8 @@ class ParticleFilter():
             p.theta = theta
             p.log_weight = 0.0
             p.weight = 1.0
-        self.motion_model.last_pose = None
         self.state = ParticleFilter.LOCALIZED
-        self.update_pose_variance()  # this will first update the pose estimate
+        self.update_pose_variance()
 
     def look_for_new_landmarks(self): pass  # SLAM only
 
@@ -723,6 +722,13 @@ class SLAMSensorModel(SensorModel):
                 print(';;; LOCALIZED ;;; DUE TO ZERO LANDMARKS')
                 self.pf.set_pose(0,0,0)
                 self.pf.robot.world_map.clear()
+
+                # Clear cliff sessions on delocalize (matches barrel/ball clearing behavior)
+                if hasattr(self.pf.robot, "cliff_sessions"):
+                    self.pf.robot.cliff_sessions = []
+                if hasattr(self.pf.robot, "cliff_results"):
+                    self.pf.robot.cliff_results = None
+                    self.pf.robot.cliff_timestamp = None
 
         # Unless forced, don't evaluate unless the robot moved enough
         # for evaluation to be worthwhile.
