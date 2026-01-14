@@ -4,6 +4,7 @@ Particle filter localization.
 import inspect
 
 from .utils import *
+from . import aim_kin
 import math
 import random
 import numpy as np
@@ -927,4 +928,3 @@ class SLAMParticleFilter(ParticleFilter):
         Also updates existing landmarks."""
         self.sensor_model.evaluate(self.particles, force=False, just_looking=True)
         self.sensor_model.landmarks = self.best_particle.landmarks
-
