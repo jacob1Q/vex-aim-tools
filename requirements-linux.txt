@@ -11,3 +11,7 @@ pyreadline3
 openai
 gTTS
 google-cloud-texttospeech
+matplotlib
+PyYAML
+torch
+torchvision
