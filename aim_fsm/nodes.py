@@ -165,7 +165,19 @@ class GPTOneShot(StateNode):
         self.robot.gpt_oneshot(self.query_text, self.image)
 
 
+class TagDetection(StateNode):
+    def __init__(self, enabled=True):
+        self.enabled = enabled
+
+    def start(self, event=None):
+        super().start(event)
+        self.robot.robot0.vision.tag_detection(self.enabled)
+        self.post_completion()
+
+
 #________________ Actions ________________
+
+# Actions are implemented by the robot's actuators.
 
 class AbortAllActions(StateNode):
     def start(self,event=None):

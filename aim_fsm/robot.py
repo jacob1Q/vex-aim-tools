@@ -65,7 +65,7 @@ class Robot():
         robot0._ws_status_thread.callback = self.status_callback
         robot0._ws_img_thread.callback = self.image_callback
         robot0.vision.get_camera_image()  # start the image stream
-        robot0.vision.tag_detection(True)
+        robot0.vision.tag_detection(False)  # tag detection greatly slows the image stream
         self.thesaurus = Thesaurus()
         self.speech_listener = SpeechListener(self, self.thesaurus, debug=False)
         if launch_speech_listener:
