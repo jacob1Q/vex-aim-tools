@@ -25,15 +25,15 @@ class WaveFront():
     def initialize_grid(self,bbox=None):
         if bbox:
             self.bbox = bbox
-            self.grid_shape = (ceil((bbox[1][0] - bbox[0][0] + 4*self.inflate_size)/self.square_size),
-                              ceil((bbox[1][1] - bbox[0][1] + 4*self.inflate_size)/self.square_size))
+            self.grid_shape = (ceil((bbox[1][0] - bbox[0][0] + 6*self.inflate_size)/self.square_size),
+                              ceil((bbox[1][1] - bbox[0][1] + 6*self.inflate_size)/self.square_size))
         self.grid = np.zeros(self.grid_shape, dtype=np.int32)
         self.maxdist = 1
 
     def coords_to_grid(self,xcoord,ycoord):
         "Convert world map coordinates to grid subscripts."
-        x = int(round((xcoord-self.bbox[0][0]+2*self.inflate_size)/self.square_size))
-        y = int(round((ycoord-self.bbox[0][1]+2*self.inflate_size)/self.square_size))
+        x = int(round((xcoord-self.bbox[0][0]+3*self.inflate_size)/self.square_size))
+        y = int(round((ycoord-self.bbox[0][1]+3*self.inflate_size)/self.square_size))
         if x >= 0 and x < self.grid_shape[0] and \
            y >= 0 and y < self.grid_shape[1]:
             return (x,y)

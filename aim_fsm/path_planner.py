@@ -2,7 +2,7 @@
 Path planner using RRT and Wavefront algorithms.
 """
 
-from math import pi, sin, cos
+from math import pi, sin, cos, sqrt
 from multiprocessing import Process
 
 #from .nodes import LaunchProcess
@@ -131,7 +131,7 @@ class PathPlanner():
                            (+30/180*pi,   50),
                            (-30/180*pi,   50),
                            (pi,           40),
-                           (pi,           80),  # if we're wedged between two cubes
+                           (pi,           80),  # if we're wedged between two objects
                            (+60/180*pi,   80),
                            (-60/180*pi,   80),
                            (+pi/2,        70),
@@ -150,15 +150,20 @@ class PathPlanner():
         if not collider:
             collider = wf.check_start_collides(start_node.x, start_node.y)
 
-        if collider:
-          if collider.obstacle_id is goal_shape.obstacle_id:  # We're already at the goal
+        distance_to_goal = sqrt((start_node.x - goal_shape.center[0,0])**2 + (start_node.y - goal_shape.center[1,0])**2)
+        distance_threshold = (wf.inflate_size + rrt_instance.robot.kine.body_diameter/2) + 15 # fudge factor
+        too_close_to_goal = distance_to_goal <= distance_threshold
+        #print(f'{distance_to_goal=} {distance_threshold=}')
+        if collider or too_close_to_goal:
+          if too_close_to_goal or collider.obstacle_id is goal_shape.obstacle_id:  # We're already at the goal
+            print("path_planner: We're already at the goal.")
             step = NavStep(NavStep.DRIVE, [RRTNode(x=start_node.x, y=start_node.y)])
             navplan = NavPlan([step])
             grid_display = None if not need_grid_display else wf.grid
             result = (navplan, grid_display)
             return DataEvent(result)
           else:
-            # Find an escape move from this collision condition
+            # Find an escape move from this collider
             q = start_node.q
             for (phi, escape_distance) in escape_options:
                 if phi != pi:
@@ -243,7 +248,7 @@ class PathPlanner():
                 navplan.steps.insert(0, escape_step)
 
         # Return the navigation plan
-        #print('navplan=',navplan, '   steps=',navplan.steps)
+        print('navplan=',navplan, '   steps=',navplan.steps)
         result = (navplan, grid_display)
         return DataEvent(result)
 

@@ -661,10 +661,8 @@ class WorldMap():
                 pass # wait a bit to see if held object comes back
 
     def confirm_not_holding(self):
-        if not (self.robot.robot0.has_any_barrel() or self.robot.robot0.has_sports_ball()):
-            return
-        else:
-            held = None
+        if self.robot.robot0.has_any_barrel() or self.robot.robot0.has_sports_ball():
+            held_obj = None
             for obj in self.robot.world_map.objects.values():
                 if isinstance(obj, (BarrelObj,SportsBallObj)):
                     spec = obj.spec
@@ -674,15 +672,14 @@ class WorldMap():
                         width_margin = 120
                     if spec['originx']*AIVISION_RESOLUTION_SCALE < width_margin and \
                        (spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE > (self.robot.camera.resolution[0] - width_margin):
-                        held = obj
+                        held_obj = obj
                         break
-            if held:
-                print('Robot now holding', held)
-                self.robot.holding = held
-                held.held_by = self.robot
+            if held_obj:
+                print('Robot now holding', held_obj)
+                self.robot.holding = held_obj
+                held_obj.held_by = self.robot
             else:
-                pass
-                # print('*** Could not find held object.')
+                pass # print('*** Could not find held object.')
 
     def update_held_object(self):
         if self.robot.holding:
