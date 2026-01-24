@@ -30,7 +30,7 @@ class Robot():
                  launch_speech_listener=True):
         if robot0 is None:
             robot0 = vex.Robot(host=host)
-        signal.signal(signal.SIGINT, lambda x,y : print(f"--->>> Signal SIGINT"))
+        signal.signal(signal.SIGINT, self.signal_handler)
         self.robot0 = robot0
         self.robot0.inertial.calibrate()
         self.robot0.inertial.set_heading(0)
@@ -70,6 +70,14 @@ class Robot():
         self.speech_listener = SpeechListener(self, self.thesaurus, debug=False)
         if launch_speech_listener:
             self.loop.call_soon_threadsafe(self.speech_listener.start)
+
+    def signal_handler(self, x,y):
+        if program.running_fsm:
+            print('SIGINT: stopping', program.running_fsm.name)
+            program.running_fsm.stop()
+            program.running_fsm = None
+        else:
+            print('--->>> Signal SIGINT')
 
     def status_callback(self):
         self.loop.call_soon_threadsafe(self.status_update)
