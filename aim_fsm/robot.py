@@ -75,7 +75,6 @@ class Robot():
         if program.running_fsm:
             print('SIGINT: stopping', program.running_fsm.name)
             program.running_fsm.stop()
-            program.running_fsm = None
         else:
             print('--->>> Signal SIGINT')
 
