@@ -72,6 +72,7 @@ class Robot():
             self.loop.call_soon_threadsafe(self.speech_listener.start)
 
     def signal_handler(self, x,y):
+        self.abort_all_actions()
         if program.running_fsm:
             print('SIGINT: stopping', program.running_fsm.name)
             program.running_fsm.stop()

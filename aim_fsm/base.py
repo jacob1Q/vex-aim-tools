@@ -150,6 +150,8 @@ class StateNode(EventListener):
         # 'program' is inserted into this module by __init__ to avoid circular importing
         if not program.running_fsm.running:
             print('Restarting StateMachineProgram')
+            program.running_fsm.children = dict()
+            program.running_fsm.start_node = None
             program.running_fsm.start()
         program.running_fsm.children[self.name] = self
         self.robot.loop.call_soon_threadsafe(self.start)
