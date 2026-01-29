@@ -385,19 +385,25 @@ class LandmarkModel(QAbstractListModel):
         else:
             pf_landmarks = {}
 
-        world_objects = getattr(world_map, "objects", {}) if world_map is not None else {}
-
+        world_objects_by_string = {}
+        for obj in world_map.objects.values():
+            if isinstance(obj, ArucoMarkerObj):
+                world_objects_by_string[obj.marker_string] = obj
+            else:
+                world_objects_by_string[obj.name] = obj
+                
         if hasattr(pf_landmarks, "items"):
-            iterable = pf_landmarks.items()
+            lm_iterable = pf_landmarks.items()
         else:
-            iterable = pf_landmarks  # type: ignore[assignment]
+            lm_iterable = pf_landmarks  # type: ignore[assignment]
 
-        for name, spec in iterable:
-            entry = self._build_entry(str(name), spec, world_objects.get(name), source="slam")
+        for name, spec in lm_iterable:
+            entry = self._build_entry(str(name), spec, world_objects_by_string.get(name), source="slam")
             if entry:
                 entries.append(entry)
                 seen_ids.add(entry["id"])
 
+        """
         for name, world_obj in world_objects.items():
             if name in seen_ids:
                 continue
@@ -408,6 +414,7 @@ class LandmarkModel(QAbstractListModel):
                 entries.append(entry)
 
         entries.sort(key=lambda item: item["id"])
+        """
 
         self.beginResetModel()
         self._items = entries

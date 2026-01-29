@@ -140,13 +140,11 @@ Item {
             pan(-1, 0)
             event.accepted = true
             break
-        case Qt.Key_Plus:
-        case Qt.Key_Equal:
+        case Qt.Key_Greater:
             viewZoom(1 / zoomFactor)
             event.accepted = true
             break
-        case Qt.Key_Minus:
-        case Qt.Key_Underscore:
+        case Qt.Key_Less:
             viewZoom(zoomFactor)
             event.accepted = true
             break

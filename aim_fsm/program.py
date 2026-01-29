@@ -44,12 +44,7 @@ class StateMachineProgram(StateNode):
                  annotated_image_callback: Optional[Callable[[Any, dict], None]] = None,
                  viewer_crosshairs = False,  # set to True to draw viewer crosshairs
                  speech = True,
-
                  particle_filter = None,
-                 num_particles = 500,
-                 sensor_model = "default",
-                 landmark_test = SLAMSensorModel.is_wall_landmark, # SLAMSensorModel.is_solo_aruco_landmark, #
-                 landmarks = None,
                  launch_particle_viewer = False,
                  particle_viewer_scale = 1.0,
                  launch_path_viewer = False,
@@ -83,10 +78,6 @@ class StateMachineProgram(StateNode):
         self.annotated_image_callback = annotated_image_callback
         self.viewer_crosshairs = viewer_crosshairs
         self.speech = speech
-        self.num_particles = num_particles
-        self.landmarks = landmarks
-        self.sensor_model = sensor_model
-        self.landmark_test = landmark_test
         self.launch_particle_viewer = launch_particle_viewer
         self.particle_viewer_scale = particle_viewer_scale
         self.launch_path_viewer = launch_path_viewer
@@ -99,11 +90,15 @@ class StateMachineProgram(StateNode):
             self.robot.aruco_detector = \
                 RobotArucoDetector(self.robot, dictionary_name, aruco_marker_size, aruco_disabled_ids)
 
-        if particle_filter:
+        if isinstance(particle_filter, ParticleFilter):
             self.particle_filter = particle_filter
-        else:
+        elif particle_filter is None:
             self.particle_filter = \
-                SLAMParticleFilter(self.robot, landmark_test=self.landmark_test)
+                SLAMParticleFilter(self.robot, num_particles=500,
+                                   landmark_test=SLAMSensorModel.is_wall_landmark)
+        else:
+            raise TypeError(f'Not a ParticleFilter instance: {particle_filter=}')
+        print(f'{self.particle_filter=}')
 
         self.perched_cameras = perched_cameras
         if self.perched_cameras:
@@ -122,12 +117,12 @@ class StateMachineProgram(StateNode):
         running_fsm = self
         # Create a particle filter
         if self.particle_filter is None:
-            self.particle_filter = ParticleFilter(self.robot,
-                                                  num_particles=self.num_particles,
-                                                  landmarks=self.landmarks,
-                                                  sensor_model=self.sensor_model)
-        # elif isinstance(self.particle_filter,SLAMParticleFilter):
-        #    self.particle_filter.clear_landmarks()
+            self.particle_filter = SLAMParticleFilter(self.robot,
+                                                      num_particles=self.num_particles,
+                                                      landmarks=self.landmarks,
+                                                      sensor_model=self.sensor_model)
+        elif isinstance(self.particle_filter,SLAMParticleFilter):
+            self.particle_filter.clear_landmarks()
         self.robot.particle_filter = self.particle_filter
 
         # Set up robot state

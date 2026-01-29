@@ -122,18 +122,19 @@ class ArucoMarkerObj(WorldObject):
     def __init__(self, spec, x=0, y=0, z=0, theta=0):
         super().__init__(x=x, y=x, z=z, theta=theta)
         self.name = spec['name']
-        self.marker_id = spec['id']
         self.marker = spec['marker']
+        self.marker_id = spec['id']
+        self.marker_string = 'ArucoMarker-' + str(spec['id'])
         self.pose_confidence = +1
 
     def __repr__(self):
         if self.pose_confidence >= 0:
             vis = 'visible' if self.is_visible else 'missing' if self.is_missing else 'unseen'
             fix = ' fixed' if self.is_fixed else ''
-            return '<ArucoMarkerObj %s: (%.1f, %.1f, %.1f) @ %d deg.%s%s>' % \
-                (self.id, self.pose.x, self.pose.y, self.pose.z, self.pose.theta*180/pi, fix, vis)
+            return '<ArucoMarkerObj %s: (%.1f, %.1f, %.1f) @ %d deg.%s %s>' % \
+                (self.marker_id, self.pose.x, self.pose.y, self.pose.z, self.pose.theta*180/pi, fix, vis)
         else:
-            return f'<ArucoMarkerObj {self.id[12:]}: position unknown>'
+            return f'<ArucoMarkerObj {self.marker_id}: position unknown>'
         
 
 class WallObj(WorldObject):
@@ -449,7 +450,7 @@ class WorldMap():
         wall_orient = euler_angles[1]
         tvec[2][0] += self.robot.kine.camera_from_origin  # want distance from base frame not camera
 
-        sensor_coords = (-tvec[0], -tvec[1], tvec[2])
+        sensor_coords = (-tvec[0,0], -tvec[1,0], tvec[2,0])
         sensor_distance = math.sqrt(sensor_coords[0]**2 + sensor_coords[2]**2)
         sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
         # Flip wall orientation to match ArUcos for worldmap
@@ -571,7 +572,7 @@ class WorldMap():
         COST_THRESHOLD = 50
         if self.robot.particle_filter and \
            self.robot.particle_filter.state != self.robot.particle_filter.LOCALIZED:
-            return
+            pass # return
         if self.robot.particle_filter:
             pass # print('robot.particle_filter.state=', self.robot.particle_filter.state)
         for candidate in unassociated:
@@ -597,7 +598,6 @@ class WorldMap():
                 pending.remove(m)
             else:
                 self.pending_objects[candidate] = 1
-                #print('proposed', candidate)
         for p in pending:
             #print('retracted', p, '  count=', self.pending_objects[p])
             del self.pending_objects[p]

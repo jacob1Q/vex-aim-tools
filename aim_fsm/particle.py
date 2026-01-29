@@ -11,6 +11,7 @@ from math import pi, sqrt, sin, cos, atan2, exp
 from .geometry import wrap_angle, wrap_selected_angles
 from .aruco import ArucoMarker
 from .worldmap import WorldObject, ArucoMarkerObj, WallObj, wall_marker_dict
+from .aim_kin import AIMKinematics
 
 class Particle():
     def __init__(self, index=-1):
@@ -170,9 +171,10 @@ class ArucoDistanceSensorModel(SensorModel):
         seen_marker_objects = self.robot.aruco_detector.seen_marker_objects
         # Process each seen marker:
         for (id, marker) in seen_marker_objects.items():
-            if marker.id_string in self.landmarks:
+            marker_string = f'ArucoMarker-{id}'
+            if marker_string in self.landmarks:
                 sensor_dist = marker.camera_distance
-                landmark_spec = self.landmarks[marker.id_string]
+                landmark_spec = self.landmarks[marker_string]
                 lm_x = landmark_spec.x
                 lm_y = landmark_spec.y
                 for p in particles:
@@ -204,11 +206,12 @@ class ArucoBearingSensorModel(SensorModel):
         seen_marker_objects = self.robot.aruco_detector.seen_marker_objects
         # Process each seen marker:
         for (id, marker) in seen_marker_objects.items():
-            if marker.id_string in self.landmarks:
-                camera_offset = np.array([0, 0, aim_kin.camera_from_origin])
+            marker_string = f'ArucoMarker-{id}'
+            if marker_string in self.landmarks:
+                camera_offset = np.array([0, 0, AIMKinematics.camera_from_origin])
                 sensor_coords = marker.camera_coords + camera_offset
                 sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
-                landmark_spec = self.landmarks[marker.id_string] 
+                landmark_spec = self.landmarks[marker_string] 
                 lm_x = landmark_spec.x
                 lm_y = landmark_spec.y
                 for p in particles:
@@ -244,12 +247,13 @@ class ArucoCombinedSensorModel(SensorModel):
         seen_marker_objects = self.robot.aruco_detector.seen_marker_objects
         # Process each seen marker:
         for (id, marker) in seen_marker_objects.items():
-            if marker.id_string in self.landmarks:
+            marker_string = f'ArucoMarker-{id}'
+            if marker_string in self.landmarks:
                 sensor_dist = marker.camera_distance
-                camera_offset = np.array([0, 0, aim_kin.camera_from_origin])
+                camera_offset = np.array([0, 0, AIMKinematics.camera_from_origin])
                 sensor_coords = marker.camera_coords + camera_offset
                 sensor_bearing = atan2(sensor_coords[0], sensor_coords[2])
-                landmark_spec = self.landmarks[marker.id_string]
+                landmark_spec = self.landmarks[marker_string]
                 lm_x = landmark_spec.x
                 lm_y = landmark_spec.y
                 for p in particles:
@@ -418,7 +422,6 @@ class ParticleFilter():
 
     def resample(self):
         # Compute and normalize the cdf; make local pointers for faster access.
-        print('resampling...')
         exp_weights = self.exp_weights
         cdf = self.cdf
         cumsum = 0
@@ -510,7 +513,7 @@ class ParticleFilter():
                 sigma_y = sqrt(value[2][1,1])
                 sigma_theta = sqrt(value[2][2,2])*180/pi
             if key.startswith('ArucoMarker-'):
-                print('  Aruco marker %s' % key[12:], end='')
+                print(f'  {key}', end='')
             else:
                 print('  %r' % key, end='')
             print(' at (%6.1f, %6.1f) @ %4.1f deg    +/- (%4.1f,%4.1f)  +/- %3.1f deg' %
