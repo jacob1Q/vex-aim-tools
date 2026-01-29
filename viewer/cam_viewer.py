@@ -83,6 +83,9 @@ class CamViewer(QObject):
         self._timer.stop()
         self._view.close()
 
+    def is_running(self) -> bool:
+        return self._timer.isActive()
+
     def capture_raw(self, name: str = "robot_snap") -> Optional[str]:
         """Persist the latest raw frame using the snapshot service."""
 

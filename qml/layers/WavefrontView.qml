@@ -38,6 +38,8 @@ Item {
             height: root.imageHeight()
             x: root.imageX()
             y: root.imageY()
+            rotation: -90
+            transformOrigin: Item.Center
         }
     }
 
@@ -71,6 +73,14 @@ Item {
         return pixelsPerMm() * Math.max(1.0, root.squareSizeMm);
     }
 
+    function mapPoint(x, y) {
+        var scale = pixelsPerMm();
+        return {
+            x: (centerY() - y) * scale + viewport.width / 2,
+            y: (centerX() - x) * scale + viewport.height / 2
+        };
+    }
+
     function imageWidth() {
         if (!wavefrontImage.visible || wavefrontImage.sourceSize.width <= 0)
             return 0;
@@ -83,11 +93,30 @@ Item {
         return wavefrontImage.sourceSize.height * imageScale();
     }
 
+    function imageWidthMm() {
+        if (!wavefrontImage.visible || wavefrontImage.sourceSize.width <= 0)
+            return 0;
+        return wavefrontImage.sourceSize.width * Math.max(1.0, root.squareSizeMm);
+    }
+
+    function imageHeightMm() {
+        if (!wavefrontImage.visible || wavefrontImage.sourceSize.height <= 0)
+            return 0;
+        return wavefrontImage.sourceSize.height * Math.max(1.0, root.squareSizeMm);
+    }
+
+    function imageCenter() {
+        var widthMm = imageWidthMm();
+        var heightMm = imageHeightMm();
+        return mapPoint(root.originX + widthMm / 2,
+                        root.originY - heightMm / 2);
+    }
+
     function imageX() {
-        return (root.originX - centerX()) * pixelsPerMm() + viewport.width / 2;
+        return imageCenter().x - imageWidth() / 2;
     }
 
     function imageY() {
-        return (centerY() - root.originY) * pixelsPerMm() + viewport.height / 2;
+        return imageCenter().y - imageHeight() / 2;
     }
 }

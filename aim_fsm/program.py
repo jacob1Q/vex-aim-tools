@@ -228,12 +228,32 @@ class StateMachineProgram(StateNode):
             meta["aivision"] = None
         return meta
 
+    def _resolve_status(self):
+        status = getattr(self.robot, "status", None)
+        try:
+            if status is not None and "aivision" in status:
+                return status
+        except TypeError:
+            pass
+        robot0 = getattr(self.robot, "robot0", None)
+        if robot0 is not None:
+            try:
+                status0 = getattr(robot0, "status", None)
+            except Exception:
+                status0 = None
+            try:
+                if status0 is not None and "aivision" in status0:
+                    return status0
+            except TypeError:
+                pass
+        return status
+
     def _emit_annotated_frame(self, image):
         callback = getattr(self, "annotated_image_callback", None)
         if callback is None:
             return
-        status = getattr(self.robot, "status", None)
-        overlay_status = status if self.annotate_sdk else None
+        status = self._resolve_status()
+        overlay_status = status
         annotated = apply_overlays(
             image,
             overlay_status,
@@ -256,9 +276,9 @@ class StateMachineProgram(StateNode):
         self.user_image(image,gray)
         if self.annotated_image_callback is not None:
             self._emit_annotated_frame(image)
-        elif self.force_annotation and not self.robot.cam_viewer:
-            status = getattr(self.robot, "status", None)
-            overlay_status = status if self.annotate_sdk else None
+        elif self.force_annotation and (not self.robot.cam_viewer or not self.robot.cam_viewer.is_running()):
+            status = self._resolve_status()
+            overlay_status = status
             annotated = apply_overlays(
                 image,
                 overlay_status,

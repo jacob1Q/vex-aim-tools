@@ -31,14 +31,14 @@ class TagTextureProvider(QQuickImageProvider):
         """Generate or retrieve cached texture for the given tag ID.
         
         Args:
-            id: The tag ID string (e.g., "5", "42")
+            id: The tag ID string (e.g., "5", "42", "aruco-5")
             requestedSize: Requested size (QSize)
             
         Returns:
             Tuple of (QImage, QSize)
         """
         result_size = QSize(self._texture_width, self._texture_height)
-        
+
         if not id or id == "null" or id == "None":
             # Return transparent image for missing IDs
             img = QImage(self._texture_width, self._texture_height, QImage.Format.Format_RGBA8888)
@@ -49,22 +49,30 @@ class TagTextureProvider(QQuickImageProvider):
         if id in self._cache:
             return self._cache[id], result_size
 
+        label = id
+        background = QColor(128, 76, 230, 255)  # Purple background matching AprilTag color
+        text_color = QColor(255, 255, 255, 255)
+        if id.startswith("aruco-"):
+            label = id.split("-", 1)[1]
+            background = QColor(0, 255, 0, 255)  # Bright green for ArUco
+            text_color = QColor(0, 0, 0, 255)
+
         # Generate new texture with correct aspect ratio
         img = QImage(self._texture_width, self._texture_height, QImage.Format.Format_RGBA8888)
-        img.fill(QColor(128, 76, 230, 255))  # Purple background matching AprilTag color
+        img.fill(background)
 
         painter = QPainter(img)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
 
-        # White text, bold font
-        painter.setPen(QColor(255, 255, 255, 255))
+        # Bold font
+        painter.setPen(text_color)
         font = QFont("Arial", 72, QFont.Weight.Bold)
         painter.setFont(font)
 
         # Center the text
         rect = img.rect()
-        painter.drawText(rect, 0x84, id)  # 0x84 = AlignCenter | AlignVCenter
+        painter.drawText(rect, 0x84, label)  # 0x84 = AlignCenter | AlignVCenter
 
         painter.end()
 

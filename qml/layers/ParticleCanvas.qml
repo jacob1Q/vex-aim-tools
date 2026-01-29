@@ -59,8 +59,8 @@ Canvas {
     function mapPoint(x, y) {
         var scale = pixelsPerMm();
         return {
-            x: (x - centerX()) * scale + width / 2,
-            y: (centerY() - y) * scale + height / 2
+            x: (centerY() - y) * scale + width / 2,
+            y: (centerX() - x) * scale + height / 2
         };
     }
 
@@ -122,7 +122,7 @@ Canvas {
             
             ctx.save();
             ctx.translate(pos.x, pos.y);
-            ctx.rotate(-entry.theta);
+            ctx.rotate(-(entry.theta + Math.PI / 2));
             ctx.beginPath();
             ctx.moveTo(size, 0);
             ctx.lineTo(-size * 0.6, size * 0.5);
@@ -143,7 +143,7 @@ Canvas {
         var minor = particleSummary.ellipseMinor * scale;
         ctx.save();
         ctx.translate(center.x, center.y);
-        ctx.rotate(-particleSummary.ellipseAngle);
+        ctx.rotate(-(particleSummary.ellipseAngle + Math.PI / 2));
         ctx.beginPath();
         ctx.ellipse(0, 0, major, minor, 0, 0, Math.PI * 2);
         ctx.strokeStyle = "rgba(120, 240, 210, 0.6)";
@@ -164,7 +164,7 @@ Canvas {
         
         ctx.save();
         ctx.translate(pos.x, pos.y);
-        ctx.rotate(-particleSummary.poseTheta);
+        ctx.rotate(-(particleSummary.poseTheta + Math.PI / 2));
         ctx.translate(tipOffset, 0);  // Apply tip offset
         
         ctx.beginPath();
@@ -192,7 +192,7 @@ Canvas {
             var pos = mapPoint(entry.x, entry.y);
             ctx.save();
             ctx.translate(pos.x, pos.y);
-            ctx.rotate(-entry.theta);
+            ctx.rotate(-(entry.theta + Math.PI / 2));
             if (entry.kind === "wall") {
                 var halfLength = (entry.length_mm || 100) * 0.5 * scale;
                 var halfWidth = Math.max(10 * scale, (entry.width_mm || 50) * 0.5 * scale);
@@ -204,6 +204,16 @@ Canvas {
                 ctx.strokeStyle = entry.seen ? "rgba(130, 255, 120, 0.9)" : "rgba(90, 150, 90, 0.6)";
                 ctx.lineWidth = 2;
                 ctx.strokeRect(-size / 2, -size / 2, size, size);
+                if (entry.kind === "aruco" && entry.marker_id !== null && entry.marker_id !== undefined) {
+                    ctx.save();
+                    ctx.rotate(entry.theta + Math.PI / 2);
+                    ctx.fillStyle = entry.seen ? "rgba(255, 255, 255, 0.95)" : "rgba(200, 200, 200, 0.7)";
+                    ctx.font = Math.max(10, 14 * scale) + "px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(String(entry.marker_id), 0, size * 0.08);
+                    ctx.restore();
+                }
             }
             ctx.restore();
         }
