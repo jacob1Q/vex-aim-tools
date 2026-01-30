@@ -9,12 +9,12 @@ from .utils import *
 from .camera import AIVISION_RESOLUTION_SCALE
 
 class WorldObject():
-    def __init__(self, id=None, name=None, x=0, y=0, z=0, theta=None, is_visible=False):
+    def __init__(self, id=None, name=None, x=0, y=0, z=0, theta=None, is_visible=False, is_fixed=False):
         self.id = id
-        self.pose = Pose(x, y, z, theta)
+        self.pose = PoseEstimate(x, y, z, theta)
         self.name = name or self.__class__.__name__
         self.matched = None  # matching object from data association
-        self.is_fixed = False   # True for walls and markers in predefined maps
+        self.is_fixed = is_fixed   # True for walls and markers in predefined maps
         self.is_obstacle = True # for path planning
         self.is_visible = is_visible
         self.is_missing = False # expect to see it but we don't
@@ -119,8 +119,8 @@ class AprilTag4Obj(AprilTagObj):
     pass
 
 class ArucoMarkerObj(WorldObject):
-    def __init__(self, spec, x=0, y=0, z=0, theta=0):
-        super().__init__(x=x, y=x, z=z, theta=theta)
+    def __init__(self, spec, x=0, y=0, z=0, theta=0, **kwargs):
+        super().__init__(x=x, y=y, z=z, theta=theta, **kwargs)
         self.name = spec['name']
         self.marker = spec['marker']
         self.marker_id = spec['id']
