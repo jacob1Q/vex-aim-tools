@@ -10,7 +10,7 @@ import numpy as np
 from math import pi, sqrt, sin, cos, atan2, exp
 from .geometry import wrap_angle, wrap_selected_angles
 from .aruco import ArucoMarker
-from .worldmap import WorldObject, ArucoMarkerObj, WallObj, wall_marker_dict
+from .worldmap import WorldObject, ArucoMarkerObj, WallObj
 from .aim_kin import AIMKinematics
 
 class Particle():

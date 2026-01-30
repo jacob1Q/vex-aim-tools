@@ -21,6 +21,7 @@ from viewer.cam_viewer import CamViewer
 from viewer.worldmap_viewer import WorldMapViewer
 from .aruco import *
 from .worldmap import WorldMap
+from .wall_defs import default_wall_marker_dict
 from .particle import *
 from .utils import Pose
 from viewer.particle_viewer import ParticleViewer
@@ -45,6 +46,7 @@ class StateMachineProgram(StateNode):
                  viewer_crosshairs = False,  # set to True to draw viewer crosshairs
                  speech = True,
                  particle_filter = None,
+                 wall_marker_dict = default_wall_marker_dict,
                  launch_particle_viewer = False,
                  particle_viewer_scale = 1.0,
                  launch_path_viewer = False,
@@ -72,6 +74,7 @@ class StateMachineProgram(StateNode):
 
         self.launch_cam_viewer = launch_cam_viewer
         self.viewer = None
+        self.wall_marker_dict = wall_marker_dict or dict()
         self.annotate_sdk = annotate_sdk
         self.force_annotation = force_annotation
         self.annotated_scale_factor = annotated_scale_factor
@@ -132,8 +135,8 @@ class StateMachineProgram(StateNode):
         self.robot.robot0.led.on(vex.LightType.ALL_LEDS, vex.Color.TRANSPARENT)
         self.robot.clear_actuators()
 
-        # World map and path planner
-        #self.robot.world.rrt = self.rrt or RRT(self.robot)
+        # World map
+        self.robot.world_map.wall_marker_dict = self.wall_marker_dict
 
         # Polling
         self.set_polling_interval(0.025)  # for kine and motion model update

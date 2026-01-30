@@ -83,7 +83,7 @@ class DriveActuator(Actuator):
         else:
             turntype = vex.TurnType.RIGHT
         self.robot.world_map.pause_visibility()
-        print(f'actuator turn_for({turntype}, {abs(angle_rads)*180/pi}, {turn_speed}, {vex.TurnVelocityUnits.DPS}, {False}) for {self.holder}')
+        #print(f'actuator turn_for({turntype}, {abs(angle_rads)*180/pi}, {turn_speed}, {vex.TurnVelocityUnits.DPS}, {False}) for {self.holder}')
         self.robot.robot0.turn_for(turntype, abs(angle_rads)*180/pi,
                                    turn_speed, vex.TurnVelocityUnits.DPS, False)
 

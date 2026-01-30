@@ -166,17 +166,15 @@ class WallObj(WorldObject):
             #       f' diff = {neaten(abs(wrap_angle(self.sensor_orient - obj.sensor_orient))*180/pi)}  result: {result}')
         return result
 
-wall_marker_dict = dict()
 
 class WallSpec():
-    def __init__(self, label=None, length=100, height=210, marker_specs=dict(), doorways=dict()):
+    def __init__(self, wall_marker_dict, label=None, length=100, height=210, marker_specs=dict(), doorways=dict()):
         self.length = length
         self.height = height
         self.marker_specs = marker_specs
         self.doorways = doorways
         marker_id_numbers = list(marker_specs.keys())
         self.label = label or f'Wall-{min(marker_id_numbers)}'
-        global wall_marker_dict
         for id in marker_id_numbers:
             wall_marker_dict[id] = self
         wall_marker_dict[self.label] = self
@@ -372,8 +370,8 @@ class WorldMap():
         seen = self.robot.aruco_detector.seen_marker_objects.copy()
         wall_markers = dict()
         for (id,marker) in seen.items():
-            if id in wall_marker_dict:
-                spec = wall_marker_dict[id]
+            if id in self.robot.world_map.wall_marker_dict:
+                spec = self.robot.world_map.wall_marker_dict[id]
                 if spec.label not in wall_markers:
                     wall_markers[spec.label] = list()
                 wall_markers[spec.label].append((id,marker))
@@ -414,7 +412,7 @@ class WorldMap():
                 self.make_doorways_from_wall(wall)
 
     def infer_wall_from_corners_lists(self, wall_id, markers):
-        wall_spec = wall_marker_dict[wall_id]
+        wall_spec = self.robot.world_map.wall_marker_dict[wall_id]
         marker_size = self.robot.aruco_detector.marker_size
         world_points = []
         image_points = []
