@@ -238,9 +238,11 @@ class WorldMapModel(QAbstractListModel):
                     size_candidate = getattr(marker, "marker_size", getattr(marker, "size", None))
             size = _to_float(size_candidate or getattr(obj, "size", None), 38.0)
             entry["size_mm"] = size
+            entry["width_mm"] = size
+            entry["height_mm"] = size
             entry["marker_id"] = getattr(obj, "marker_id", None)
-            entry["thickness_mm"] = 4.0
-            entry["z"] = 2.0
+            entry["thickness_mm"] = 2.0
+            entry["z"] = size / 2.0
         elif type_name == "wall":
             length = _to_float(getattr(obj, "length", getattr(obj, "length_mm", None)), 0.0)
             height = _to_float(getattr(obj, "height", getattr(obj, "height_mm", None)), 0.0)

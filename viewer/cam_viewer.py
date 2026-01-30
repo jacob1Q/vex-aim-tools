@@ -35,6 +35,8 @@ class CamViewer(QObject):
         self._width = int(width)
         self._height = int(height)
         self._user_hook = user_annotate_function
+        self._active_user_hook = user_annotate_function
+        self._active_user_hook_sig = self._hook_signature(user_annotate_function)
         self._window_title = windowName
 
         self._app = QGuiApplication.instance() or QGuiApplication([])
@@ -80,6 +82,9 @@ class CamViewer(QObject):
     def stop(self) -> None:
         self._timer.stop()
         self._view.close()
+
+    def is_running(self) -> bool:
+        return self._timer.isActive()
 
     def capture_raw(self, name: str = "robot_snap") -> Optional[str]:
         """Persist the latest raw frame using the snapshot service."""
@@ -159,11 +164,36 @@ class CamViewer(QObject):
 
         self._provider.set_status(self._resolve_status())
         self._provider.set_aruco_detector(getattr(self._robot, "aruco_detector", None))
-        if self._user_hook is not None:
-            self._provider.set_user_hook(self._user_hook)
+        user_hook = self._resolve_user_hook()
+        hook_sig = self._hook_signature(user_hook)
+        if hook_sig != self._active_user_hook_sig:
+            self._provider.set_user_hook(user_hook)
+            self._active_user_hook = user_hook
+            self._active_user_hook_sig = hook_sig
 
         self._provider.update_live_frame(image)
         self._last_frame_id = frame_id
+
+    def _resolve_user_hook(self):
+        try:
+            from aim_fsm import program as _program
+        except Exception:
+            _program = None
+        if _program is not None:
+            running = getattr(_program, "running_fsm", None)
+            if running is not None:
+                return getattr(running, "user_annotate", None)
+        return self._user_hook
+
+    @staticmethod
+    def _hook_signature(hook):
+        if hook is None:
+            return None
+        func = getattr(hook, "__func__", None)
+        owner = getattr(hook, "__self__", None)
+        if func is not None and owner is not None:
+            return (owner, func)
+        return hook
 
     def _resolve_status(self):
         status = getattr(self._robot, "status", None)

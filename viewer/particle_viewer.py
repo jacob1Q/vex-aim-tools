@@ -97,7 +97,7 @@ class ParticleViewer(QObject):
         self._landmark_model = LandmarkModel()
         self._summary = ParticleSummary()
         self._view_state = ParticleViewState()
-        self._auto_center = True
+        self._auto_center = False
         self._verbose = False
         self._update_interval_ms = max(0, int(update_interval_ms))
         self._redisplay_enabled = self._update_interval_ms > 0

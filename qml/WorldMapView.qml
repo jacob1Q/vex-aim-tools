@@ -34,7 +34,7 @@ View3D {
 
     function worldToSceneVector(xMm, yMm, zMm) {
         const s = worldScale
-        return Qt.vector3d(-yMm * s, zMm * s, -xMm * s)
+        return Qt.vector3d(xMm * s, zMm * s, -yMm * s)
     }
 
     function radiansToDegrees(angle) {
@@ -217,7 +217,7 @@ View3D {
 
         Node {
             id: sceneBasis
-            rotation: Qt.quaternion(0.5, -0.5, 0.5, 0.5)
+            rotation: Qt.quaternion(0.7071, -0.7071, 0, 0)
             scale: Qt.vector3d(worldScale, worldScale, worldScale)
 
             Node {
@@ -476,13 +476,22 @@ View3D {
                 // Scale: X=thickness, Y=width, Z=height
                 scale: Qt.vector3d(thicknessMm / 100, widthMm / 100, heightMm / 100)
                 materials: PrincipledMaterial {
-                    // Legacy apriltag color: (0.5, 0.3, 0.9) = #804ce6 purple
-                    baseColor: model.type === "apriltag" ? "#804ce6" : "#202020"
-                    emissiveFactor: model.visible
-                                    ? (model.type === "apriltag"
-                                       ? Qt.vector3d(0.08, 0.05, 0.15)  // purple glow
-                                       : Qt.vector3d(0.1, 0.1, 0.1))
-                                    : Qt.vector3d(0.02, 0.02, 0.02)
+                    baseColor: {
+                        if (model.type === "apriltag")
+                            return "#804ce6";
+                        if (model.type === "aruco")
+                            return model.visible ? "#00ff00" : "#2a5c2a";
+                        return "#202020";
+                    }
+                    emissiveFactor: {
+                        if (!model.visible)
+                            return Qt.vector3d(0.02, 0.02, 0.02);
+                        if (model.type === "apriltag")
+                            return Qt.vector3d(0.08, 0.05, 0.15);  // purple glow
+                        if (model.type === "aruco")
+                            return Qt.vector3d(0.08, 0.16, 0.08);  // green glow
+                        return Qt.vector3d(0.1, 0.1, 0.1);
+                    }
                     roughness: 0.2
                     cullMode: Material.NoCulling
                 }
@@ -491,7 +500,9 @@ View3D {
             // Hidden 2D Image to load texture from image provider
             Image {
                 id: tagImage
-                source: model.type === "apriltag" ? "image://tagtexture/" + String(model.marker_id) : ""
+                source: (model.type === "apriltag" || model.type === "aruco")
+                        ? "image://tagtexture/" + (model.type === "aruco" ? "aruco-" : "") + String(model.marker_id)
+                        : ""
                 visible: false
                 cache: true
             }
@@ -499,7 +510,8 @@ View3D {
             // Text label panel - Front face (+X direction)
             Model {
                 id: textPanelFront
-                visible: model.type === "apriltag" && model.marker_id !== null && model.marker_id !== undefined && model.marker_id !== ""
+                visible: (model.type === "apriltag" || model.type === "aruco")
+                         && model.marker_id !== null && model.marker_id !== undefined && model.marker_id !== ""
                 source: "#Cube"
                 // Very thin panel; after X-rotation by 90°, original Y→Z, Z→Y in world coords
                 // So we swap width/height in scale to match world coordinates
@@ -523,7 +535,8 @@ View3D {
             // Text label panel - Back face (-X direction)
             Model {
                 id: textPanelBack
-                visible: model.type === "apriltag" && model.marker_id !== null && model.marker_id !== undefined && model.marker_id !== ""
+                visible: (model.type === "apriltag" || model.type === "aruco")
+                         && model.marker_id !== null && model.marker_id !== undefined && model.marker_id !== ""
                 source: "#Cube"
                 // Very thin panel; after X-rotation by 90°, original Y→Z, Z→Y in world coords
                 // So we swap width/height in scale to match world coordinates

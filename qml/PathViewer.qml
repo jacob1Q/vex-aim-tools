@@ -131,7 +131,7 @@ FocusScope {
         var scale = root.viewStateRef.zoom || 0.64;
         var deltaX = dx / scale;
         var deltaY = dy / scale;
-        root.viewStateRef.setCenter(root.viewStateRef.centerX + deltaX, root.viewStateRef.centerY + deltaY);
+        root.viewStateRef.setCenter(root.viewStateRef.centerX + deltaY, root.viewStateRef.centerY - deltaX);
     }
 
     function adjustZoom(factor) {
