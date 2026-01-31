@@ -153,6 +153,11 @@ class Robot():
         if program.running_fsm:
             program.running_fsm.process_image(self.camera_image)
 
+    def restart_img_thread(self):
+        self.loop.call_soon_threadsafe(self.robot0._ws_img_thread.stop_stream)
+        self.loop.call_later(0.5, self.loop.call_soon_threadsafe, self.robot0._ws_img_thread.start_stream)
+        print(self.robot0._ws_img_thread)
+
     def is_picked_up(self):
         """
         This function could be smarter about deciding when the robot has been

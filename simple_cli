@@ -283,6 +283,9 @@ def cli_loop(_robot):
                 traceback.print_exc()
                 print()
             continue
+        elif cli_loop._line[0:8] == 'restart ' or  cli_loop._line == 'restart':
+            restart_stuff(cli_loop._line[8:])
+            continue
         elif cli_loop._line == '/oa':
             cli_loop._line = "oa = robot.world_map.objects['OrangeBarrel.a']"
         elif cli_loop._line == '/ob':
@@ -425,6 +428,7 @@ def show_stuff(args):
   show particle_viewer             Open PyQt6 particle viewer
   show worldmap_viewer             Open PyQt6 world map viewer
   show path_viewer                 Open PyQt6 path/wavefront viewer
+  restart img_thread               Restart the image thread to unfreeze camera
    """)
 
 
@@ -538,6 +542,14 @@ def show_landmarks_helper(landmarks):
               (x, y, theta, sigma_x, sigma_y, sigma_theta))
     print()
 """
+
+def restart_stuff(args):
+    arg = args.strip()
+    if arg == 'img_thread':
+        robot.restart_img_thread()
+    else:
+        print('Usage:   restart img_thread')
+
 
 def start_stuff(args):
     print('not yet implemented')
