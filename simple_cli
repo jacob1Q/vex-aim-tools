@@ -51,7 +51,11 @@ except Exception:
 ################ Configuration
 
 # tab completion
-readline.parse_and_bind('tab: complete')
+if 'libedit' in readline.__doc__:    # Macs might not use GNU readline
+    # Use libedit-specific binding for tab
+    readline.parse_and_bind("bind ^I rl_complete")
+else:
+    readline.parse_and_bind('tab: complete')
 
 # Qt event processing flag (set by SIGALRM handler)
 _qt_needs_processing = False
