@@ -39,6 +39,7 @@ class SimRobot():
             robot.erouter = EventRouter(robot)
 
         robot.world_map = WorldMap(robot)
+        robot.world_map.wall_marker_dict = dict()
         robot.particle_filter = SLAMParticleFilter(robot)
         robot.kine = AIMKinematics(robot)
         robot.rrt = RRT(robot)
