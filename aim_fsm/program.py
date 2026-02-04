@@ -101,7 +101,6 @@ class StateMachineProgram(StateNode):
                                    landmark_test=SLAMSensorModel.is_wall_landmark)
         else:
             raise TypeError(f'Not a ParticleFilter instance: {particle_filter=}')
-        print(f'{self.particle_filter=}')
 
         self.perched_cameras = perched_cameras
         if self.perched_cameras:
@@ -208,7 +207,7 @@ class StateMachineProgram(StateNode):
         pass
 
     def robot_put_down_default(self):
-        pass
+        print('Robot was put down.')
 
     def user_image(self,image,gray): pass
 

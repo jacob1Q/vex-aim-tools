@@ -31,6 +31,7 @@ class PickUp(ActionNode,ObjectSpecNode):
             spec = self.object_spec
         self.object = self.get_object_from_spec(spec)
         super().start(event)
+        print('PickUp', self.object)
         if self.object is None:
             self.post_failure()
 

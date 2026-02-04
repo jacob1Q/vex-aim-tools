@@ -328,7 +328,7 @@ class PathPlanToObject(StateNode):
     def start(self,event=None):
         super().start(event)
         if isinstance(event, DataEvent):
-            print('PathPlanToObject got', event)
+            print(f'PathPlanToObject got {event} with {event.data}')
             if isinstance(event.data, (WorldObject, str)):
                 self.goal_spec = event.data
             else:
