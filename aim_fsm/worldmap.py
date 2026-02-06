@@ -734,7 +734,7 @@ class WorldMap():
                         back_markers.append(marker_id)
                 prompt += f'{obj.id} has markers {front_markers} on its front side and {back_markers} on its back side\n'   
 
-            if isinstance(obj, DoorwayObj):
+            if isinstance(obj, DoorwayObj) and obj.wall:
                 prompt += f'{id} is part of {obj.wall.id}\n'
         landmark_ids = list(self.robot.particle_filter.sensor_model.landmarks.keys())
         if landmark_ids:
