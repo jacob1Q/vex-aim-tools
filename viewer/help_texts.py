@@ -63,7 +63,7 @@ DEPTH_HELP_TEXT = (
     "  Space    Toggle live refresh on/off\n"
     "  g        Toggle gradient source (camera/depth)\n"
     "  r        Refresh one frame (manual)\n"
-    "  Default gradient source: camera (professor mode)\n"
+    "  Default gradient source: camera image (right/down shift differencing)\n"
     "  h        Toggle this help overlay\n"
     "  Esc/Q    Close the viewer\n"
 )
