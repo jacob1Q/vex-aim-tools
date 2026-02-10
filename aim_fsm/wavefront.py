@@ -13,12 +13,11 @@ from .rrt_shapes import *
 class WaveFront():
     goal_marker = 2**31 - 1
 
-    def __init__(self, robot, square_size=5, bbox=None, grid_shape=(150,150), inflate_size=40):
+    def __init__(self, robot, square_size=5, bbox=None, grid_shape=(150,150), grid_margin=120):
         self.robot = robot
         self.square_size = square_size  # in mm
         self.bbox = bbox  # in mm
-        self.inflate_size = inflate_size  # in mm
-        self.inflate_factor = 3
+        self.grid_margin = grid_margin  # in mm
         self.grid_shape = grid_shape  # array shape
         self.initialize_grid(bbox=bbox)
         self.obstacles = dict()
@@ -26,15 +25,15 @@ class WaveFront():
     def initialize_grid(self,bbox=None):
         if bbox:
             self.bbox = bbox
-            self.grid_shape = (ceil((bbox[1][0] - bbox[0][0] + 2*self.inflate_factor*self.inflate_size)/self.square_size),
-                               ceil((bbox[1][1] - bbox[0][1] + 2*self.inflate_factor*self.inflate_size)/self.square_size))
+            self.grid_shape = (ceil((bbox[1][0] - bbox[0][0] + 2*self.grid_margin)/self.square_size),
+                               ceil((bbox[1][1] - bbox[0][1] + 2*self.grid_margin)/self.square_size))
         self.grid = np.zeros(self.grid_shape, dtype=np.int32)
         self.maxdist = 1
 
     def coords_to_grid(self,xcoord,ycoord):
         "Convert world map coordinates to grid subscripts."
-        x = int(round((xcoord-self.bbox[0][0]+self.inflate_factor*self.inflate_size)/self.square_size))
-        y = int(round((ycoord-self.bbox[0][1]+self.inflate_factor*self.inflate_size)/self.square_size))
+        x = int(round( (xcoord-self.bbox[0][0]+self.grid_margin) / self.square_size) )
+        y = int(round( (ycoord-self.bbox[0][1]+self.grid_margin) / self.square_size) )
         if x >= 0 and x < self.grid_shape[0] and \
            y >= 0 and y < self.grid_shape[1]:
             return (x,y)
@@ -44,8 +43,8 @@ class WaveFront():
     def grid_to_coords(self,gridx,gridy):
         xmin = self.bbox[0][0]
         ymin = self.bbox[0][1]
-        x = gridx*self.square_size + xmin - self.inflate_factor*self.inflate_size
-        y = gridy*self.square_size + ymin - self.inflate_factor*self.inflate_size
+        x = gridx*self.square_size + xmin - self.grid_margin
+        y = gridy*self.square_size + ymin - self.grid_margin
         return (x,y)
 
     def set_obstacle_cell(self, xcoord, ycoord, obstacle_id):
@@ -125,7 +124,7 @@ class WaveFront():
         return empty_points, goal_points
 
     def generate_round_goal_points(self, shape):
-        EXTRA_GAP = 50
+        EXTRA_GAP = 20
         center_x, center_y = shape.center[0,0], shape.center[1,0]
         radius = shape.radius + self.robot.kine.body_diameter/2 + EXTRA_GAP # extra gap so we don't grab the object
         divisions = 24

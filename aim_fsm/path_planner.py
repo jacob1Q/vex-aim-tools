@@ -151,7 +151,7 @@ class PathPlanner():
             collider = wf.check_start_collides(start_node.x, start_node.y)
 
         distance_to_goal = sqrt((start_node.x - goal_shape.center[0,0])**2 + (start_node.y - goal_shape.center[1,0])**2)
-        distance_threshold = (wf.inflate_size + rrt_instance.robot.kine.body_diameter/2) + 15 # fudge factor
+        distance_threshold = (rrt_instance.robot.kine.body_diameter/2) + 15 # fudge factor
         too_close_to_goal = distance_to_goal <= distance_threshold
         #print(f'{distance_to_goal=} {distance_threshold=}')
         if collider or too_close_to_goal:
