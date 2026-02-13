@@ -539,6 +539,7 @@ class RRT():
                 self.goal_obstacle = obst
             elif obst is not None:
                 obstacles.append(obst)
+        print('generate_obstacles returned', obstacles)
         self.obstacles = obstacles
 
     @staticmethod

@@ -294,7 +294,7 @@ class PathPlanner():
                 plan = NavPlan([drive_step])
             return plan
 
-        # Truncate the path at the doorway, and ajust to make sure
+        # Truncate the path at the doorway, and adjust to make sure
         # we're outside the approach gate.
         start_point = (pt1.x, pt1.y)
         DELTA = 15 # mm

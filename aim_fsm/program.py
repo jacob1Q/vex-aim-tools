@@ -29,6 +29,7 @@ from .rrt import RRT
 from viewer.path_viewer import PathViewer
 from viewer.camera_overlay import apply_overlays
 from .camera import AIVISION_RESOLUTION_SCALE
+from . import pilot
 #from . import custom_objs
 #from .perched import *
 #from .sharedmap import *
@@ -167,6 +168,9 @@ class StateMachineProgram(StateNode):
             self.robot.speech_listener.enable()
         else:
             self.robot.speech_listener.disable()
+
+        # Set up DoorPass instance needed by Pilot; do it here to avoid circular dependency issues
+        pilot.pilot_global_doorpass_node = pilot.DoorPass()
 
         # Call parent's start() to launch the state machine by invoking the start node.
         super().start()

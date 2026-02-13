@@ -323,8 +323,8 @@ class ParticleFilter():
         self.new_x = [0.0] * num_particles # lists are faster than arrays here
         self.new_y = [0.0] * num_particles # lists are faster than arrays here`
         self.new_theta = [0.0] * num_particles # lists are faster than arrays here
-        self.dist_jitter = 20 # mm was 50
-        self.angle_jitter = 10 / 180 * pi # was 20 deg
+        self.dist_jitter = 50 # mm was 50
+        self.angle_jitter = 5 / 180 * pi # was 20 deg
         self.state = self.LOST
         self.update_pose_variance()
 

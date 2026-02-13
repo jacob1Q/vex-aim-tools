@@ -379,7 +379,7 @@ class WorldMap():
             orients = [marker[1].euler_angles[1] for marker in markers]
             orig_orients = copy.copy(orients)
             if len(orients) == 1:
-                # one marker is enough to update a wall if we're localizeds
+                # one marker is enough to update a wall if we're localized
                 if self.robot.particle_filter.state != self.robot.particle_filter.LOCALIZED:
                     continue
             elif len(orients) == 2:
@@ -407,6 +407,7 @@ class WorldMap():
             wall.aruco_orients = orients
             wall.seen_markers = markers
             self.candidates.append(wall)
+            #print('candidate:', wall, 'orients(deg)=', [o*180/pi for o in orients])
             # Don't make doorways until wall is confirmed in world map
             if [k for k in self.robot.world_map.objects.keys() if k.startswith(wall.name)]:
                 self.make_doorways_from_wall(wall)

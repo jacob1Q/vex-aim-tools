@@ -616,10 +616,6 @@ robot = Robot(loop=loop, host=robot_address,
               launch_speech_listener=launch_speech_listener)
 evbase.robot_for_loading = robot
 
-# Need this for circularity between Pilot and DoorPass
-pilot.pilot_global_doorpass_node = pilot.DoorPass()
-
-
 ################ Launch
 
 file_to_run = sys.argv[1] if len(sys.argv) > 1 else None

@@ -251,9 +251,9 @@ class Transition(EventListener):
             return
         else:
             self.handle = None
-        parent = self.sources[0].parent
+        parent = self.sources[0].parent  # all sources should have the same parent
         if not parent.running:
-            # print('@ @ @ @ @ PARENT OF', self, 'IS', parent, 'IS DEAD!  event=', event, '%x' % event.__hash__())
+            print('@ @ @ @ @ PARENT OF', self, 'IS', parent, 'IS DEAD!  event=', event, '%x' % event.__hash__())
             return
         for dest in self.destinations:
             if TRACE.trace_level >= TRACE.transition_fire:
