@@ -302,6 +302,7 @@ class PilotToObject(PilotBase):
 
         #planner: PathPlannerProcess() =D=> recv
         planner: PathPlanToObject() =D=> recv
+        planner =C=> ParentCompletes() # already close enough
         planner =PILOT=> ParentPilotEvent() =N=> Print('Path planner failed')
 
         recv: self.ReceivePlan() =D=> exec
@@ -346,6 +347,8 @@ class PilotToPose(PilotBase):
         super().start(event)
 
     class PilotRRTPlanner(StateNode):
+        MIN_DISTANCE_THRESHOLD = 10 # mm
+
         def planner(self,start_node,goal_node):
             return self.robot.rrt.plan_path(start_node, goal_node, goal_object=self.parent.target_object)
 
@@ -363,6 +366,13 @@ class PilotToPose(PilotBase):
                 self.parent.post_failure()
                 return
             pose = self.robot.pose
+            distance = sqrt((tpose.x - pose.x)**2 + (tpose.y - pose.y)**2)
+            if distance <= self.MIN_DISTANCE_THRESHOLD:
+                print(f'PilotRRTPlanner: distance {distance:.1f} mm already close enough')
+                self.post_completion()
+                return
+            else:
+                print(f'PilotRRTPlanner: {distance = :.1f} mm')
             start_node = RRTNode(x=pose.x, y=pose.y, q=pose.theta)
             goal_node = RRTNode(x=tpose.x, y=tpose.y, q=tpose.theta)
 
@@ -493,6 +503,7 @@ class PilotToPose(PilotBase):
         launch: self.ClearDisplays() =N=> planner
 
         planner: self.PilotRRTPlanner() =D=> recv
+        planner =C=> ParentCompletes()  # already close enough
         planner =PILOT=> ParentPilotEvent() =N=> Print('Path planner failed')
 
         recv: self.ReceivePlan() =D=> exec

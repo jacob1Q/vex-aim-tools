@@ -16,9 +16,10 @@ class NullTrans(Transition):
 
     def stop(self):
         if self.handle:
-            print(self, 'cancelling', self.handle)
+            msg = f'{self} cancelling {self.handle}'
             self.handle.cancel()
             self.handle = None
+            print(msg)
         super().stop()
 
     def fire(self, event=None):

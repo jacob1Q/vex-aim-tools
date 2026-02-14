@@ -321,6 +321,9 @@ class PathPlanner():
 
 class PathPlanToObject(StateNode):
     "goal_spec is either a WorldObject or a string (object id)"
+
+    MIN_DISTANCE_THRESHOLD = 10 # mm
+
     def __init__(self, goal_spec=None):
         super().__init__()
         self.goal_spec = goal_spec
@@ -341,11 +344,17 @@ class PathPlanToObject(StateNode):
             raise ValueError('No world object with this id:', self.goal_spec)
         if self.robot.particle_filter.state != ParticleFilter.LOCALIZED:
             print('PathPlanToOjectNode: Robot not localized!')
-            result = PilotEvent(NotLocalized)
+            self.post_event(PilotEvent(NotLocalized))
+            return
+        distance = sqrt((self.goal_obj.pose.x - self.robot.pose.x)**2 + (self.goal_obj.pose.y - self.robot.pose.y)**2)
+        if distance <= self.MIN_DISTANCE_THRESHOLD:
+            print(f'PathPlanToObject: distance {distance:.1f} mm already close enough')
+            self.post_completion()
+            return
         else:
-            result = self.robot.path_planner.plan_path_this_process(self.robot, self.goal_obj)
+            print(f'PathPlanToObject: {distance = :.1f} mm')
+        result = self.robot.path_planner.plan_path_this_process(self.robot, self.goal_obj)
         self.post_event(result)
-        return result
 
 #----------------------------------------------------------------
 
