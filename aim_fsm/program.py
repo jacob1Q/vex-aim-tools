@@ -47,6 +47,8 @@ class StateMachineProgram(StateNode):
                  viewer_crosshairs = False,  # set to True to draw viewer crosshairs
                  speech = True,
                  particle_filter = None,
+                 num_particles = 500,
+                 landmarks = dict(),
                  wall_marker_dict = default_wall_marker_dict,
                  launch_particle_viewer = False,
                  particle_viewer_scale = 1.0,
@@ -94,12 +96,16 @@ class StateMachineProgram(StateNode):
             self.robot.aruco_detector = \
                 RobotArucoDetector(self.robot, dictionary_name, aruco_marker_size, aruco_disabled_ids)
 
+        self.num_particles = num_particles
+        self.landmarks = landmarks
         if isinstance(particle_filter, ParticleFilter):
             self.particle_filter = particle_filter
         elif particle_filter is None:
             self.particle_filter = \
-                SLAMParticleFilter(self.robot, num_particles=500,
+                SLAMParticleFilter(self.robot, num_particles=self.num_particles,
                                    landmark_test=SLAMSensorModel.is_wall_landmark)
+        elif particle_filter == False:
+            self.particle_filter = None
         else:
             raise TypeError(f'Not a ParticleFilter instance: {particle_filter=}')
 
@@ -122,8 +128,7 @@ class StateMachineProgram(StateNode):
         if self.particle_filter is None:
             self.particle_filter = SLAMParticleFilter(self.robot,
                                                       num_particles=self.num_particles,
-                                                      landmarks=self.landmarks,
-                                                      sensor_model=self.sensor_model)
+                                                      landmarks=self.landmarks)
         elif isinstance(self.particle_filter,SLAMParticleFilter):
             self.particle_filter.clear_landmarks()
         self.robot.particle_filter = self.particle_filter
