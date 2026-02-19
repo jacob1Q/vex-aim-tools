@@ -3,6 +3,7 @@ import numpy as np
 import random
 import time
 import math
+from math import nan
 
 from .geometry import wrap_angle
 
@@ -29,15 +30,16 @@ class RRTNode():
     def __repr__(self):
         if self.q is None:
             return '<RRTNode (%.1f, %.1f)>' % (self.x, self.y)
-        elif not self.parent:
-            return '<RRTNode (%.1f, %.1f)@%d deg>' % \
-                   (self.x, self.y, round(self.q/pi*180))
+        qtext = f'{self.q:.1f}' if self.q is not nan else 'nan'
+        if not self.parent:
+            return '<RRTNode (%.1f, %.1f)@%s deg>' % \
+                   (self.x, self.y, qtext)
         elif self.radius is None:
-            return '<RRTNode line to (%.1f, %.1f)@%d deg>' % \
-                   (self.x, self.y, round(self.q/pi*180))
+            return '<RRTNode line to (%.1f, %.1f)@%s deg>' % \
+                   (self.x, self.y, qtext)
         else:
-            return '<RRTNode arc to (%.1f, %.1f)@%d deg, rad=%d>' % \
-                   (self.x, self.y, round(self.q/pi*180), self.radius)
+            return '<RRTNode arc to (%.1f, %.1f)@%s deg, rad=%d>' % \
+                   (self.x, self.y, qtext, self.radius)
 
 
 #---------------- RRT Path Planner ----------------
@@ -244,16 +246,17 @@ class RRT():
             raise MaxIterations(self.max_iter)
 
     def compute_world_bounds(self,start,goal):
+        print(f'{start=}  {goal=}')
         xmin = min(start.x, goal.x)
         xmax = max(start.x, goal.x)
         ymin = min(start.y, goal.y)
         ymax = max(start.y, goal.y)
         for obst in self.obstacles:
             if isinstance(obst,Circle):
-                xmin = obst.center[0] - obst.radius
-                xmax = obst.center[0] + obst.radius
-                ymin = obst.center[1] - obst.radius
-                ymax = obst.center[1] + obst.radius
+                xmin = min(xmin, obst.center[0][0] - obst.radius)
+                xmax = max(xmax, obst.center[0][0] + obst.radius)
+                ymin = min(ymin, obst.center[1][0] - obst.radius)
+                ymax = max(ymax, obst.center[1][0] + obst.radius)
             else:
                 xmin = min(xmin, np.min(obst.vertices[0]))
                 xmax = max(xmax, np.max(obst.vertices[0]))
@@ -307,7 +310,7 @@ class RRT():
         them with a direct link if there is no collision."""
         smoothed_path = self.path
         print('smoothing path of length', len(smoothed_path))
-        for _ in range(0,len(smoothed_path)):
+        for _ in range(0,2*len(smoothed_path)):
             L = len(smoothed_path)
             if L <= 2: break
             i = random.randrange(0,L-2)

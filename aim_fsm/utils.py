@@ -1,5 +1,5 @@
 import numpy as np
-from math import pi
+from math import pi, nan
 
 from .geometry import wrap_angle
 
@@ -236,7 +236,7 @@ class PoseEstimate(Pose):
         #self.kf_z.predict()
         self.z = self.kf_z.update(new_pose.z)
 
-        if self.theta is not None:
+        if self.theta is not None and self.theta is not nan:
             #self.kf_theta.predict()
             self.theta = self.kf_theta.update(new_pose.theta)
 

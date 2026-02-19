@@ -167,6 +167,7 @@ class GPTOneShot(StateNode):
 
 class TagDetection(StateNode):
     def __init__(self, enabled=True):
+        super().__init__()
         self.enabled = enabled
 
     def start(self, event=None):

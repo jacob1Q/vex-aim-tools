@@ -349,7 +349,11 @@ class PilotToPose(PilotBase):
     class PilotRRTPlanner(StateNode):
         MIN_DISTANCE_THRESHOLD = 10 # mm
 
-        def planner(self,start_node,goal_node):
+        def rrt_plan(self,start_node,goal_node):
+            self.robot.rrt.generate_obstacles(self.parent.target_object,
+                                              PathPlanner.skinny_obstacle_inflation,
+                                              PathPlanner.skinny_wall_inflation,
+                                              PathPlanner.skinny_doorway_adjustment)
             return self.robot.rrt.plan_path(start_node, goal_node, goal_object=self.parent.target_object)
 
         def start(self,event=None):
@@ -378,7 +382,7 @@ class PilotToPose(PilotBase):
 
             start_escape_move = None
             try:
-                (treeA, treeB, path) = self.planner(start_node, goal_node)
+                (treeA, treeB, path) = self.rrt_plan(start_node, goal_node)
 
             except StartCollides as e:
                 # See if we can escape the start collision using canned headings.
@@ -407,7 +411,7 @@ class PilotToPose(PilotBase):
                     self.parent.post_failure()
                     return
                 try:
-                    (treeA, treeB, path) = self.planner(start_node, goal_node)
+                    (treeA, treeB, path) = self.rrt_plan(start_node, goal_node)
                 except GoalCollides as e:
                     print('PilotRRTPlanner: Goal collides!',e)
                     self.parent.post_event(PilotEvent(GoalCollides, args=e.args))
@@ -476,7 +480,7 @@ class PilotToPose(PilotBase):
             goal_node = RRTNode(x=gate[0], y=gate[1], q=gate[2])
             print('new goal is', goal_node)
             try:
-                (_, _, path) = self.planner(start_node, goal_node)
+                (_, _, path) = self.rrt_plan(start_node, goal_node)
             except Exception as e:
                 print('Pilot replanning for door gateway failed!', e.args)
             navplan = PathPlanner.from_path(path, [])
@@ -523,7 +527,7 @@ class PilotPushToPose(PilotToPose):
         super().__init__(pose)
         self.max_turn = 20*(pi/180)
 
-    def planner(self,start_node,goal_node):
+    def rrt_plan(self,start_node,goal_node):
         self.robot.rrt.step_size=20
         return self.robot.rrt.plan_push_chip(start_node,goal_node)
 

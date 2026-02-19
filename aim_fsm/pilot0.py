@@ -91,7 +91,7 @@ class NavStep():
             psteps = [(round(node.x,1),round(node.y,1)) for node in self.param]
             pstring = repr(psteps)
         elif self.type == NavStep.TURN_TO:
-            pstring = f'{neaten(self.param * 180/pi)} deg.'
+            pstring = f'{self.param * 180/pi:.1f} deg.'
         else:   # NavStep.BACKUP and anything else
             pstring = repr(self.param)
             if len(pstring) > 40:
