@@ -323,9 +323,17 @@ class WorldMap():
             if isinstance(obj, AprilTagObj):
                 cy += spec['height'] * 2 * AIVISION_RESOLUTION_SCALE
             hit = self.robot.kine.project_to_ground(cx, cy)
+            # Correct for distortion: constants calculated from measurements with 24.3 degree camera tilt
+            K1 = 1.55; K2 = -58.4
+            oldhit = hit.copy()
+            hit[0] = K1 * hit[0] + K2
+            adjhit = hit.copy()
             # offset hit by half the object thickness
+            angle = atan2(hit[1,0], hit[0,0])
             if obj.__dict__.get('diameter'):
-                hit += point(obj.diameter / 2, 0, 0)   # *** should calculate y offset too
+                half_diameter = obj.diameter / 2
+                hit += point(cos(angle) * half_diameter, sin(angle) * half_diameter, 0)
+            #print(f'{oldhit[0,0]=}  {adjhit[0,0]=}  {hit[0,0]=}')
             # convert to world coordinates
             robotpos = point(self.robot.pose.x, self.robot.pose.y)
             objpos = aboutZ(self.robot.pose.theta).dot(hit) + robotpos
