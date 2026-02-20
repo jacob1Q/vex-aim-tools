@@ -1,4 +1,5 @@
 import math
+from math import nan, sqrt
 import time
 import sys
 import asyncio
@@ -143,9 +144,9 @@ class PilotBase(StateNode):
                 step = self.parent.navplan.steps[self.parent.index]
                 target_heading = step.param
                 self.angle_deg = wrap_angle(target_heading - self.robot.pose.theta) * 180/pi
-                print(f'ExecuteTurnTo: target heading = {neaten(target_heading*180/pi)} deg., ' +
-                      f'current heading = {neaten(self.robot.pose.theta*180/pi)} deg., ' +
-                      f'turn angle = {neaten(self.angle_deg)} .deg')
+                print(f'ExecuteTurnTo: target heading = {target_heading*180/pi:.1f} deg., ' +
+                      f'current heading = {self.robot.pose.theta*180/pi:.1f} deg., ' +
+                      f'turn angle = {self.angle_deg:.1f} .deg')
                 super().start(event)
 
 
@@ -336,8 +337,8 @@ class PilotToPose(PilotBase):
         if isinstance(event, DataEvent):
             if isinstance(event.data, WorldObject):
                 self.target_object = event.data
-                self.target_pose = event.data.pose
-                self.target_pose.theta = math.nan
+                self.target_pose = copy.copy(event.data.pose)
+                self.target_pose.theta = nan
             elif isinstance(event.data, Pose):
                 self.target_object = None
                 self.target_pose = event.data
@@ -348,13 +349,6 @@ class PilotToPose(PilotBase):
 
     class PilotRRTPlanner(StateNode):
         MIN_DISTANCE_THRESHOLD = 10 # mm
-
-        def rrt_plan(self,start_node,goal_node):
-            self.robot.rrt.generate_obstacles(self.parent.target_object,
-                                              PathPlanner.skinny_obstacle_inflation,
-                                              PathPlanner.skinny_wall_inflation,
-                                              PathPlanner.skinny_doorway_adjustment)
-            return self.robot.rrt.plan_path(start_node, goal_node, goal_object=self.parent.target_object)
 
         def start(self,event=None):
             super().start(event)
@@ -487,13 +481,21 @@ class PilotToPose(PilotBase):
             navplan.steps.append(last_step)  # Add the doorpass step
             self.post_data((navplan,grid_display))
 
+        def rrt_plan(self,start_node,goal_node):
+            self.robot.rrt.generate_obstacles(self.parent.target_object,
+                                              PathPlanner.skinny_obstacle_inflation,
+                                              PathPlanner.skinny_wall_inflation,
+                                              PathPlanner.skinny_doorway_adjustment)
+            return self.robot.rrt.plan_path(start_node, goal_node, goal_object=self.parent.target_object)
+
         # ----- End of PilotRRTPlanner -----
 
     class CheckArrival(StateNode):
         def start(self, event=None):
             super().start(event)
             pose_diff = self.robot.pose - self.parent.target_pose
-            distance = (pose_diff.x**2 + pose_diff.y**2) ** 0.5
+            distance = sqrt(pose_diff.x**2 + pose_diff.y**2)
+            print(f'{distance=}  {pose_diff=}')
             MAX_TARGET_DISTANCE = 50.0 # mm
             if distance <= MAX_TARGET_DISTANCE:
                 self.post_success()
@@ -763,8 +765,8 @@ class DoorPass(StateNode):
             dy = door_pose.y - robot_pose.y
             vec = aboutZ(robot_pose.theta).dot(point(dx,dy))
             self.distance_mm = vec[1,0]
-            print(f'dpose={door_pose} rpose={robot_pose} dx={neaten(dx)} dy={neaten(dy)}' +
-                  f' vec={neaten(vec[0,0])},{neaten(vec[1,0])} dist={neaten(self.distance_mm)}')
+            print(f'dpose={door_pose} rpose={robot_pose} dx={dx:.1f} dy={dy:.1f}' +
+                  f' vec={vec[0,0]:.1f},{vec[1,0]:.1f} dist={self.distance_mm:.1f}')
             super().start(event)
         
 

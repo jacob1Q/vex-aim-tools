@@ -203,8 +203,6 @@ class Robot():
         self.openai_client.oneshot_query(query_text, image)
 
     def show_pose(self):
-        def neaten(x):
-            return round(x*10)/10
         print(f'Odometry:  {self.robot0.get_y_position():.1f}, ' +
               f'{-self.robot0.get_x_position():.1f} ' +
               f'heading {wrap_angle_deg(-self.robot0.inertial.get_heading()):.1f} deg.', end='')
@@ -213,11 +211,11 @@ class Robot():
               f'Yaw: {self.robot0.inertial.get_yaw():.1f} ]')
         pf_pose = self.particle_filter.update_pose_estimate()
         var = self.particle_filter.update_pose_variance()
-        print(f'Particles: {neaten(pf_pose.x)}, ' +
-              f'{neaten(pf_pose.y)} ' +
-              f'heading {neaten(pf_pose.theta*180/pi)} deg.  ' +
+        print(f'Particles: {pf_pose.x:.1f}, ' +
+              f'{pf_pose.y:.1f} ' +
+              f'heading {pf_pose.theta*180/pi:.1f} deg.  ' +
               f'[{self.particle_filter.state}]   ' +
-              f'variance: <{neaten(var[0][0,0])}, {neaten(var[0][1,1])}> ! <{neaten(var[1]*10000)/10000}>')
+              f'variance: <{var[0][0,0]:.1f}, {var[0][1,1]:.1f}> ! <{var[1]:.4f}>')
         print()
 
     def print_raw_odometry(self):

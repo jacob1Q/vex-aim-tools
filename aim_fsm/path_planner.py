@@ -2,7 +2,7 @@
 Path planner using RRT and Wavefront algorithms.
 """
 
-from math import pi, sin, cos, sqrt, nan
+from math import pi, sin, cos, sqrt, nan, isnan
 from multiprocessing import Process
 
 #from .nodes import LaunchProcess
@@ -284,7 +284,7 @@ class PathPlanner():
 
         # If no doorway, we're good to go.  See if we need to turn at the end.
         if door is None:
-            if len(path) > 1 and path[-1].x == path[-2].x and path[-1].y == path[-2].y and path[-1].q is not nan:
+            if len(path) > 1 and path[-1].x == path[-2].x and path[-1].y == path[-2].y and not isnan(path[-1].q):
                 all_but_last = path[:-1]
                 drive_step = NavStep(NavStep.DRIVE, all_but_last)
                 turn_step = NavStep(NavStep.TURN_TO, path[-1].q)

@@ -168,12 +168,6 @@ class CircularKalmanFilter:
         return self.state
 
 
-def neaten(x):
-    if isinstance(x, (int,float)):
-        return round(x*10)/10
-    else:
-        return x
-
 class Pose():
     def __init__(self, x=0, y=0, z=0, theta=None, origin_id=-1):
         self.x = x
