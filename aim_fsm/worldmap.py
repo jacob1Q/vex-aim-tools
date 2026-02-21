@@ -677,6 +677,7 @@ class WorldMap():
                         width_margin = 145
                     else:
                         width_margin = 120
+                    print(f"left={spec['originx']*AIVISION_RESOLUTION_SCALE}  {width_margin=}  right={(spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE} min: {(self.robot.camera.resolution[0] - width_margin)}")
                     if spec['originx']*AIVISION_RESOLUTION_SCALE < width_margin and \
                        (spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE > (self.robot.camera.resolution[0] - width_margin):
                         held_obj = obj
