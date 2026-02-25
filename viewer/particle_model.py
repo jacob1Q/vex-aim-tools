@@ -386,7 +386,19 @@ class LandmarkModel(QAbstractListModel):
             pf_landmarks = {}
 
         world_objects_by_string = {}
-        for obj in world_map.objects.values():
+        if world_map is not None:
+            snapshot = getattr(world_map, "snapshot_objects", None)
+            try:
+                if callable(snapshot):
+                    world_objects = snapshot() or {}
+                else:
+                    world_objects = dict(getattr(world_map, "objects", {}) or {})
+            except Exception:
+                world_objects = {}
+        else:
+            world_objects = {}
+
+        for obj in world_objects.values():
             if isinstance(obj, ArucoMarkerObj):
                 world_objects_by_string[obj.marker_string] = obj
             else:
