@@ -480,7 +480,7 @@ View3D {
                         if (model.type === "apriltag")
                             return "#804ce6";
                         if (model.type === "aruco")
-                            return model.visible ? "#00ff00" : "#2a5c2a";
+                            return model.visible ? "#00ff00" : "#1f431f";
                         return "#202020";
                     }
                     emissiveFactor: {
@@ -499,9 +499,18 @@ View3D {
 
             // Hidden 2D Image to load texture from image provider
             Image {
-                id: tagImage
+                id: tagImageFront
                 source: (model.type === "apriltag" || model.type === "aruco")
                         ? "image://tagtexture/" + (model.type === "aruco" ? "aruco-" : "") + String(model.marker_id)
+                        : ""
+                visible: false
+                cache: true
+            }
+
+            Image {
+                id: tagImageBack
+                source: (model.type === "apriltag" || model.type === "aruco")
+                        ? "image://tagtexture/back-" + (model.type === "aruco" ? "aruco-" : "") + String(model.marker_id)
                         : ""
                 visible: false
                 cache: true
@@ -524,12 +533,13 @@ View3D {
                 materials: PrincipledMaterial {
                     baseColor: "#ffffff"
                     baseColorMap: Texture {
-                        sourceItem: tagImage
+                        sourceItem: tagImageFront
                     }
                     emissiveFactor: model.visible ? Qt.vector3d(0.1, 0.06, 0.2) : Qt.vector3d(0, 0, 0)
                     roughness: 0.1
                     cullMode: Material.NoCulling
                 }
+                opacity: model.visible ? 1.0 : 0.8
             }
             
             // Text label panel - Back face (-X direction)
@@ -549,12 +559,13 @@ View3D {
                 materials: PrincipledMaterial {
                     baseColor: "#ffffff"
                     baseColorMap: Texture {
-                        sourceItem: tagImage
+                        sourceItem: tagImageBack
                     }
                     emissiveFactor: model.visible ? Qt.vector3d(0.1, 0.06, 0.2) : Qt.vector3d(0, 0, 0)
                     roughness: 0.1
                     cullMode: Material.NoCulling
                 }
+                opacity: model.visible ? 1.0 : 0.8
             }
         }
     }
@@ -568,20 +579,92 @@ View3D {
             readonly property real lengthMm: model.length_mm || 300
             readonly property real heightMm: model.height_mm || 210
             readonly property real thicknessMm: model.thickness_mm || 4
+            readonly property var doorways: (model.doorways && model.doorways.length) ? model.doorways : []
+            readonly property real wallBaseLocalZ: -heightMm / 2
+            readonly property real doorHeightMm: {
+                if (!doorways.length)
+                    return 0
+                var maxHeight = 0
+                for (var i = 0; i < doorways.length; ++i) {
+                    var h = Number(doorways[i].height) || 0
+                    if (h > maxHeight)
+                        maxHeight = h
+                }
+                return Math.max(0, Math.min(heightMm, maxHeight))
+            }
+            readonly property real lowerHeightMm: doorHeightMm > 0 ? doorHeightMm : heightMm
+            readonly property var lowerSegments: computeLowerSegments()
             // Use model.z which is already computed in Python (height/2)
             position: Qt.vector3d(model.x, model.y, model.z)
             eulerRotation.z: radiansToDegrees(model.theta)
 
-            Model {
-                source: "#Cube"
-                // Qt Quick 3D #Cube: edge length=100
-                scale: Qt.vector3d(thicknessMm / 100, lengthMm / 100, heightMm / 100)
-                materials: PrincipledMaterial {
-                    baseColor: model.visible ? "#777777" : "#444444"
-                    roughness: 0.7
-                    cullMode: Material.NoCulling
-                    emissiveFactor: model.visible ? Qt.vector3d(0.05, 0.05, 0.05) : Qt.vector3d(0, 0, 0)
+            function computeLowerSegments() {
+                if (!doorways.length) {
+                    return [{ "center": 0, "width": lengthMm }]
                 }
+
+                var cursor = -lengthMm / 2
+                var end = lengthMm / 2
+                var segments = []
+                var sorted = []
+                for (var i = 0; i < doorways.length; ++i)
+                    sorted.push(doorways[i])
+                sorted.sort(function(a, b) { return Number(a.x) - Number(b.x) })
+
+                for (var j = 0; j < sorted.length; ++j) {
+                    var spec = sorted[j]
+                    var centerY = (Number(spec.x) || 0) - lengthMm / 2
+                    var width = Math.max(0, Number(spec.width) || 0)
+                    var left = centerY - width / 2
+                    var right = centerY + width / 2
+                    if (left > cursor) {
+                        var segWidth = left - cursor
+                        segments.push({
+                            "center": cursor + segWidth / 2,
+                            "width": segWidth
+                        })
+                    }
+                    cursor = Math.max(cursor, right)
+                }
+
+                if (cursor < end) {
+                    var tailWidth = end - cursor
+                    segments.push({
+                        "center": cursor + tailWidth / 2,
+                        "width": tailWidth
+                    })
+                }
+                return segments
+            }
+
+            PrincipledMaterial {
+                id: wallMaterial
+                baseColor: model.visible ? Qt.rgba(0.88, 0.78, 0.22, 0.74) : Qt.rgba(0.55, 0.48, 0.14, 0.60)
+                alphaMode: PrincipledMaterial.Blend
+                roughness: 0.65
+                cullMode: Material.NoCulling
+                emissiveFactor: model.visible ? Qt.vector3d(0.06, 0.06, 0.02) : Qt.vector3d(0.02, 0.02, 0.01)
+            }
+
+            Repeater3D {
+                model: lowerSegments.length
+                Model {
+                    property int idx: index
+                    source: "#Cube"
+                    property var seg: lowerSegments[idx]
+                    position: Qt.vector3d(0, Number(seg.center) || 0, wallBaseLocalZ + lowerHeightMm / 2)
+                    scale: Qt.vector3d(thicknessMm / 100, (Number(seg.width) || 0) / 100, lowerHeightMm / 100)
+                    materials: wallMaterial
+                }
+            }
+
+            Model {
+                visible: doorHeightMm > 0 && doorHeightMm < heightMm
+                source: "#Cube"
+                property real transomHeightMm: Math.max(0, heightMm - doorHeightMm)
+                position: Qt.vector3d(0, 0, wallBaseLocalZ + doorHeightMm + transomHeightMm / 2)
+                scale: Qt.vector3d(thicknessMm / 100, lengthMm / 100, transomHeightMm / 100)
+                materials: wallMaterial
             }
         }
     }

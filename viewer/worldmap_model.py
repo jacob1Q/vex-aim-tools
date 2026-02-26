@@ -76,9 +76,11 @@ class WorldMapModel(QAbstractListModel):
         "diameter_mm",
         "height_mm",
         "length_mm",
+        "width_mm",
         "thickness_mm",
         "size_mm",
         "marker_id",
+        "doorways",
         "holding",
     )
 
@@ -166,9 +168,11 @@ class WorldMapModel(QAbstractListModel):
             "diameter_mm": 64.0,
             "height_mm": 72.0,
             "length_mm": None,
+            "width_mm": None,
             "thickness_mm": None,
             "size_mm": None,
             "marker_id": None,
+            "doorways": [],
             "holding": bool(getattr(robot, "holding", False)),
         }
         return entry
@@ -197,9 +201,11 @@ class WorldMapModel(QAbstractListModel):
             "diameter_mm": None,
             "height_mm": None,
             "length_mm": None,
+            "width_mm": None,
             "thickness_mm": None,
             "size_mm": None,
             "marker_id": None,
+            "doorways": [],
             "holding": None,
         }
 
@@ -250,6 +256,23 @@ class WorldMapModel(QAbstractListModel):
             entry["height_mm"] = height
             entry["thickness_mm"] = 4.0
             entry["z"] = height / 2.0 if height else entry["z"]
+            wall_spec = getattr(obj, "wall_spec", None)
+            door_specs = getattr(wall_spec, "doorways", None)
+            doorways: list[Item] = []
+            if isinstance(door_specs, Mapping):
+                sorted_specs = sorted(door_specs.items(), key=lambda pair: int(pair[0]))
+                for index, spec in sorted_specs:
+                    if not isinstance(spec, Mapping):
+                        continue
+                    doorways.append(
+                        {
+                            "index": int(index),
+                            "x": _to_float(spec.get("x"), 0.0),
+                            "width": max(0.0, _to_float(spec.get("width"), 0.0)),
+                            "height": max(0.0, _to_float(spec.get("height"), 0.0)),
+                        }
+                    )
+            entry["doorways"] = doorways
 
         return entry
 

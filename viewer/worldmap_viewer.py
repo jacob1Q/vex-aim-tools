@@ -39,22 +39,29 @@ class TagTextureProvider(QQuickImageProvider):
             Tuple of (QImage, QSize)
         """
         result_size = QSize(self._texture_width, self._texture_height)
+        cache_key = id or ""
 
-        if not id or id == "null" or id == "None":
+        if not cache_key or cache_key == "null" or cache_key == "None":
             # Return transparent image for missing IDs
             img = QImage(self._texture_width, self._texture_height, QImage.Format.Format_RGBA8888)
             img.fill(QColor(0, 0, 0, 0))
             return img, result_size
 
         # Check cache
-        if id in self._cache:
-            return self._cache[id], result_size
+        if cache_key in self._cache:
+            return self._cache[cache_key], result_size
 
-        label = id
+        texture_id = cache_key
+        reverse_text = False
+        if texture_id.startswith("back-"):
+            reverse_text = True
+            texture_id = texture_id[len("back-") :]
+
+        label = texture_id
         background = QColor(128, 76, 230, 255)  # Purple background matching AprilTag color
         text_color = QColor(255, 255, 255, 255)
-        if id.startswith("aruco-"):
-            label = id.split("-", 1)[1]
+        if texture_id.startswith("aruco-"):
+            label = texture_id.split("-", 1)[1]
             background = QColor(0, 255, 0, 255)  # Bright green for ArUco
             text_color = QColor(0, 0, 0, 255)
 
@@ -77,8 +84,11 @@ class TagTextureProvider(QQuickImageProvider):
 
         painter.end()
 
+        if reverse_text:
+            img = img.mirrored(True, False)
+
         # Cache the result
-        self._cache[id] = img
+        self._cache[cache_key] = img
         return img, result_size
 
 
