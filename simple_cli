@@ -276,6 +276,9 @@ def cli_loop(_robot):
         elif cli_loop._line[0:2] == '. ':
             do_hear_command(cli_loop._line[2:])
             continue
+        elif cli_loop._line[0:2] == '.?':
+            show_messages(cli_loop._line)
+            continue
         elif cli_loop._line[0:3] == 'tm ' or cli_loop._line == 'tm':
             text_message(cli_loop._line[3:])
             continue
@@ -508,6 +511,28 @@ def show_kine_joint(name):
     print(fmt % 'Link in base frame:')
     tprint(robot.kine.link_to_base(name))
     print()
+
+def show_messages(line):
+    # line begins with '.?'
+    index = None
+    m = re.match(r'^\.\?+$', line)
+    if m is not None:
+        index = - (m.span()[1] - 1)
+    else:
+        try:
+            index = int(line[2:])
+        except:
+            pass
+    if index is not None:
+        try:
+            abs_index = index if index >= 0 else index + len(robot.openai_client.messages)
+            print(f'messages[{abs_index}] =', robot.openai_client.messages[index])
+            print()
+        except:
+            print(f'Invalid index: {index}.')
+    else:
+        print('Invalid syntax:  use .??? or .?[-3]')
+
 
 """
 def show_landmarks():
