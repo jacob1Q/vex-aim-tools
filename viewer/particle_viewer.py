@@ -29,7 +29,7 @@ class ParticleViewState(QObject):
         self,
         center_x: float = 0.0,
         center_y: float = 0.0,
-        zoom: float = 0.4,
+        zoom: float = 1.0,
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
@@ -77,7 +77,7 @@ class ParticleViewer(QObject):
         robot: Any,
         width: int = 640,
         height: int = 640,
-        scale: float = 0.64,  # legacy compatibility (unused)
+        scale: float = 0.64,  # legacy compatibility; now used as initial zoom hint
         windowName: str = "Particle Viewer",
         bgcolor: tuple[float, float, float] | tuple[int, int, int] = (0, 0, 0),  # legacy compatibility
         update_interval_ms: int = 50,
@@ -96,7 +96,10 @@ class ParticleViewer(QObject):
         self._particle_model = ParticleLayerModel()
         self._landmark_model = LandmarkModel()
         self._summary = ParticleSummary()
-        self._view_state = ParticleViewState()
+        initial_zoom = float(scale)
+        if math.isclose(initial_zoom, 0.64, rel_tol=0.0, abs_tol=1e-9):
+            initial_zoom = 1.0
+        self._view_state = ParticleViewState(zoom=initial_zoom)
         self._auto_center = False
         self._verbose = False
         self._update_interval_ms = max(0, int(update_interval_ms))

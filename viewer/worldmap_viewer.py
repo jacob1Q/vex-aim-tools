@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -38,22 +39,29 @@ class TagTextureProvider(QQuickImageProvider):
             Tuple of (QImage, QSize)
         """
         result_size = QSize(self._texture_width, self._texture_height)
+        cache_key = id or ""
 
-        if not id or id == "null" or id == "None":
+        if not cache_key or cache_key == "null" or cache_key == "None":
             # Return transparent image for missing IDs
             img = QImage(self._texture_width, self._texture_height, QImage.Format.Format_RGBA8888)
             img.fill(QColor(0, 0, 0, 0))
             return img, result_size
 
         # Check cache
-        if id in self._cache:
-            return self._cache[id], result_size
+        if cache_key in self._cache:
+            return self._cache[cache_key], result_size
 
-        label = id
+        texture_id = cache_key
+        reverse_text = False
+        if texture_id.startswith("back-"):
+            reverse_text = True
+            texture_id = texture_id[len("back-") :]
+
+        label = texture_id
         background = QColor(128, 76, 230, 255)  # Purple background matching AprilTag color
         text_color = QColor(255, 255, 255, 255)
-        if id.startswith("aruco-"):
-            label = id.split("-", 1)[1]
+        if texture_id.startswith("aruco-"):
+            label = texture_id.split("-", 1)[1]
             background = QColor(0, 255, 0, 255)  # Bright green for ArUco
             text_color = QColor(0, 0, 0, 255)
 
@@ -76,8 +84,11 @@ class TagTextureProvider(QQuickImageProvider):
 
         painter.end()
 
+        if reverse_text:
+            img = img.mirrored(True, False)
+
         # Cache the result
-        self._cache[id] = img
+        self._cache[cache_key] = img
         return img, result_size
 
 
@@ -107,6 +118,7 @@ class WorldMapViewer(QObject):
         self._width = int(width)
         self._height = int(height)
         self._window_name = windowName
+        self._last_refresh_error_ts = 0.0
 
         self._app = QGuiApplication.instance() or QGuiApplication([])
         self._model = WorldMapModel()
@@ -141,15 +153,15 @@ class WorldMapViewer(QObject):
         self._view.close()
 
     def refresh(self) -> None:
+        snapshot = getattr(self._worldmap, "snapshot_objects", None)
         try:
-            update = getattr(self._worldmap, "update", None)
-            if callable(update):
-                update()
-        except Exception:
-            pass
-
-        # Always use worldmap.objects (shared_map is Cozmo holdover code, not implemented for VEX AIM)
-        objects = getattr(self._worldmap, "objects", {}) or {}
+            if callable(snapshot):
+                objects = snapshot() or {}
+            else:
+                objects = dict(getattr(self._worldmap, "objects", {}) or {})
+        except Exception as exc:
+            self._log_refresh_error(exc)
+            objects = {}
         self._model.sync_from(self._robot, objects)
 
     def grab_window(self) -> QImage:
@@ -212,6 +224,12 @@ class WorldMapViewer(QObject):
             return
         if root is not None and hasattr(root, "forceActiveFocus"):
             root.forceActiveFocus()
+
+    def _log_refresh_error(self, exc: Exception) -> None:
+        now = time.monotonic()
+        if now - self._last_refresh_error_ts >= 1.0:
+            print(f"[WorldMapViewer] refresh failed: {exc}")
+            self._last_refresh_error_ts = now
 
 
 __all__ = ["WorldMapViewer"]
