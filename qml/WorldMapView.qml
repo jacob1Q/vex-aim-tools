@@ -423,7 +423,16 @@ View3D {
                 }
 
                 Repeater3D {
-                    model: [Qt.vector3d(0, 0, 0), Qt.vector3d(90, 0, 0), Qt.vector3d(0, 90, 0)]
+                    model: [
+                        Qt.vector3d(0, 0, 0),
+                        Qt.vector3d(90, 0, 0),
+                        Qt.vector3d(90, 0, 45),
+                        Qt.vector3d(90, 0, 90),
+                        Qt.vector3d(90, 0, 135),
+                        Qt.vector3d(45, 0, 0),
+                        Qt.vector3d(45, 0, 60),
+                        Qt.vector3d(45, 0, 120)
+                    ]
                     Node {
                         eulerRotation: modelData
                         Repeater3D {
@@ -662,6 +671,7 @@ View3D {
             }
 
             Node {
+                id: markerWireframe
                 visible: markerRoot.model.missing
                 readonly property real lineThick: 0.8
 
@@ -681,28 +691,28 @@ View3D {
                 Model {
                     source: "#Cube"
                     position: Qt.vector3d(0, 0, markerRoot.heightMm / 2)
-                    scale: Qt.vector3d(lineThick / 100, markerRoot.widthMm / 100, lineThick / 100)
+                    scale: Qt.vector3d(markerWireframe.lineThick / 100, markerRoot.widthMm / 100, markerWireframe.lineThick / 100)
                     materials: markerWireMat
                 }
 
                 Model {
                     source: "#Cube"
                     position: Qt.vector3d(0, 0, -markerRoot.heightMm / 2)
-                    scale: Qt.vector3d(lineThick / 100, markerRoot.widthMm / 100, lineThick / 100)
+                    scale: Qt.vector3d(markerWireframe.lineThick / 100, markerRoot.widthMm / 100, markerWireframe.lineThick / 100)
                     materials: markerWireMat
                 }
 
                 Model {
                     source: "#Cube"
                     position: Qt.vector3d(0, -markerRoot.widthMm / 2, 0)
-                    scale: Qt.vector3d(lineThick / 100, lineThick / 100, markerRoot.heightMm / 100)
+                    scale: Qt.vector3d(markerWireframe.lineThick / 100, markerWireframe.lineThick / 100, markerRoot.heightMm / 100)
                     materials: markerWireMat
                 }
 
                 Model {
                     source: "#Cube"
                     position: Qt.vector3d(0, markerRoot.widthMm / 2, 0)
-                    scale: Qt.vector3d(lineThick / 100, lineThick / 100, markerRoot.heightMm / 100)
+                    scale: Qt.vector3d(markerWireframe.lineThick / 100, markerWireframe.lineThick / 100, markerRoot.heightMm / 100)
                     materials: markerWireMat
                 }
             }
