@@ -15,6 +15,7 @@ Item {
     signal driveForward(real distance)
     signal strafe(real distance)
     signal turn(real angleDeg)
+    signal drop()
 
     signal evaluateParticles()
     signal resampleParticles()
@@ -67,6 +68,12 @@ Item {
         case Qt.Key_D:
             turn(-(shift ? rotateStepLarge : rotateStepSmall))
             event.accepted = true
+            break
+        case Qt.Key_G:
+            if (shift) {
+            } else {
+                drop()
+            }
             break
         case Qt.Key_E:
             evaluateParticles()

@@ -209,6 +209,11 @@ class ParticleViewer(QObject):
         self.refresh()
 
     @pyqtSlot()
+    def drop(self) -> None:
+        self._drop_command()
+        self.refresh()
+
+    @pyqtSlot()
     def evaluateParticles(self) -> None:
         pf = self._particle_filter()
         if pf is None:
@@ -398,6 +403,27 @@ class ParticleViewer(QObject):
             fn(None, *args)
         except Exception as exc:  # pragma: no cover
             print(f"[ParticleViewer] drive.{method} failed: {exc}")
+
+    def _drop_command(self) -> None:
+        actuators = getattr(self._robot, "actuators", None)
+        kick = None
+        if isinstance(actuators, dict):
+            kick = actuators.get("kick")
+        elif actuators is not None and hasattr(actuators, "get"):
+            try:
+                kick = actuators.get("kick")
+            except Exception:  # pragma: no cover
+                kick = None
+        if kick is None:
+            kick = getattr(self._robot, "kick", None)
+        fn = getattr(kick, 'place', None) if kick is not None else None
+        if not callable(fn):
+            print(f"[ParticleViewer] kick.place unavailable")
+            return
+        try:
+            fn(None)
+        except Exception as exc:  # pragma: no cover
+            print(f"[ParticleViewer] kick.place failed: {exc}")
 
     def _print_pose(self) -> None:
         pf = self._particle_filter()

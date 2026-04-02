@@ -136,6 +136,7 @@ class SoundActuator(Actuator):
         super().__init__(robot, 'sound')
         self.use_gcloud = True
         self.playing = False
+        self.unpause_handle = None
         self.tts_client = None
         # Google text to speech setup:
         try:
@@ -161,18 +162,24 @@ class SoundActuator(Actuator):
 
     def status_update(self):
         if self.robot.robot0.sound.is_active():
-            self.playing = True
-        else:
+            if not self.playing:
+                self.playing = True
+        else:  # sound is not active
             if self.playing is True:
                 self.playing = False
                 try:  # might fail if speech isn't up yet
-                    self.robot.loop.call_later(1, self.robot.speech_listener.unpause)
+                    self.unpause_handle = self.robot.loop.call_later(2, self.robot.speech_listener.unpause)
                 except:
                     pass
                 self.complete()
 
     def say_text(self, node, text):
+        if self.robot.robot0.sound.is_active():
+            print ('!!! SOUND ALREADY ACTIVE !!!')
         self.lock(node)
+        if self.unpause_handle:
+            self.unpause_handle.cancel()
+            self.unpause_handle = None
         self.robot.loop.call_soon_threadsafe(self.launch_text_to_mp3, text)
 
     def launch_text_to_mp3(self, text):

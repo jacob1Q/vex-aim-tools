@@ -80,9 +80,11 @@ class SpeechListener():
 
     def pause(self):
         self.paused = True
+        print('Speech paused')
 
     def unpause(self):
         self.paused = False
+        #print('Speech unpaused')
 
     def handle_utterance(self, utterance):
         if not self.enabled or len(utterance) == 0:

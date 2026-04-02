@@ -498,17 +498,17 @@ View3D {
             Node {
                 id: barrelWireframe
                 visible: barrelRoot.model.missing
-                readonly property int rimSegments: 16
-                readonly property int strutCount: 16
-                readonly property real lineThick: 0.8
+                readonly property int rimSegments: 8
+                readonly property int strutCount: 8
+                readonly property real lineThick: 2.5 // 0.8
 
                 PrincipledMaterial {
                     id: barrelWireMat
                     baseColor: {
                         if (barrelRoot.model.type === "barrel_orange")
-                            return "#994d0a"
+                            return "#ed8528" // "#994d0a"
                         if (barrelRoot.model.type === "barrel_blue")
-                            return "#2a4391"
+                            return "#5879e0" // "#2a4391"
                         return "#0e7e97"
                     }
                     roughness: 0.3

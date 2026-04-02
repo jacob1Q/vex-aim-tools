@@ -65,6 +65,10 @@ FocusScope {
             if (viewerApp && typeof viewerApp.turnDegrees === "function")
                 viewerApp.turnDegrees(angleDeg)
         }
+        onDrop: {
+            if (viewerApp && typeof viewerApp.drop === "function")
+                viewerApp.drop()
+        }        
         onEvaluateParticles: {
             if (viewerApp && typeof viewerApp.evaluateParticles === "function")
                 viewerApp.evaluateParticles()

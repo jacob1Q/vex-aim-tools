@@ -60,7 +60,7 @@ class PickUp(ActionNode,ObjectSpecNode):
                 dx = self.parent.object.pose.x - self.robot.pose.x
                 dy = self.parent.object.pose.y - self.robot.pose.y
                 print(f'{dx=:.1f} {dy=:.1f} {sqrt(dx**2 + dy**2)=:.1f}')
-                self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius - object_radius + 15
+                self.distance_mm = sqrt(dx**2 + dy**2) - robot_radius - object_radius + 25
                 print(f'Pickup_Forward: robot moving {self.distance_mm :0.1f} mm from {self.robot.pose} to {self.parent.object.pose}')
             else:
                 self.distance_mm = 35

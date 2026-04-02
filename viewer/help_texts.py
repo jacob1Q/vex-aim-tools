@@ -28,6 +28,7 @@ PARTICLE_HELP_TEXT = (
     "  w/a/s/d    Drive robot +/- 10 mm or turn +/- 22.5 degrees\n"
     "  W/A/S/D    Drive robot +/- 40 mm or turn +/- 90 degrees\n"
     "  j/k/J/K    Strafe left/right by 10 or 40 mm\n"
+    "  g          Drop object (gentle kick)\n"
     "  e/r        Evaluate particles / resample\n"
     "  z/Z        Randomize particles / jitter particles\n"
     "  c          Clear landmarks (SLAM)\n"

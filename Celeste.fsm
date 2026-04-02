@@ -382,10 +382,10 @@ class Celeste(StateMachineProgram):
         dispatch =D(re.compile('#drop$'))=> self.CmdDrop() =CNext=> dispatch
         dispatch =D(re.compile('#kick$'))=> self.CmdKick() =CNext=> dispatch
         dispatch =D(re.compile('#glow '))=> self.CmdGlow() =CNext=> dispatch
-	    dispatch =D(re.compile('#flash '))=> self.CmdFlash() =CNext=> dispatch
-	    dispatch =D(re.compile('#emoji '))=> self.CmdEmoji() =CNext=> dispatch
-	    dispatch =D(re.compile('#act '))=> self.CmdAct() =CNext=> dispatch
-	    dispatch =D(re.compile('#playnotes '))=> self.CmdPlayNotes() =CNext=> dispatch
+        dispatch =D(re.compile('#flash '))=> self.CmdFlash() =CNext=> dispatch
+        dispatch =D(re.compile('#emoji '))=> self.CmdEmoji() =CNext=> dispatch
+        dispatch =D(re.compile('#act '))=> self.CmdAct() =CNext=> dispatch
+        dispatch =D(re.compile('#playnotes '))=> self.CmdPlayNotes() =CNext=> dispatch
         dispatch =D(re.compile('#camera$'))=> self.CmdSendCamera() =C=>
             AskGPT("Please respond to the query using the camera image.") =OpenAITrans()=> check
         dispatch =D()=> Print(prefix='Unrecognized #-command: ') =Next=> dispatch

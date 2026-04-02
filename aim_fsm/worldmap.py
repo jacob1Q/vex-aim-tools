@@ -59,7 +59,7 @@ class WorldObject():
 
 class BarrelObj(WorldObject):
     def __init__(self, spec=None, id=None, x=0, y=0):
-        if id is None and spec and 'id' in spec:
+        if id is None and spec and 'id' in spec and isinstance(spec['id'], str):
             id = spec['id']
         super().__init__(id=id, x=x, y=y)
         self.spec = spec
@@ -75,7 +75,7 @@ class BlueBarrelObj(BarrelObj):
 
 class SportsBallObj(WorldObject):
     def __init__(self, spec=None, id=None, x=0, y=0):
-        if id is None and spec and 'id' in spec:
+        if id is None and spec and 'id' in spec and isinstance(spec['id'], str):
             id = spec['id']
         super().__init__(id=id, x=x, y=y)
         self.spec = spec
@@ -318,7 +318,7 @@ class WorldMap():
             obj = AprilTagObj(spec)
         else:
             print(f"ERROR **** spec = {spec}")
-            obj = None
+            return None
         return obj
 
     def make_new_aiv_objects(self):
@@ -337,7 +337,7 @@ class WorldMap():
                 print(f'*** Unknown: spec={spec}')
                 continue
             if spec['name'] == 'Robot':   # avoid spurious robot creation for now
-                continue
+                pass  # continue
             obj = self.make_vision_object(spec)
             obj.is_visible = True
             # Calculate midpoint of bottom edge, which we assume is on the floor
@@ -376,6 +376,8 @@ class WorldMap():
             else:
                 theta = None
             obj.pose = Pose(x, y, 0, theta)
+            if self.check_spec_indicates_held(obj):
+                self.reposition_held_object(obj)
             self.candidates.append(obj)
 
     def make_new_aruco_objects(self):
@@ -577,6 +579,7 @@ class WorldMap():
             if costs[i,bestj] < MAX_ACCEPTABLE_COST:
                 new[i].matched = old[bestj]
                 costs[:,bestj] = 1 + MAX_ACCEPTABLE_COST
+        #print(f'{old=}  {new=}  {costs=}  {new[0].matched=}')
 
     def update_associated_objects(self):
         for candidate in self.candidates:
@@ -610,7 +613,7 @@ class WorldMap():
                     obj.is_visible = False
                     obj.is_missing = True
                     self.missing_objects.append(obj)
-                    #print(f'missing object: {obj}, visibility_paused={self.visibility_paused}')
+                    print(f'missing object: {obj}, visibility_paused={self.visibility_paused} {self.updated_objects=}')
 
     def process_unassociated_objects(self):
         """
@@ -670,7 +673,7 @@ class WorldMap():
         match.pose = PoseEstimate(obj.pose)
         self.updated_objects.append(match)
         self.missing_objects.remove(match)
-        #print('reclaimed', match)
+        print('reclaimed', match)
         return match
         
     def next_in_sequence(self,name):
@@ -713,21 +716,31 @@ class WorldMap():
             else:
                 pass # wait a bit to see if held object comes back
 
+    def check_spec_indicates_held(self,obj):
+        if not isinstance(obj, (BarrelObj,SportsBallObj)):
+            return False
+        if isinstance(obj, BarrelObj):
+            max_left = 140
+            min_right = 460
+        else:
+            max_left = 120
+            min_right = 480
+        spec = obj.spec
+        #print(f"left={spec['originx']*AIVISION_RESOLUTION_SCALE}  {max_left=}  " + \
+        #      f"right={(spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE} {min_right=}")
+        if spec['originx']*AIVISION_RESOLUTION_SCALE < max_left and \
+           (spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE > min_right:
+            return True
+        else:
+            return False
+
     def confirm_not_holding(self):
         if self.robot.robot0.has_any_barrel() or self.robot.robot0.has_sports_ball():
             held_obj = None
             for obj in self.objects.values():
-                if isinstance(obj, (BarrelObj,SportsBallObj)):
-                    spec = obj.spec
-                    if isinstance(obj, BarrelObj):
-                        width_margin = 145
-                    else:
-                        width_margin = 120
-                    print(f"left={spec['originx']*AIVISION_RESOLUTION_SCALE}  {width_margin=}  right={(spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE} min: {(self.robot.camera.resolution[0] - width_margin)}")
-                    if spec['originx']*AIVISION_RESOLUTION_SCALE < width_margin and \
-                       (spec['originx'] + spec['width']) * AIVISION_RESOLUTION_SCALE > (self.robot.camera.resolution[0] - width_margin):
-                        held_obj = obj
-                        break
+                if self.check_spec_indicates_held(obj):
+                    held_obj = obj
+                    break
             if held_obj:
                 print('Robot now holding', held_obj)
                 self.robot.holding = held_obj
@@ -735,12 +748,15 @@ class WorldMap():
             else:
                 pass # print('*** Could not find held object.')
 
+    def reposition_held_object(self, obj):
+        r = self.robot.kine.body_diameter/2 + obj.diameter/2
+        pt = aboutZ(self.robot.pose.theta).dot(point(r,0))
+        obj.pose.x = self.robot.pose.x + pt[0,0]
+        obj.pose.y = self.robot.pose.y + pt[1,0]
+
     def update_held_object(self):
         if self.robot.holding:
-            r = self.robot.kine.body_diameter/2 + self.robot.holding.diameter/2
-            pt = aboutZ(self.robot.pose.theta).dot(point(r,0))
-            self.robot.holding.pose.x = self.robot.pose.x + pt[0,0]
-            self.robot.holding.pose.y = self.robot.pose.y + pt[1,0]
+            self.reposition_held_object(self.robot.holding)
 
     def show_objects(self):
         with self._lock:
