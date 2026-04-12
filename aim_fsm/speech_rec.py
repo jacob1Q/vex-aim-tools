@@ -80,7 +80,7 @@ class SpeechListener():
 
     def pause(self):
         self.paused = True
-        print('Speech paused')
+        #print('Speech paused')
 
     def unpause(self):
         self.paused = False

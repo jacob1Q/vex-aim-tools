@@ -9,7 +9,9 @@ from .rrt_shapes import *
 
 camera_tilt = 18 # degrees downward (design spec)
 camera_tilt = 25 # degrees downward (estimated)
-camera_tilt = 24.3 # degrees downward (measured for AIM-5A888218)
+camera_tilt = 24
+camera_tilt = 25.4 # degrees downward (measured for AIM-5A888218)
+camera_tilt = 23.7 # degrees downward (measured for AIM-32A57C18)
 
 # Camera tilt Measurement procedure:
 #  1. Abut ruler to front edge of robot; align edge of ruler with vertical crosshair.

@@ -7,7 +7,6 @@ import google.cloud
 from google.cloud import texttospeech
 
 import vex
-#from . import aim
 
 class Actuator():
     class ActuatorLocked(Exception): pass
@@ -67,10 +66,10 @@ class DriveActuator(Actuator):
         # looking for a stopped-moving status to detect completion.
         if not self.robot.robot0.is_stopped():
             if not self.started:
-                # print('drive actuator: robot started moving for', self.holder)
+                #print('drive actuator: robot started moving for', self.holder)
                 self.started = True  # started moving, now wait for completion
         elif self.holder and self.started:  # robot has just stopped; signal completion
-            # print('drive actuator signaling completion to', self.holder)
+            #print('drive actuator signaling completion to', self.holder)
             self.holder.complete()
             self.holder = None
             self.started = False

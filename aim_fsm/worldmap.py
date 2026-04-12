@@ -351,13 +351,15 @@ class WorldMap():
             # Correct for distortion: constants calculated from measurements with 24.3 degree camera tilt
             K1 = 1.55; K2 = -58.4
             oldhit = hit.copy()
-            hit[0] = K1 * hit[0] + K2
+            #hit[0] = K1 * hit[0] + K2
             adjhit = hit.copy()
             # offset hit by half the object thickness
             angle = atan2(hit[1,0], hit[0,0])
             if obj.__dict__.get('diameter'):
                 half_diameter = obj.diameter / 2
-                hit += point(cos(angle) * half_diameter, sin(angle) * half_diameter, 0)
+                increment = point(cos(angle) * half_diameter, sin(angle) * half_diameter, 0)
+                #print(f'{hit=}  {increment=}  {hit+increment=}')
+                hit += increment
             #print(f'{oldhit[0,0]=}  {adjhit[0,0]=}  {hit[0,0]=}')
             # convert to world coordinates
             robotpos = point(self.robot.pose.x, self.robot.pose.y)
@@ -613,7 +615,7 @@ class WorldMap():
                     obj.is_visible = False
                     obj.is_missing = True
                     self.missing_objects.append(obj)
-                    print(f'missing object: {obj}, visibility_paused={self.visibility_paused} {self.updated_objects=}')
+                    #print(f'missing object: {obj}, visibility_paused={self.visibility_paused} {self.updated_objects=}')
 
     def process_unassociated_objects(self):
         """
@@ -673,7 +675,7 @@ class WorldMap():
         match.pose = PoseEstimate(obj.pose)
         self.updated_objects.append(match)
         self.missing_objects.remove(match)
-        print('reclaimed', match)
+        #print('reclaimed', match)
         return match
         
     def next_in_sequence(self,name):
@@ -720,7 +722,7 @@ class WorldMap():
         if not isinstance(obj, (BarrelObj,SportsBallObj)):
             return False
         if isinstance(obj, BarrelObj):
-            max_left = 140
+            max_left = 150
             min_right = 460
         else:
             max_left = 120
