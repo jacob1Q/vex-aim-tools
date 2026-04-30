@@ -65,10 +65,10 @@ class SpeechListener():
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
         # Debug must be false to prevent duplicate tab:
-        app.run(port=5000, debug=False)
+        app.run(port=51327, debug=False, user_reloader=False)
 
     def load_listener_page(self):
-        webbrowser.open_new_tab('http://127.0.0.1:5000/')
+        webbrowser.open_new_tab('http://127.0.0.1:51327/')
         print('Speech input is running in your browser.')
 
     def disable(self):

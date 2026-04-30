@@ -26,7 +26,7 @@
       const sessionID = String(1000 + Math.round(8999 * Math.random())) + String(getTime());
 
       function sendSessionID() {
-          fetch('http://127.0.0.1:5000/api/set-session-id', {
+          fetch('http://127.0.0.1:51327/api/set-session-id', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ sessionID: sessionID })
@@ -35,7 +35,7 @@
 
       function checkSessionID() {
 	  // Make sure we're still the active session.  If not, close the window.
-          let response = fetch('http://127.0.0.1:5000/api/get-session-id', {
+          let response = fetch('http://127.0.0.1:51327/api/get-session-id', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' }
           }).then(response => response.json())
@@ -52,7 +52,7 @@
 	  try {
 	      window.close();
 	  } catch (exception) {}
-	  window.location.href = 'http://127.0.0.1:5000/listener_closed.html';
+	  window.location.href = 'http://127.0.0.1:51327/listener_closed.html';
       }
 
       function initializeRecognition() {
@@ -77,7 +77,7 @@
               console.log('Speech result:', speechResult);
 
               // Send the transcribed text to the Python backend
-              fetch('http://127.0.0.1:5000/api/speech-to-text', {
+              fetch('http://127.0.0.1:51327/api/speech-to-text', {
                   method: 'POST',
                   headers: {
                       'Content-Type': 'application/json'
